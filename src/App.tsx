@@ -1,7 +1,11 @@
-import { useMemo, useState } from 'react';
-import { ChatPage } from './ChatPage';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { LoginPage } from './LoginPage';
 import type { User } from './types';
+
+const ChatPage = lazy(async () => {
+  const mod = await import('./ChatPage');
+  return { default: mod.ChatPage };
+});
 
 function readUser(): User | null {
   const raw = localStorage.getItem('chatvcb.user');
@@ -21,6 +25,12 @@ export default function App() {
   }, []);
   const [user, setUser] = useState<User | null>(initialUser);
 
+  useEffect(() => {
+    if (!user) {
+      void import('./ChatPage');
+    }
+  }, [user]);
+
   if (!user) {
     return (
       <LoginPage
@@ -34,13 +44,15 @@ export default function App() {
   }
 
   return (
-    <ChatPage
-      user={user}
-      onLogout={() => {
-        localStorage.removeItem('chatvcb.token');
-        localStorage.removeItem('chatvcb.user');
-        setUser(null);
-      }}
-    />
+    <Suspense fallback={<div className="login-shell">Đang vào phòng chat...</div>}>
+      <ChatPage
+        user={user}
+        onLogout={() => {
+          localStorage.removeItem('chatvcb.token');
+          localStorage.removeItem('chatvcb.user');
+          setUser(null);
+        }}
+      />
+    </Suspense>
   );
 }

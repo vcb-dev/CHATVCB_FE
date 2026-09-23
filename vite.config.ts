@@ -3,34 +3,50 @@ import { defineConfig } from 'vite';
 
 const BE_PROXY = 'http://localhost:3010';
 
-export default defineConfig(() => {
-  const beProxy = BE_PROXY;
-
-  const proxy = {
-    '/api': {
-      target: beProxy,
-      changeOrigin: true,
-      secure: false,
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: BE_PROXY,
+        changeOrigin: true,
+        secure: false,
+      },
+      '/socket.io': {
+        target: BE_PROXY,
+        changeOrigin: true,
+        ws: true,
+        secure: false,
+      },
     },
-    '/socket.io': {
-      target: beProxy,
-      changeOrigin: true,
-      ws: true,
-      secure: false,
+  },
+  preview: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: BE_PROXY,
+        changeOrigin: true,
+        secure: false,
+      },
+      '/socket.io': {
+        target: BE_PROXY,
+        changeOrigin: true,
+        ws: true,
+        secure: false,
+      },
     },
-  };
-
-  console.log(`[vite] same-site proxy /api /socket.io → ${beProxy}`);
-
-  return {
-    plugins: [react()],
-    server: {
-      port: 5173,
-      proxy,
+  },
+  build: {
+    target: 'es2022',
+    cssMinify: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          socket: ['socket.io-client'],
+        },
+      },
     },
-    preview: {
-      port: 5173,
-      proxy,
-    },
-  };
+  },
 });

@@ -10,6 +10,9 @@ export function connectSocket(token: string): Socket {
   return io(url, {
     auth: { token },
     path: '/socket.io',
-    transports: ['websocket', 'polling'],
+    transports: ['websocket'],
+    timeout: 8000,
+    reconnectionDelay: 400,
+    reconnectionAttempts: 6,
   });
 }

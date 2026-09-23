@@ -1,6 +1,6 @@
 import type { ChatMessage, Room, User } from './types';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3010';
+const API_URL = (import.meta.env.VITE_APP_URL ?? '/api').replace(/\/$/, '');
 
 function authHeader(): HeadersInit {
   const token = localStorage.getItem('chatvcb.token');
@@ -35,25 +35,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   login(email: string, password: string) {
-    return request<{ token: string; user: User }>('/api/auth/login', {
+    return request<{ token: string; user: User }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
   },
   register(name: string, email: string, password: string) {
-    return request<{ token: string; user: User }>('/api/auth/register', {
+    return request<{ token: string; user: User }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ name, email, password }),
     });
   },
   rooms() {
-    return request<Room[]>('/api/rooms');
+    return request<Room[]>('/rooms');
   },
   messages(roomId: string) {
-    return request<ChatMessage[]>(`/api/rooms/${roomId}/messages`);
+    return request<ChatMessage[]>(`/rooms/${roomId}/messages`);
   },
   sendMessage(roomId: string, content: string) {
-    return request<ChatMessage>(`/api/rooms/${roomId}/messages`, {
+    return request<ChatMessage>(`/rooms/${roomId}/messages`, {
       method: 'POST',
       body: JSON.stringify({ content }),
     });

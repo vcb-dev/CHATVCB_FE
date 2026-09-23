@@ -5,10 +5,6 @@
       "destination": "https://chatvcb-be-production.up.railway.app/api/:path*"
     },
     {
-      "source": "/socket.io/:path*",
-      "destination": "https://chatvcb-be-production.up.railway.app/socket.io/:path*"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

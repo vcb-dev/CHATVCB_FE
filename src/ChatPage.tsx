@@ -326,7 +326,7 @@ export function ChatPage({ user, onLogout }: Props) {
             prefix="@"
             placement="top"
             getPopupContainer={() => document.body}
-            styles={{ popup: { root: { zIndex: 2000 } } }}
+            styles={{ popup: { zIndex: 2000 } }}
             placeholder={
               room
                 ? `Nhắn ${room.name} · @sale2 · @${room.agentName} để hỏi AI`

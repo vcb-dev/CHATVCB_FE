@@ -36,6 +36,8 @@ export function ChatPage({ user, onLogout }: Props) {
   const listRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const roomIdRef = useRef('');
+  const mentionMeasuringRef = useRef(false);
+  const lastSentRef = useRef<{ at: number; text: string }>({ at: 0, text: '' });
   const myHandle = handleFromEmail(user.email);
 
   const room = useMemo(
@@ -151,11 +153,22 @@ export function ChatPage({ user, onLogout }: Props) {
     }
   }, [messages, pending]);
 
-  async function send() {
-    if (!roomId || !draft.trim()) {
+  async function sendContent(raw: string) {
+    if (!roomId) {
       return;
     }
-    const content = draft.trim();
+    const content = raw.trim();
+    if (!content) {
+      return;
+    }
+    const now = Date.now();
+    if (
+      lastSentRef.current.text === content &&
+      now - lastSentRef.current.at < 800
+    ) {
+      return;
+    }
+    lastSentRef.current = { at: now, text: content };
     setDraft('');
     setError('');
     try {
@@ -172,18 +185,35 @@ export function ChatPage({ user, onLogout }: Props) {
     }
   }
 
+  function shouldSkipSend(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.nativeEvent.isComposing || event.keyCode === 229) {
+      return true;
+    }
+    if (mentionMeasuringRef.current || mentionOpen(draft)) {
+      return true;
+    }
+    return false;
+  }
+
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    void send();
+    void sendContent(draft);
+  }
+
+  function handlePressEnter(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.shiftKey || shouldSkipSend(event)) {
+      return;
+    }
+    event.preventDefault();
+    void sendContent(event.currentTarget.value);
   }
 
   function handleKey(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
-      if (mentionOpen(draft)) {
+      if (shouldSkipSend(event)) {
         return;
       }
       event.preventDefault();
-      void send();
     }
   }
 
@@ -320,6 +350,16 @@ export function ChatPage({ user, onLogout }: Props) {
           <Mentions
             value={draft}
             onChange={setDraft}
+            onSearch={() => {
+              mentionMeasuringRef.current = true;
+            }}
+            onSelect={() => {
+              mentionMeasuringRef.current = false;
+            }}
+            onBlur={() => {
+              mentionMeasuringRef.current = false;
+            }}
+            onPressEnter={handlePressEnter}
             onKeyDown={handleKey}
             autoSize={{ minRows: 1, maxRows: 4 }}
             options={mentionOptions}
@@ -338,9 +378,10 @@ export function ChatPage({ user, onLogout }: Props) {
           <Button
             type="primary"
             shape="circle"
-            htmlType="submit"
+            htmlType="button"
             icon={<SendOutlined />}
             disabled={!roomId || !draft.trim()}
+            onClick={() => void sendContent(draft)}
           />
         </form>
       </main>

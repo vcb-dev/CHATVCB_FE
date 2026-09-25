@@ -1,13 +1,21 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { LogoutOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons';
+import { Avatar, Badge, Button, Mentions, Typography, message as antMessage } from 'antd';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import type { Socket } from 'socket.io-client';
 import { api } from './api';
+import { handleFromEmail, MentionText, mentionOpen, mentionsUser } from './mentions';
 import { connectSocket } from './socket';
-import type { ChatMessage, PresenceUser, Room, User } from './types';
+import { initials } from './theme';
+import type { ChatMessage, PresenceUser, Room, RoomMember, User } from './types';
 
 type Props = {
   user: User;
   onLogout: () => void;
 };
+
+function sameAuthor(a: ChatMessage, b: ChatMessage) {
+  return a.role === b.role && a.userId === b.userId && a.authorName === b.authorName;
+}
 
 export function ChatPage({ user, onLogout }: Props) {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -17,14 +25,33 @@ export function ChatPage({ user, onLogout }: Props) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [online, setOnline] = useState<PresenceUser[]>([]);
+  const [members, setMembers] = useState<RoomMember[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const roomIdRef = useRef('');
+  const myHandle = handleFromEmail(user.email);
 
   const room = useMemo(
     () => rooms.find((item) => item.id === roomId) ?? null,
     [rooms, roomId],
   );
+  const team = user.team ?? room?.team ?? 'sale';
+  const mentionOptions = useMemo(() => {
+    const people = members
+      .filter((item) => item.id !== user.id)
+      .map((item) => ({
+        value: item.handle,
+        label: `${item.name} (@${item.handle})`,
+      }));
+    const agentName = room?.agentName;
+    const agents = agentName
+      ? [
+          { value: agentName, label: `${agentName} (AI)` },
+          { value: 'agent', label: '@agent (AI)' },
+        ]
+      : [];
+    return [...people, ...agents];
+  }, [members, room?.agentName, user.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +84,18 @@ export function ChatPage({ user, onLogout }: Props) {
         }
       })
       .catch(() => setError('Không tải được tin nhắn.'));
+    api
+      .members(roomId)
+      .then((next) => {
+        if (!cancelled) {
+          setMembers(next);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMembers([]);
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -84,6 +123,13 @@ export function ChatPage({ user, onLogout }: Props) {
       if (message.role === 'agent') {
         setPending(false);
       }
+      if (
+        message.userId !== user.id &&
+        message.role === 'user' &&
+        mentionsUser(message.content, myHandle)
+      ) {
+        void antMessage.info(`${message.authorName} đã tag bạn`);
+      }
     });
     socket.on('agent.pending', () => setPending(true));
     socket.on('room.presence', (users: PresenceUser[]) => setOnline(users));
@@ -107,8 +153,7 @@ export function ChatPage({ user, onLogout }: Props) {
     }
   }, [messages, pending]);
 
-  async function handleSend(event: FormEvent) {
-    event.preventDefault();
+  async function send() {
     if (!roomId || !draft.trim()) {
       return;
     }
@@ -129,83 +174,159 @@ export function ChatPage({ user, onLogout }: Props) {
     }
   }
 
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    void send();
+  }
+
+  function handleKey(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      if (mentionOpen(draft)) {
+        return;
+      }
+      event.preventDefault();
+      void send();
+    }
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <strong>CHATVCB</strong>
-          <span>Team {user.team ?? room?.team ?? 'sale'}</span>
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            CHATVCB
+          </Typography.Title>
+          <Typography.Text type="secondary">Team {team}</Typography.Text>
         </div>
-        <nav>
+        <div className="room-list">
           {rooms.map((item) => (
             <button
               key={item.id}
-              className={item.id === roomId ? 'room active' : 'room'}
+              className={item.id === roomId ? 'room-item active' : 'room-item'}
               onClick={() => setRoomId(item.id)}
               type="button"
             >
-              <span>{item.name}</span>
-              <small>@{item.agentName}</small>
+              <Avatar style={{ background: '#0084ff' }}>{initials(item.name)}</Avatar>
+              <span className="room-meta">
+                <strong>{item.name}</strong>
+                <small>@{item.agentName}</small>
+              </span>
             </button>
           ))}
-        </nav>
+        </div>
         <div className="sidebar-foot">
+          <Avatar style={{ background: '#00a400' }}>{initials(user.name)}</Avatar>
           <div className="who">
-            <span>{user.name}</span>
-            <small>Team {user.team ?? 'sale'}</small>
+            <strong>{user.name}</strong>
+            <small>Team {team}</small>
           </div>
-          <button type="button" onClick={onLogout}>
+          <Button type="text" danger icon={<LogoutOutlined />} onClick={onLogout}>
             Thoát
-          </button>
+          </Button>
         </div>
       </aside>
 
       <main className="chat">
-        <header>
+        <header className="chat-head">
+          <Badge dot={online.length > 0} color="#31a24c">
+            <Avatar size={40} style={{ background: '#0084ff' }}>
+              {room ? initials(room.name) : '?'}
+            </Avatar>
+          </Badge>
           <div>
-            <h1>{room?.name ?? 'Chọn phòng'}</h1>
-            <p>
-              Tag @agent hoặc @{room?.agentName} để hỏi AI. Online:{' '}
-              {online.length ? online.map((item) => item.name).join(', ') : 'chỉ mình bạn'}
-            </p>
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              {room?.name ?? 'Chọn phòng'}
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              {online.length
+                ? `Đang hoạt động · ${online.map((item) => item.name).join(', ')}`
+                : `Tag @đồng đội hoặc @${room?.agentName ?? 'agent'} để hỏi AI`}
+            </Typography.Text>
           </div>
         </header>
 
         <div className="messages" ref={listRef}>
-          {messages.map((message) => (
-            <article
-              key={message.id}
-              className={`bubble ${message.role} ${message.userId === user.id ? 'mine' : ''}`}
-            >
-              <div className="meta">
-                <strong>{message.authorName}</strong>
-                <time>{new Date(message.createdAt).toLocaleTimeString('vi-VN')}</time>
+          {messages.map((message, index) => {
+            const mine = message.userId === user.id;
+            const agent = message.role === 'agent';
+            const first =
+              index === 0 || !sameAuthor(messages[index - 1], message);
+            const tagged = !mine && mentionsUser(message.content, myHandle);
+            const cls = [
+              'row',
+              mine ? 'mine' : 'theirs',
+              agent ? 'agent' : '',
+              tagged ? 'tagged' : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
+            return (
+              <div key={message.id} className={cls}>
+                {!mine && first ? (
+                  <Avatar
+                    size={28}
+                    icon={agent ? <RobotOutlined /> : undefined}
+                    style={{ background: agent ? '#31a24c' : '#8a8d91' }}
+                  >
+                    {agent ? null : initials(message.authorName)}
+                  </Avatar>
+                ) : (
+                  <span className="avatar-spacer" />
+                )}
+                <div className="stack">
+                  {first && !mine ? (
+                    <span className="who-line">{message.authorName}</span>
+                  ) : null}
+                  <div className="bubble">
+                    <MentionText text={message.content} myHandle={myHandle} />
+                  </div>
+                  {first ? (
+                    <time>
+                      {new Date(message.createdAt).toLocaleTimeString('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </time>
+                  ) : null}
+                </div>
               </div>
-              <p>{message.content}</p>
-            </article>
-          ))}
+            );
+          })}
           {pending ? (
-            <article className="bubble agent pending">
-              <p>Agent đang xử lý...</p>
-            </article>
+            <div className="row theirs agent">
+              <Avatar size={28} icon={<RobotOutlined />} style={{ background: '#31a24c' }} />
+              <div className="stack">
+                <div className="bubble pending">
+                  <p>Agent đang soạn tin...</p>
+                </div>
+              </div>
+            </div>
           ) : null}
         </div>
 
-        <form className="composer" onSubmit={handleSend}>
-          {error ? <p className="error">{error}</p> : null}
-          <input
+        <form className="composer" onSubmit={handleSubmit}>
+          {error ? <Typography.Text type="danger">{error}</Typography.Text> : null}
+          <Mentions
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={setDraft}
+            onKeyDown={handleKey}
+            autoSize={{ minRows: 1, maxRows: 4 }}
+            options={mentionOptions}
             placeholder={
               room
-                ? `Nhắn tới ${room.name}. Ví dụ: @agent còn hàng SKU A không?`
+                ? `Nhắn ${room.name} · @đồng đội · @${room.agentName} để hỏi AI`
                 : 'Chọn phòng'
             }
             disabled={!roomId}
+            notFoundContent="Không có người khớp"
           />
-          <button type="submit" disabled={!roomId || !draft.trim()}>
-            Gửi
-          </button>
+          <Button
+            type="primary"
+            shape="circle"
+            htmlType="submit"
+            icon={<SendOutlined />}
+            disabled={!roomId || !draft.trim()}
+          />
         </form>
       </main>
     </div>

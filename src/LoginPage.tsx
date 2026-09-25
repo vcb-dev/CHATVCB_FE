@@ -1,4 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { Alert, Button, Card, Form, Input, Typography } from 'antd';
+import { useState } from 'react';
 import { api } from './api';
 import type { User } from './types';
 
@@ -6,23 +8,25 @@ type Props = {
   onLoggedIn: (payload: { token: string; user: User }) => void;
 };
 
+type FormValues = {
+  name?: string;
+  email: string;
+  password: string;
+};
+
 export function LoginPage({ onLoggedIn }: Props) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function onFinish(values: FormValues) {
     setError('');
     setLoading(true);
     try {
       const result =
         mode === 'login'
-          ? await api.login(email.trim(), password)
-          : await api.register(name.trim(), email.trim(), password);
+          ? await api.login(values.email.trim(), values.password)
+          : await api.register(values.name?.trim() || '', values.email.trim(), values.password);
       onLoggedIn(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không đăng nhập được.');
@@ -33,56 +37,53 @@ export function LoginPage({ onLoggedIn }: Props) {
 
   return (
     <div className="login-shell">
-      <form className="login-card" onSubmit={handleSubmit}>
-        <p className="eyebrow">CHATVCB</p>
-        <h1>{mode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản'}</h1>
-        <p className="muted">
-          Team Sale: mỗi người chỉ vào được phòng chat của team mình. Test 2
-          người: tab thường + tab ẩn danh — sale1 / sale2 — Password123
-        </p>
-        {mode === 'register' ? (
-          <>
-            <label htmlFor="name">Họ tên</label>
-            <input
-              id="name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Sale Ba"
-              required
+      <Card className="login-card" variant="borderless">
+        <Typography.Text className="eyebrow">CHATVCB</Typography.Text>
+        <Typography.Title level={2} style={{ marginTop: 8 }}>
+          {mode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản'}
+        </Typography.Title>
+        <Typography.Paragraph type="secondary">
+          Mỗi team chỉ vào phòng của team đó. Sale: sale1 / sale2. Traffic: traffic1 /
+          traffic2. Mật khẩu Password123.
+        </Typography.Paragraph>
+        <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
+          {mode === 'register' ? (
+            <Form.Item name="name" label="Họ tên" rules={[{ required: true }]}>
+              <Input size="large" placeholder="Traffic Ba" />
+            </Form.Item>
+          ) : null}
+          <Form.Item
+            name="email"
+            label="Email hoặc tài khoản"
+            rules={[{ required: true, message: 'Nhập tài khoản' }]}
+          >
+            <Input
+              size="large"
+              prefix={<UserOutlined />}
+              placeholder="traffic1 hoặc sale1"
+              autoFocus
             />
-          </>
-        ) : null}
-        <label htmlFor="email">Email hoặc tài khoản</label>
-        <input
-          id="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="sale1 hoặc sale1@chatvcb.vn"
-          autoFocus
-          required
-        />
-        <label htmlFor="password">Mật khẩu</label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          placeholder="Tối thiểu 6 ký tự"
-          minLength={6}
-          required
-        />
-        {error ? <p className="error">{error}</p> : null}
-        <button type="submit" disabled={loading}>
-          {loading ? 'Đang xử lý...' : mode === 'login' ? 'Đăng nhập' : 'Đăng ký'}
-        </button>
-        <button
-          type="button"
-          className="linkish"
-          onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-        >
-          {mode === 'login' ? 'Chưa có tài khoản? Đăng ký' : 'Đã có tài khoản? Đăng nhập'}
-        </button>
-      </form>
+          </Form.Item>
+          <Form.Item
+            name="password"
+            label="Mật khẩu"
+            rules={[{ required: true, min: 6, message: 'Tối thiểu 6 ký tự' }]}
+          >
+            <Input.Password size="large" prefix={<LockOutlined />} placeholder="Password123" />
+          </Form.Item>
+          {error ? <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} /> : null}
+          <Button type="primary" htmlType="submit" size="large" block loading={loading}>
+            {mode === 'login' ? 'Đăng nhập' : 'Đăng ký'}
+          </Button>
+          <Button
+            type="link"
+            block
+            onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+          >
+            {mode === 'login' ? 'Chưa có tài khoản? Đăng ký' : 'Đã có tài khoản? Đăng nhập'}
+          </Button>
+        </Form>
+      </Card>
     </div>
   );
 }

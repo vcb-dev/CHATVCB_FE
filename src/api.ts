@@ -1,4 +1,4 @@
-import type { ChatMessage, Room, User } from './types';
+import type { ChatMessage, Room, RoomMember, User } from './types';
 
 const API_URL = (import.meta.env.VITE_APP_URL ?? '/api').replace(/\/$/, '');
 
@@ -48,6 +48,9 @@ export const api = {
   },
   rooms() {
     return request<Room[]>('/rooms');
+  },
+  members(roomId: string) {
+    return request<RoomMember[]>(`/rooms/${roomId}/members`);
   },
   messages(roomId: string) {
     return request<ChatMessage[]>(`/rooms/${roomId}/messages`);

@@ -44,6 +44,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           react: ['react', 'react-dom'],
+          antd: ['antd', '@ant-design/icons'],
           socket: ['socket.io-client'],
         },
       },

@@ -27,3 +27,9 @@ export type PresenceUser = {
   id: string;
   name: string;
 };
+
+export type RoomMember = {
+  id: string;
+  name: string;
+  handle: string;
+};

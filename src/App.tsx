@@ -1,5 +1,7 @@
+import { Spin } from 'antd';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { LoginPage } from './LoginPage';
+import { AppTheme } from './theme';
 import type { User } from './types';
 
 const ChatPage = lazy(async () => {
@@ -31,28 +33,34 @@ export default function App() {
     }
   }, [user]);
 
-  if (!user) {
-    return (
-      <LoginPage
-        onLoggedIn={(next) => {
-          localStorage.setItem('chatvcb.token', next.token);
-          localStorage.setItem('chatvcb.user', JSON.stringify(next.user));
-          setUser(next.user);
-        }}
-      />
-    );
-  }
-
   return (
-    <Suspense fallback={<div className="login-shell">Đang vào phòng chat...</div>}>
-      <ChatPage
-        user={user}
-        onLogout={() => {
-          localStorage.removeItem('chatvcb.token');
-          localStorage.removeItem('chatvcb.user');
-          setUser(null);
-        }}
-      />
-    </Suspense>
+    <AppTheme>
+      {!user ? (
+        <LoginPage
+          onLoggedIn={(next) => {
+            localStorage.setItem('chatvcb.token', next.token);
+            localStorage.setItem('chatvcb.user', JSON.stringify(next.user));
+            setUser(next.user);
+          }}
+        />
+      ) : (
+        <Suspense
+          fallback={
+            <div className="login-shell">
+              <Spin size="large" />
+            </div>
+          }
+        >
+          <ChatPage
+            user={user}
+            onLogout={() => {
+              localStorage.removeItem('chatvcb.token');
+              localStorage.removeItem('chatvcb.user');
+              setUser(null);
+            }}
+          />
+        </Suspense>
+      )}
+    </AppTheme>
   );
 }

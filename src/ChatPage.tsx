@@ -3,7 +3,13 @@ import { Avatar, Badge, Button, Mentions, Typography, message as antMessage } fr
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import type { Socket } from 'socket.io-client';
 import { api } from './api';
-import { handleFromEmail, MentionText, mentionOpen, mentionsUser } from './mentions';
+import {
+  buildMentionOptions,
+  handleFromEmail,
+  MentionText,
+  mentionOpen,
+  mentionsUser,
+} from './mentions';
 import { connectSocket } from './socket';
 import { initials } from './theme';
 import type { ChatMessage, PresenceUser, Room, RoomMember, User } from './types';
@@ -26,6 +32,7 @@ export function ChatPage({ user, onLogout }: Props) {
   const [error, setError] = useState('');
   const [online, setOnline] = useState<PresenceUser[]>([]);
   const [members, setMembers] = useState<RoomMember[]>([]);
+  const [membersLoaded, setMembersLoaded] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const roomIdRef = useRef('');
@@ -36,22 +43,10 @@ export function ChatPage({ user, onLogout }: Props) {
     [rooms, roomId],
   );
   const team = user.team ?? room?.team ?? 'sale';
-  const mentionOptions = useMemo(() => {
-    const people = members
-      .filter((item) => item.id !== user.id)
-      .map((item) => ({
-        value: item.handle,
-        label: `${item.name} (@${item.handle})`,
-      }));
-    const agentName = room?.agentName;
-    const agents = agentName
-      ? [
-          { value: agentName, label: `${agentName} (AI)` },
-          { value: 'agent', label: '@agent (AI)' },
-        ]
-      : [];
-    return [...people, ...agents];
-  }, [members, room?.agentName, user.id]);
+  const mentionOptions = useMemo(
+    () => buildMentionOptions(members, online, user.id, room),
+    [members, online, room, user.id],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -76,6 +71,7 @@ export function ChatPage({ user, onLogout }: Props) {
     }
     let cancelled = false;
     setPending(false);
+    setMembersLoaded(false);
     api
       .messages(roomId)
       .then((next) => {
@@ -89,11 +85,13 @@ export function ChatPage({ user, onLogout }: Props) {
       .then((next) => {
         if (!cancelled) {
           setMembers(next);
+          setMembersLoaded(true);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setMembers([]);
+          setMembersLoaded(true);
         }
       });
     return () => {
@@ -238,9 +236,17 @@ export function ChatPage({ user, onLogout }: Props) {
               {room?.name ?? 'Chọn phòng'}
             </Typography.Title>
             <Typography.Text type="secondary">
-              {online.length
-                ? `Đang hoạt động · ${online.map((item) => item.name).join(', ')}`
-                : `Tag @đồng đội hoặc @${room?.agentName ?? 'agent'} để hỏi AI`}
+              Gõ @ để tag{' '}
+              {mentionOptions.filter((item) => item.value !== 'agent' && item.value !== room?.agentName)
+                .length
+                ? mentionOptions
+                    .filter((item) => item.value !== 'agent' && item.value !== room?.agentName)
+                    .map((item) => `@${item.value}`)
+                    .join(', ')
+                : 'đồng đội'}
+              {' · '}
+              @{room?.agentName ?? 'agent'} để hỏi AI
+              {online.length ? ` · Online: ${online.map((item) => item.name).join(', ')}` : ''}
             </Typography.Text>
           </div>
         </header>
@@ -306,15 +312,24 @@ export function ChatPage({ user, onLogout }: Props) {
 
         <form className="composer" onSubmit={handleSubmit}>
           {error ? <Typography.Text type="danger">{error}</Typography.Text> : null}
+          {membersLoaded && members.length === 0 && mentionOptions.length <= 2 ? (
+            <Typography.Text type="warning" style={{ width: '100%' }}>
+              Chưa tải được danh sách đồng đội — redeploy BE mới trên Railway rồi tải lại trang.
+            </Typography.Text>
+          ) : null}
           <Mentions
             value={draft}
             onChange={setDraft}
             onKeyDown={handleKey}
             autoSize={{ minRows: 1, maxRows: 4 }}
             options={mentionOptions}
+            prefix="@"
+            placement="top"
+            getPopupContainer={() => document.body}
+            styles={{ popup: { root: { zIndex: 2000 } } }}
             placeholder={
               room
-                ? `Nhắn ${room.name} · @đồng đội · @${room.agentName} để hỏi AI`
+                ? `Nhắn ${room.name} · @sale2 · @${room.agentName} để hỏi AI`
                 : 'Chọn phòng'
             }
             disabled={!roomId}

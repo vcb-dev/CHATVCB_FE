@@ -26,6 +26,7 @@ export type ChatMessage = {
 export type PresenceUser = {
   id: string;
   name: string;
+  handle?: string;
 };
 
 export type RoomMember = {

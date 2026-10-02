@@ -204,9 +204,8 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       }
       if (!mine) {
         notifyIncoming({
-          title: roomNameRef.current
-            ? `${message.authorName} · ${roomNameRef.current}`
-            : message.authorName,
+          title: message.authorName,
+          subtitle: roomNameRef.current,
           body: message.content.trim() || (message.imageUrl ? 'Đã gửi một ảnh' : 'Tin nhắn mới'),
           mentioned: tagged,
         });

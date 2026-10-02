@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, Notification, ipcMain, shell } = require('electron');
 const path = require('path');
 
 function createWindow() {
@@ -27,6 +27,37 @@ function createWindow() {
     void win.loadURL(process.env.ELECTRON_START_URL || 'http://localhost:5173');
   }
 }
+
+function senderWindow(event) {
+  return BrowserWindow.fromWebContents(event.sender);
+}
+
+ipcMain.on('chatvcb:notify', (event, payload) => {
+  const win = senderWindow(event);
+  if (win?.isFocused()) {
+    return;
+  }
+  if (!Notification.isSupported()) {
+    return;
+  }
+  const toast = new Notification({
+    title: payload?.title || 'CHATVCB',
+    subtitle: payload?.subtitle || '',
+    body: payload?.body || 'Tin nhắn mới',
+    silent: false,
+  });
+  toast.on('click', () => {
+    if (!win) {
+      return;
+    }
+    if (win.isMinimized()) {
+      win.restore();
+    }
+    win.show();
+    win.focus();
+  });
+  toast.show();
+});
 
 app.whenReady().then(() => {
   createWindow();

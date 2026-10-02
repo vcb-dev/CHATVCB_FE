@@ -12,5 +12,6 @@ interface ImportMeta {
 interface Window {
   chatvcb?: {
     isElectron?: boolean;
+    notify?: (payload: { title: string; body: string; subtitle?: string }) => void;
   };
 }

@@ -13,8 +13,14 @@ export function setNotifyEnabled(on: boolean) {
 }
 
 export async function requestNotifyPermission() {
-  if (!notifyEnabled() || typeof Notification === 'undefined') {
-    return Notification?.permission ?? 'denied';
+  if (!notifyEnabled()) {
+    return 'denied';
+  }
+  if (window.chatvcb?.isElectron) {
+    return 'granted';
+  }
+  if (typeof Notification === 'undefined') {
+    return 'denied';
   }
   if (Notification.permission === 'granted' || Notification.permission === 'denied') {
     return Notification.permission;
@@ -25,23 +31,33 @@ export async function requestNotifyPermission() {
 export function notifyIncoming(input: {
   title: string;
   body: string;
+  subtitle?: string;
   mentioned?: boolean;
 }) {
-  if (!notifyEnabled() || typeof Notification === 'undefined') {
+  if (!notifyEnabled()) {
+    return;
+  }
+  const title = input.title.trim() || 'CHATVCB';
+  const body = input.body.trim() || 'Tin nhắn mới';
+  const subtitle = input.subtitle?.trim() || '';
+  document.title = input.mentioned ? `${title} đã tag bạn` : `${title}: ${body.slice(0, 40)}`;
+
+  if (window.chatvcb?.notify) {
+    window.chatvcb.notify({ title, subtitle, body: body.slice(0, 240) });
+    return;
+  }
+
+  if (typeof Notification === 'undefined') {
     return;
   }
   const background = document.hidden || !document.hasFocus();
-  if (!background) {
+  if (!background || Notification.permission !== 'granted') {
     return;
   }
-  if (Notification.permission !== 'granted') {
-    return;
-  }
-  document.title = input.mentioned ? 'Bạn được tag · CHATVCB' : 'Tin nhắn mới · CHATVCB';
   try {
-    const toast = new Notification(input.title || 'CHATVCB', {
-      body: input.body.slice(0, 140) || 'Tin nhắn mới',
-      tag: 'chatvcb-message',
+    const toast = new Notification(title, {
+      body: subtitle ? `${subtitle}\n${body}`.slice(0, 240) : body.slice(0, 240),
+      tag: `chatvcb-${Date.now()}`,
       silent: false,
     });
     toast.onclick = () => {

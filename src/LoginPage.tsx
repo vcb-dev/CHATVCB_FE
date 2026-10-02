@@ -66,7 +66,6 @@ export function LoginPage({ onLoggedIn }: Props) {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
-              writingSuggestions="false"
               name="account"
               onKeyDown={(event) => {
                 if (event.key !== 'Tab' || event.shiftKey) {

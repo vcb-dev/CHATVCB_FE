@@ -8,7 +8,7 @@ const ACCEPT = 'image/jpeg,image/png,image/gif,image/webp';
 const MAX_PENDING = 8;
 
 export function filesFromClipboard(event: ClipboardEvent) {
-  const files = [...(event.clipboardData?.files ?? [])].filter((file) =>
+  const files = Array.from(event.clipboardData?.files ?? []).filter((file) =>
     file.type.startsWith('image/'),
   );
   return files;
@@ -63,7 +63,7 @@ export function ComposerActions({
   const inputRef = useRef<HTMLInputElement>(null);
 
   function onPick(event: ChangeEvent<HTMLInputElement>) {
-    const files = [...(event.target.files ?? [])];
+    const files = Array.from(event.target.files ?? []);
     event.target.value = '';
     if (files.length) {
       onAddFiles(files);
@@ -148,7 +148,7 @@ export function GalleryModal({
   const inputRef = useRef<HTMLInputElement>(null);
 
   function onPickFiles(event: ChangeEvent<HTMLInputElement>) {
-    const files = [...(event.target.files ?? [])];
+    const files = Array.from(event.target.files ?? []);
     event.target.value = '';
     if (files.length) {
       onAddFiles(files);

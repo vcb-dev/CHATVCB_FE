@@ -64,14 +64,11 @@ export function SeenAvatars({ readers }: { readers: RoomRead[] }) {
   return (
     <div className="seen-row">
       {shown.map((item) => (
-        <Avatar
-          key={item.userId}
-          size={16}
-          style={{ background: avatarColor(item.name) }}
-          title={item.name}
-        >
-          {initials(item.name)}
-        </Avatar>
+        <span key={item.userId} title={item.name}>
+          <Avatar size={16} style={{ background: avatarColor(item.name) }}>
+            {initials(item.name)}
+          </Avatar>
+        </span>
       ))}
       {extra > 0 ? <span className="seen-extra">+{extra}</span> : null}
     </div>

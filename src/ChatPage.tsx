@@ -1,4 +1,4 @@
-import { CameraOutlined, CloseOutlined, LogoutOutlined, PushpinOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons';
+import { CameraOutlined, CloseOutlined, LogoutOutlined, MenuOutlined, PushpinOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons';
 import { Avatar, Badge, Button, Dropdown, Image, Mentions, Modal, Typography, message as antMessage } from 'antd';
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react';
 import type { Socket } from 'socket.io-client';
@@ -596,31 +596,39 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
 
       <main className="chat">
         <header className="chat-head">
-          <button type="button" className="chat-head-btn" onClick={() => room && setGroupOpen(true)}>
-          <Badge dot={online.length > 0} color="#31a24c">
-            <Avatar size={40} src={room?.avatarUrl ? fileSrc(room.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
-              {room ? initials(room.name) : '?'}
-            </Avatar>
-          </Badge>
-          <div>
-            <Typography.Title level={4} style={{ margin: 0 }}>
-              {room?.name ?? 'Chọn phòng'}
-            </Typography.Title>
-            <Typography.Text type="secondary">
-              Nhấn để xem nhóm · Gõ @ để tag{' '}
-              {mentionOptions.filter((item) => item.value !== 'agent' && item.value !== room?.agentName)
-                .length
-                ? mentionOptions
-                    .filter((item) => item.value !== 'agent' && item.value !== room?.agentName)
-                    .map((item) => `@${item.value}`)
-                    .join(', ')
-                : 'đồng đội'}
-              {' · '}
-              @{room?.agentName ?? 'agent'} để hỏi AI
-              {online.length ? ` · Online: ${online.map((item) => item.name).join(', ')}` : ''}
-            </Typography.Text>
+          <div className="chat-head-info">
+            <Badge dot={online.length > 0} color="#31a24c">
+              <Avatar size={40} src={room?.avatarUrl ? fileSrc(room.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
+                {room ? initials(room.name) : '?'}
+              </Avatar>
+            </Badge>
+            <div>
+              <Typography.Title level={4} style={{ margin: 0 }}>
+                {room?.name ?? 'Chọn phòng'}
+              </Typography.Title>
+              <Typography.Text type="secondary">
+                Gõ @ để tag{' '}
+                {mentionOptions.filter((item) => item.value !== 'agent' && item.value !== room?.agentName)
+                  .length
+                  ? mentionOptions
+                      .filter((item) => item.value !== 'agent' && item.value !== room?.agentName)
+                      .map((item) => `@${item.value}`)
+                      .join(', ')
+                  : 'đồng đội'}
+                {' · '}
+                @{room?.agentName ?? 'agent'} để hỏi AI
+                {online.length ? ` · Online: ${online.map((item) => item.name).join(', ')}` : ''}
+              </Typography.Text>
+            </div>
           </div>
-          </button>
+          <Button
+            type="text"
+            className="chat-head-menu"
+            icon={<MenuOutlined />}
+            disabled={!room}
+            title="Cài đặt nhóm"
+            onClick={() => setGroupOpen(true)}
+          />
         </header>
 
         <div className="messages" ref={listRef}>

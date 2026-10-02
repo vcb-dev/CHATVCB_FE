@@ -24,7 +24,7 @@ import {
   mentionsUser,
 } from './mentions';
 import { lastSeenOn, SeenAvatars, SeenBubble, viewersOf } from './seen';
-import { isChatVisible, notifyIncoming, requestNotifyPermission, restoreTitle } from './notify';
+import { notifyIncoming, requestNotifyPermission, restoreTitle } from './notify';
 import { GroupDrawer } from './GroupDrawer';
 import { ProfileDrawer } from './ProfileDrawer';
 import { connectSocket } from './socket';
@@ -290,7 +290,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         message.role === 'user' &&
         mentionsUser(message.content, myHandleRef.current);
       if (tagged) {
-        void antMessage.info(`${message.authorName} đã tag bạn`);
+        void antMessage.info({
+          className: 'mention-alert',
+          content: `${message.authorName} đã tag bạn`,
+        });
       }
       if (!mine) {
         notifyIncoming({
@@ -368,31 +371,19 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     }
   }, [messages, pending]);
 
-  useEffect(() => {
-    const last = messages[messages.length - 1];
-    if (!roomId || !last) {
+  function markMessageRead(message: ChatMessage) {
+    if (!roomId || message.userId === user.id) {
       return;
     }
-
-    function tryMarkRead() {
-      if (!isChatVisible() || lastReadSentRef.current === `${roomId}:${last.id}`) {
-        return;
-      }
-      lastReadSentRef.current = `${roomId}:${last.id}`;
-      void api.markRead(roomId, last.id).then(setReads).catch(() => {
-        lastReadSentRef.current = '';
-      });
+    const key = `${roomId}:${message.id}`;
+    if (lastReadSentRef.current === key) {
+      return;
     }
-
-    const timer = window.setTimeout(tryMarkRead, 280);
-    window.addEventListener('focus', tryMarkRead);
-    document.addEventListener('visibilitychange', tryMarkRead);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener('focus', tryMarkRead);
-      document.removeEventListener('visibilitychange', tryMarkRead);
-    };
-  }, [roomId, messages]);
+    lastReadSentRef.current = key;
+    void api.markRead(roomId, message.id).then(setReads).catch(() => {
+      lastReadSentRef.current = '';
+    });
+  }
 
   useEffect(() => {
     return () => revokePending(pendingImagesRef.current);
@@ -759,7 +750,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             const hasText = Boolean(message.content.trim());
             const sticker = !hasImage && isStickerText(message.content);
             return (
-              <div key={message.id} id={`msg-${message.id}`} className={cls}>
+              <div
+                key={message.id}
+                id={`msg-${message.id}`}
+                className={cls}
+                onClick={() => markMessageRead(message)}
+              >
                 {!mine && first ? (
                   <Avatar
                     size={28}
@@ -813,6 +809,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                           className="reply-quote"
                           onClick={(event) => {
                             event.stopPropagation();
+                            markMessageRead(message);
                             jumpToMessage(message.replyTo!.id);
                           }}
                         >
@@ -833,7 +830,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                               src={fileSrc(message.imageUrl as string)}
                               alt=""
                               className="chat-photo"
-                              onClick={(event) => event.stopPropagation()}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                markMessageRead(message);
+                              }}
                             />
                           ) : null}
                           {hasText ? <MentionText text={message.content} myHandle={myHandle} /> : null}

@@ -12,7 +12,12 @@ interface ImportMeta {
 interface Window {
   chatvcb?: {
     isElectron?: boolean;
-    notify?: (payload: { title: string; body: string; subtitle?: string }) => void;
+    notify?: (payload: {
+      title: string;
+      body: string;
+      subtitle?: string;
+      mentioned?: boolean;
+    }) => void;
     isWindowFocused?: () => boolean;
   };
 }

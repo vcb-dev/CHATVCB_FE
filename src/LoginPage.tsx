@@ -43,13 +43,13 @@ export function LoginPage({ onLoggedIn }: Props) {
           {mode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản'}
         </Typography.Title>
         <Typography.Paragraph type="secondary">
-          Mỗi team chỉ vào phòng của team đó. Sale: sale1 / sale2. Traffic: traffic1 /
-          traffic2. Mật khẩu Password123.
+          Mỗi team chỉ vào phòng của team đó. Sale: sale1 / sale2 / sale3. Traffic:
+          traffic1 / traffic2. Mật khẩu Password123.
         </Typography.Paragraph>
-        <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
+        <Form layout="vertical" onFinish={onFinish} requiredMark={false} autoComplete="off">
           {mode === 'register' ? (
             <Form.Item name="name" label="Họ tên" rules={[{ required: true }]}>
-              <Input size="large" placeholder="Traffic Ba" />
+              <Input size="large" placeholder="Traffic Ba" autoComplete="off" spellCheck={false} />
             </Form.Item>
           ) : null}
           <Form.Item
@@ -62,6 +62,22 @@ export function LoginPage({ onLoggedIn }: Props) {
               prefix={<UserOutlined />}
               placeholder="traffic1 hoặc sale1"
               autoFocus
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              writingSuggestions="false"
+              name="account"
+              onKeyDown={(event) => {
+                if (event.key !== 'Tab' || event.shiftKey) {
+                  return;
+                }
+                event.preventDefault();
+                const password = event.currentTarget
+                  .closest('form')
+                  ?.querySelector<HTMLInputElement>('input[type="password"]');
+                password?.focus();
+              }}
             />
           </Form.Item>
           <Form.Item
@@ -69,7 +85,12 @@ export function LoginPage({ onLoggedIn }: Props) {
             label="Mật khẩu"
             rules={[{ required: true, min: 6, message: 'Tối thiểu 6 ký tự' }]}
           >
-            <Input.Password size="large" prefix={<LockOutlined />} placeholder="Password123" />
+            <Input.Password
+              size="large"
+              prefix={<LockOutlined />}
+              placeholder="Password123"
+              autoComplete="current-password"
+            />
           </Form.Item>
           {error ? <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} /> : null}
           <Button type="primary" htmlType="submit" size="large" block loading={loading}>

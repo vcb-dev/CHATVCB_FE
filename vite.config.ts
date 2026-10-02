@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 const BE_PROXY = 'http://localhost:3010';
 
 export default defineConfig({
+  base: process.env.ELECTRON === '1' ? './' : '/',
   plugins: [react()],
   server: {
     port: 5173,

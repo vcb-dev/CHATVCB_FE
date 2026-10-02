@@ -1,4 +1,4 @@
-import type { ChatMessage, Room, RoomMember, User } from './types';
+import type { ChatMessage, GalleryImage, Room, RoomMember, RoomRead, User } from './types';
 
 const API_URL = (import.meta.env.VITE_APP_URL ?? '/api').replace(/\/$/, '');
 
@@ -17,20 +17,35 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!response.ok) {
-    let message = response.statusText;
-    try {
-      const body = (await response.json()) as { message?: string | string[] };
-      if (Array.isArray(body.message)) {
-        message = body.message.join(', ');
-      } else if (body.message) {
-        message = body.message;
-      }
-    } catch {
-      message = (await response.text()) || message;
-    }
-    throw new Error(message);
+    throw new Error(await errorMessage(response));
   }
   return response.json() as Promise<T>;
+}
+
+async function errorMessage(response: Response) {
+  let message = response.statusText;
+  try {
+    const body = (await response.json()) as { message?: string | string[] };
+    if (Array.isArray(body.message)) {
+      return body.message.join(', ');
+    }
+    if (body.message) {
+      return body.message;
+    }
+  } catch {
+    message = (await response.text()) || message;
+  }
+  return message;
+}
+
+export function fileSrc(url: string) {
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:')) {
+    return url;
+  }
+  if (url.startsWith('/api/')) {
+    return url;
+  }
+  return `${API_URL}${url.startsWith('/') ? url : `/${url}`}`;
 }
 
 export const api = {
@@ -46,6 +61,15 @@ export const api = {
       body: JSON.stringify({ name, email, password }),
     });
   },
+  me() {
+    return request<User>('/auth/me');
+  },
+  updateProfile(payload: { name?: string; password?: string; currentPassword?: string }) {
+    return request<{ token: string; user: User }>('/auth/me', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
   rooms() {
     return request<Room[]>('/rooms');
   },
@@ -55,10 +79,35 @@ export const api = {
   messages(roomId: string) {
     return request<ChatMessage[]>(`/rooms/${roomId}/messages`);
   },
-  sendMessage(roomId: string, content: string) {
+  sendMessage(roomId: string, content: string, imageId?: string) {
     return request<ChatMessage>(`/rooms/${roomId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, imageId }),
     });
+  },
+  gallery(roomId: string) {
+    return request<GalleryImage[]>(`/rooms/${roomId}/images`);
+  },
+  reads(roomId: string) {
+    return request<RoomRead[]>(`/rooms/${roomId}/reads`);
+  },
+  markRead(roomId: string, messageId: string) {
+    return request<RoomRead[]>(`/rooms/${roomId}/read`, {
+      method: 'POST',
+      body: JSON.stringify({ messageId }),
+    });
+  },
+  async uploadImage(roomId: string, file: File) {
+    const body = new FormData();
+    body.append('file', file);
+    const response = await fetch(`${API_URL}/rooms/${roomId}/images`, {
+      method: 'POST',
+      headers: authHeader(),
+      body,
+    });
+    if (!response.ok) {
+      throw new Error(await errorMessage(response));
+    }
+    return response.json() as Promise<GalleryImage>;
   },
 };

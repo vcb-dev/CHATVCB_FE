@@ -53,6 +53,11 @@ export default function App() {
         >
           <ChatPage
             user={user}
+            onUserUpdate={(next) => {
+              localStorage.setItem('chatvcb.token', next.token);
+              localStorage.setItem('chatvcb.user', JSON.stringify(next.user));
+              setUser(next.user);
+            }}
             onLogout={() => {
               localStorage.removeItem('chatvcb.token');
               localStorage.removeItem('chatvcb.user');

@@ -3,10 +3,47 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "main": "electron/main.cjs",
+  "author": "CHATVCB",
+  "description": "Chat nội bộ CHATVCB",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:build": "ELECTRON=1 VITE_APP_URL=https://chatvcb-be-production.up.railway.app/api VITE_WS_URL=https://chatvcb-be-production.up.railway.app vite build && electron-builder --mac --x64",
+    "electron:build:win": "ELECTRON=1 VITE_APP_URL=https://chatvcb-be-production.up.railway.app/api VITE_WS_URL=https://chatvcb-be-production.up.railway.app vite build && electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "vn.chatvcb.desktop",
+    "productName": "CHATVCB",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.social-networking",
+      "extendInfo": {
+        "NSUserNotificationsUsageDescription": "CHATVCB cần thông báo khi có tin nhắn mới."
+      }
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
@@ -19,7 +56,11 @@
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.3",
+    "concurrently": "^9.2.1",
+    "electron": "^38.2.0",
+    "electron-builder": "^26.0.12",
     "typescript": "^5.9.2",
-    "vite": "^7.1.6"
+    "vite": "^7.1.6",
+    "wait-on": "^8.0.5"
   }
 }

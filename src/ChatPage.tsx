@@ -899,7 +899,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           ) : null}
         </div>
 
-        <form className="composer" onSubmit={handleSubmit} onPaste={handlePaste}>
+        <form
+          className="composer"
+          onSubmit={handleSubmit}
+          onPaste={handlePaste}
+          onMouseDown={() => markMessageRead()}
+        >
           {error ? <Typography.Text type="danger">{error}</Typography.Text> : null}
           {replyTo ? (
             <div className="reply-bar">
@@ -951,6 +956,8 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             <Mentions
               value={draft}
               onChange={setDraft}
+              onFocus={() => markMessageRead()}
+              onClick={() => markMessageRead()}
               onSearch={() => {
                 mentionMeasuringRef.current = true;
               }}

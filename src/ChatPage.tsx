@@ -76,12 +76,14 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const mentionMeasuringRef = useRef(false);
   const lastSentRef = useRef<{ at: number; text: string }>({ at: 0, text: '' });
   const lastReadSentRef = useRef('');
+  const messagesRef = useRef<ChatMessage[]>([]);
   const pendingImagesRef = useRef<PendingImage[]>([]);
   const userRef = useRef(user);
   const roomNameRef = useRef('');
   const myHandle = handleFromEmail(user.email);
   const myHandleRef = useRef(myHandle);
   pendingImagesRef.current = pendingImages;
+  messagesRef.current = messages;
   userRef.current = user;
   myHandleRef.current = myHandle;
 
@@ -390,16 +392,20 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     };
   }, [roomId]);
 
-  function markMessageRead(message: ChatMessage) {
+  function markMessageRead(message?: ChatMessage) {
     if (!roomId) {
       return;
     }
-    const key = `${roomId}:${message.id}`;
+    const latest = message ?? messagesRef.current[messagesRef.current.length - 1];
+    if (!latest) {
+      return;
+    }
+    const key = `${roomId}:${latest.id}`;
     if (lastReadSentRef.current === key) {
       return;
     }
     lastReadSentRef.current = key;
-    void api.markRead(roomId, message.id).then(setReads).catch(() => {
+    void api.markRead(roomId, latest.id).then(setReads).catch(() => {
       lastReadSentRef.current = '';
     });
   }
@@ -576,6 +582,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       }
       return [...current, message];
     });
+    markMessageRead(message);
   }
 
   function shouldSkipSend(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -773,7 +780,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                 key={message.id}
                 id={`msg-${message.id}`}
                 className={cls}
-                onClick={() => markMessageRead(message)}
+                onClick={() => markMessageRead()}
               >
                 {!mine && first ? (
                   <Avatar
@@ -828,7 +835,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                           className="reply-quote"
                           onClick={(event) => {
                             event.stopPropagation();
-                            markMessageRead(message);
+                            markMessageRead();
                             jumpToMessage(message.replyTo!.id);
                           }}
                         >
@@ -851,7 +858,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                               className="chat-photo"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                markMessageRead(message);
+                                markMessageRead();
                               }}
                             />
                           ) : null}

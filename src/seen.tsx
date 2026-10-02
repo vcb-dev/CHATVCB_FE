@@ -17,10 +17,18 @@ function hasReadThrough(
   target: ChatMessage,
 ) {
   const readIdx = messageIndex(messages, read.lastReadMessageId);
-  if (targetIdx >= 0 && readIdx >= 0) {
-    return readIdx >= targetIdx;
+  if (targetIdx >= 0 && readIdx >= 0 && readIdx >= targetIdx) {
+    return true;
   }
-  if (read.lastReadAt) {
+  if (targetIdx >= 0 && read.userId) {
+    const repliedAfter = messages.some(
+      (item, index) => item.userId === read.userId && index >= targetIdx,
+    );
+    if (repliedAfter) {
+      return true;
+    }
+  }
+  if (readIdx < 0 && read.lastReadAt) {
     return new Date(read.lastReadAt).getTime() >= new Date(target.createdAt).getTime();
   }
   return false;

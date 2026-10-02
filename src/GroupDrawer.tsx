@@ -8,13 +8,11 @@ import {
   TeamOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { Avatar, Button, Drawer, Empty, Image, Input, Modal, Tabs, Typography, message } from 'antd';
+import { Avatar, Button, Drawer, Empty, Image, Input, Modal, Typography, message } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { api, fileSrc } from './api';
 import { avatarColor, initials } from './theme';
 import type { ChatMessage, GalleryImage, Room, RoomLink, RoomMember } from './types';
-
-type TabKey = 'members' | 'photos' | 'files' | 'links' | 'pins';
 
 type Props = {
   open: boolean;
@@ -35,7 +33,6 @@ export function GroupDrawer({
   onMembersUpdated,
   onJumpMessage,
 }: Props) {
-  const [tab, setTab] = useState<TabKey>('members');
   const [name, setName] = useState(room?.name ?? '');
   const [editingName, setEditingName] = useState(false);
   const [photos, setPhotos] = useState<GalleryImage[]>([]);
@@ -48,23 +45,16 @@ export function GroupDrawer({
   useEffect(() => {
     setName(room?.name ?? '');
     setEditingName(false);
-    setTab('members');
   }, [room?.id, open]);
 
   useEffect(() => {
     if (!open || !room) {
       return;
     }
-    if (tab === 'photos' || tab === 'files') {
-      void api.gallery(room.id).then(setPhotos).catch(() => setPhotos([]));
-    }
-    if (tab === 'links') {
-      void api.links(room.id).then(setLinks).catch(() => setLinks([]));
-    }
-    if (tab === 'pins') {
-      void api.pins(room.id).then(setPins).catch(() => setPins([]));
-    }
-  }, [open, room, tab]);
+    void api.gallery(room.id).then(setPhotos).catch(() => setPhotos([]));
+    void api.links(room.id).then(setLinks).catch(() => setLinks([]));
+    void api.pins(room.id).then(setPins).catch(() => setPins([]));
+  }, [open, room]);
 
   async function saveName() {
     if (!room) {
@@ -158,152 +148,141 @@ export function GroupDrawer({
         <Typography.Text type="secondary">{members.length} thành viên</Typography.Text>
       </div>
 
-      <Tabs
-        activeKey={tab}
-        onChange={(key) => setTab(key as TabKey)}
-        items={[
-          {
-            key: 'members',
-            label: (
-              <span>
-                <TeamOutlined /> Thành viên
-              </span>
-            ),
-            children: (
-              <div className="group-list">
-                {members.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className="group-member"
-                    onClick={() => {
-                      setNickUser(item);
-                      setNickValue(item.nickname || '');
-                    }}
-                  >
-                    <Avatar
-                      src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
-                      style={{ background: avatarColor(item.displayName || item.name) }}
-                    >
-                      {initials(item.displayName || item.name)}
-                    </Avatar>
-                    <span>
-                      <strong>{item.displayName || item.name}</strong>
-                      <small>
-                        @{item.handle}
-                        {item.nickname ? ` · ${item.name}` : ''}
-                      </small>
-                    </span>
-                    <UserOutlined />
-                  </button>
-                ))}
-              </div>
-            ),
-          },
-          {
-            key: 'photos',
-            label: (
-              <span>
-                <PictureOutlined /> Ảnh
-              </span>
-            ),
-            children: photos.length ? (
-              <div className="gallery-grid">
-                {photos.map((image) => (
-                  <div key={image.id} className="gallery-item">
-                    <Image src={fileSrc(image.url)} alt={image.filename} />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <Empty description="Chưa có ảnh trong nhóm" />
-            ),
-          },
-          {
-            key: 'files',
-            label: (
-              <span>
-                <FileOutlined /> File
-              </span>
-            ),
-            children: photos.length ? (
-              <div className="group-list">
-                {photos.map((image) => (
-                  <a
-                    key={image.id}
-                    className="group-link"
-                    href={fileSrc(image.url)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <FileOutlined />
-                    <span>
-                      <strong>{image.filename}</strong>
-                      <small>{new Date(image.createdAt).toLocaleString('vi-VN')}</small>
-                    </span>
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <Empty description="Chưa có file trong nhóm" />
-            ),
-          },
-          {
-            key: 'links',
-            label: (
-              <span>
-                <LinkOutlined /> Link
-              </span>
-            ),
-            children: links.length ? (
-              <div className="group-list">
-                {links.map((item) => (
-                  <a key={`${item.messageId}-${item.url}`} className="group-link" href={item.url} target="_blank" rel="noreferrer">
-                    <LinkOutlined />
-                    <span>
-                      <strong>{item.url}</strong>
-                      <small>{item.authorName}</small>
-                    </span>
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <Empty description="Chưa có link trong nhóm" />
-            ),
-          },
-          {
-            key: 'pins',
-            label: (
-              <span>
-                <PushpinOutlined /> Đã ghim
-              </span>
-            ),
-            children: pins.length ? (
-              <div className="group-list">
-                {pins.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className="group-pin"
-                    onClick={() => {
-                      onJumpMessage(item.id);
-                      onClose();
-                    }}
-                  >
-                    <PushpinOutlined />
-                    <span>
-                      <strong>{item.authorName}</strong>
-                      <small>{item.content || (item.imageUrl ? '[Ảnh]' : 'Tin đã ghim')}</small>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <Empty description="Chưa ghim tin nào" />
-            ),
-          },
-        ]}
-      />
+      <div className="group-sections">
+        <section className="group-section">
+          <h3>
+            <TeamOutlined /> Thành viên
+          </h3>
+          <div className="group-list">
+            {members.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="group-member"
+                onClick={() => {
+                  setNickUser(item);
+                  setNickValue(item.nickname || '');
+                }}
+              >
+                <Avatar
+                  src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
+                  style={{ background: avatarColor(item.displayName || item.name) }}
+                >
+                  {initials(item.displayName || item.name)}
+                </Avatar>
+                <span>
+                  <strong>{item.displayName || item.name}</strong>
+                  <small>
+                    @{item.handle}
+                    {item.nickname ? ` · ${item.name}` : ''}
+                  </small>
+                </span>
+                <UserOutlined />
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="group-section">
+          <h3>
+            <PictureOutlined /> Ảnh
+          </h3>
+          {photos.length ? (
+            <div className="gallery-grid">
+              {photos.map((image) => (
+                <div key={image.id} className="gallery-item">
+                  <Image src={fileSrc(image.url)} alt={image.filename} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Empty description="Chưa có ảnh trong nhóm" />
+          )}
+        </section>
+
+        <section className="group-section">
+          <h3>
+            <FileOutlined /> File
+          </h3>
+          {photos.length ? (
+            <div className="group-list">
+              {photos.map((image) => (
+                <a
+                  key={image.id}
+                  className="group-link"
+                  href={fileSrc(image.url)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <FileOutlined />
+                  <span>
+                    <strong>{image.filename}</strong>
+                    <small>{new Date(image.createdAt).toLocaleString('vi-VN')}</small>
+                  </span>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <Empty description="Chưa có file trong nhóm" />
+          )}
+        </section>
+
+        <section className="group-section">
+          <h3>
+            <LinkOutlined /> Link
+          </h3>
+          {links.length ? (
+            <div className="group-list">
+              {links.map((item) => (
+                <a
+                  key={`${item.messageId}-${item.url}`}
+                  className="group-link"
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <LinkOutlined />
+                  <span>
+                    <strong>{item.url}</strong>
+                    <small>{item.authorName}</small>
+                  </span>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <Empty description="Chưa có link trong nhóm" />
+          )}
+        </section>
+
+        <section className="group-section">
+          <h3>
+            <PushpinOutlined /> Đã ghim
+          </h3>
+          {pins.length ? (
+            <div className="group-list">
+              {pins.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="group-pin"
+                  onClick={() => {
+                    onJumpMessage(item.id);
+                    onClose();
+                  }}
+                >
+                  <PushpinOutlined />
+                  <span>
+                    <strong>{item.authorName}</strong>
+                    <small>{item.content || (item.imageUrl ? '[Ảnh]' : 'Tin đã ghim')}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <Empty description="Chưa ghim tin nào" />
+          )}
+        </section>
+      </div>
 
       <Modal
         title="Đổi biệt danh"

@@ -621,14 +621,15 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               </Typography.Text>
             </div>
           </div>
-          <Button
-            type="text"
+          <button
+            type="button"
             className="chat-head-menu"
-            icon={<MenuOutlined />}
             disabled={!room}
             title="Cài đặt nhóm"
             onClick={() => setGroupOpen(true)}
-          />
+          >
+            <MenuOutlined />
+          </button>
         </header>
 
         <div className="messages" ref={listRef}>

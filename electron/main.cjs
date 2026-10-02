@@ -32,6 +32,10 @@ function senderWindow(event) {
   return BrowserWindow.fromWebContents(event.sender);
 }
 
+ipcMain.on('chatvcb:focused', (event) => {
+  event.returnValue = Boolean(senderWindow(event)?.isFocused());
+});
+
 ipcMain.on('chatvcb:notify', (event, payload) => {
   const win = senderWindow(event);
   if (win?.isFocused()) {

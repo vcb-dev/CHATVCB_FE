@@ -1,7 +1,7 @@
-import { LockOutlined, MailOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
+import { CameraOutlined, LockOutlined, MailOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
 import { Avatar, Button, Divider, Drawer, Form, Input, Switch, Typography, message } from 'antd';
-import { useEffect, useState } from 'react';
-import { api } from './api';
+import { useEffect, useRef, useState } from 'react';
+import { api, fileSrc } from './api';
 import { notifyEnabled, requestNotifyPermission, setNotifyEnabled } from './notify';
 import { avatarColor, initials } from './theme';
 import type { User } from './types';
@@ -15,6 +15,7 @@ type Props = {
 
 type FormValues = {
   name: string;
+  email: string;
   currentPassword?: string;
   password?: string;
 };
@@ -24,18 +25,24 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState(user);
   const [notifyOn, setNotifyOn] = useState(notifyEnabled);
+  const avatarRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) {
       return;
     }
     setProfile(user);
-    form.setFieldsValue({ name: user.name, currentPassword: '', password: '' });
+    form.setFieldsValue({
+      name: user.name,
+      email: user.email ?? '',
+      currentPassword: '',
+      password: '',
+    });
     void api
       .me()
       .then((next) => {
         setProfile(next);
-        form.setFieldValue('name', next.name);
+        form.setFieldsValue({ name: next.name, email: next.email ?? '' });
       })
       .catch(() => undefined);
   }, [open, user, form]);
@@ -43,27 +50,53 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
   async function onFinish(values: FormValues) {
     setLoading(true);
     try {
-      const payload: { name?: string; password?: string; currentPassword?: string } = {};
-      if (values.name.trim() !== profile.name) {
-        payload.name = values.name.trim();
+      const payload: {
+        name?: string;
+        email?: string;
+        password?: string;
+        currentPassword?: string;
+      } = {};
+      const nextName = values.name.trim();
+      const nextEmail = values.email.trim();
+      if (nextName && nextName !== profile.name) {
+        payload.name = nextName;
       }
-      if (values.password) {
-        payload.password = values.password;
-        payload.currentPassword = values.currentPassword;
+      if (nextEmail && nextEmail !== (profile.email ?? '')) {
+        payload.email = nextEmail;
       }
-      if (!payload.name && !payload.password) {
+      if (values.password?.trim()) {
+        payload.password = values.password.trim();
+        payload.currentPassword = values.currentPassword?.trim();
+      }
+      if (!payload.name && !payload.email && !payload.password) {
         message.info('Chưa có thay đổi nào.');
         return;
       }
       const result = await api.updateProfile(payload);
       setProfile(result.user);
       onUpdated(result);
-      form.setFieldsValue({ currentPassword: '', password: '' });
+      form.setFieldsValue({
+        name: result.user.name,
+        email: result.user.email ?? '',
+        currentPassword: '',
+        password: '',
+      });
       message.success('Đã lưu thông tin cá nhân.');
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không lưu được.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function onAvatar(file: File) {
+    try {
+      const result = await api.uploadMyAvatar(file);
+      setProfile(result.user);
+      onUpdated(result);
+      message.success('Đã đổi ảnh đại diện.');
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'Không đổi được ảnh.');
     }
   }
 
@@ -79,9 +112,36 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
       width={360}
     >
       <div className="profile-head">
-        <Avatar size={72} style={{ background: avatarColor(profile.name) }}>
-          {initials(profile.name)}
-        </Avatar>
+        <button
+          type="button"
+          className="user-avatar-btn"
+          title="Đổi ảnh đại diện"
+          onClick={() => avatarRef.current?.click()}
+        >
+          <Avatar
+            size={72}
+            src={profile.avatarUrl ? fileSrc(profile.avatarUrl) : undefined}
+            style={{ background: avatarColor(profile.name) }}
+          >
+            {initials(profile.name)}
+          </Avatar>
+          <span className="user-cam">
+            <CameraOutlined />
+          </span>
+        </button>
+        <input
+          ref={avatarRef}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            if (file) {
+              void onAvatar(file);
+            }
+          }}
+        />
         <div>
           <Typography.Title level={4} style={{ margin: 0 }}>
             {profile.name}
@@ -129,23 +189,40 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
 
       <Form form={form} layout="vertical" onFinish={onFinish} requiredMark={false}>
         <Form.Item name="name" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
-          <Input size="large" prefix={<UserOutlined />} />
+          <Input size="large" prefix={<UserOutlined />} autoComplete="name" />
         </Form.Item>
-        <Form.Item label="Email">
-          <Input size="large" value={profile.email} disabled prefix={<MailOutlined />} />
+        <Form.Item
+          name="email"
+          label="Email"
+          rules={[
+            { required: true, message: 'Nhập email' },
+            { type: 'email', message: 'Email không hợp lệ' },
+          ]}
+        >
+          <Input size="large" prefix={<MailOutlined />} autoComplete="email" />
         </Form.Item>
         <Form.Item label="Phòng ban">
           <Input size="large" value={profile.team ? `Team ${profile.team}` : ''} disabled prefix={<TeamOutlined />} />
         </Form.Item>
         <Typography.Text type="secondary">Đổi mật khẩu (không bắt buộc)</Typography.Text>
         <Form.Item name="currentPassword" style={{ marginTop: 8 }}>
-          <Input.Password size="large" prefix={<LockOutlined />} placeholder="Mật khẩu hiện tại" />
+          <Input.Password
+            size="large"
+            prefix={<LockOutlined />}
+            placeholder="Mật khẩu hiện tại"
+            autoComplete="current-password"
+          />
         </Form.Item>
         <Form.Item
           name="password"
           rules={[{ min: 6, message: 'Mật khẩu mới tối thiểu 6 ký tự' }]}
         >
-          <Input.Password size="large" prefix={<LockOutlined />} placeholder="Mật khẩu mới" />
+          <Input.Password
+            size="large"
+            prefix={<LockOutlined />}
+            placeholder="Mật khẩu mới"
+            autoComplete="new-password"
+          />
         </Form.Item>
         <Button type="primary" htmlType="submit" size="large" block loading={loading}>
           Lưu thay đổi

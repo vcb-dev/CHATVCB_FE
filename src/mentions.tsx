@@ -26,7 +26,7 @@ export function buildMentionOptions(
     }
     map.set(item.handle, {
       value: item.handle,
-      label: `${item.name} (@${item.handle})`,
+      label: `${item.displayName || item.name} (@${item.handle})`,
     });
   }
   for (const item of online) {

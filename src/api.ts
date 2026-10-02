@@ -1,4 +1,12 @@
-import type { ChatMessage, GalleryImage, Room, RoomMember, RoomRead, User } from './types';
+import type {
+  ChatMessage,
+  GalleryImage,
+  Room,
+  RoomLink,
+  RoomMember,
+  RoomRead,
+  User,
+} from './types';
 
 const API_URL = (import.meta.env.VITE_APP_URL ?? '/api').replace(/\/$/, '');
 
@@ -64,11 +72,29 @@ export const api = {
   me() {
     return request<User>('/auth/me');
   },
-  updateProfile(payload: { name?: string; password?: string; currentPassword?: string }) {
+  updateProfile(payload: {
+    name?: string;
+    email?: string;
+    password?: string;
+    currentPassword?: string;
+  }) {
     return request<{ token: string; user: User }>('/auth/me', {
       method: 'PATCH',
       body: JSON.stringify(payload),
     });
+  },
+  async uploadMyAvatar(file: File) {
+    const body = new FormData();
+    body.append('file', file);
+    const response = await fetch(`${API_URL}/auth/me/avatar`, {
+      method: 'POST',
+      headers: authHeader(),
+      body,
+    });
+    if (!response.ok) {
+      throw new Error(await errorMessage(response));
+    }
+    return response.json() as Promise<{ token: string; user: User }>;
   },
   rooms() {
     return request<Room[]>('/rooms');
@@ -79,10 +105,57 @@ export const api = {
   messages(roomId: string) {
     return request<ChatMessage[]>(`/rooms/${roomId}/messages`);
   },
-  sendMessage(roomId: string, content: string, imageId?: string) {
+  sendMessage(roomId: string, content: string, imageId?: string, replyToId?: string) {
     return request<ChatMessage>(`/rooms/${roomId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ content, imageId }),
+      body: JSON.stringify({ content, imageId, replyToId }),
+    });
+  },
+  updateRoom(roomId: string, name: string) {
+    return request<Room>(`/rooms/${roomId}/settings`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    });
+  },
+  async uploadRoomAvatar(roomId: string, file: File) {
+    const body = new FormData();
+    body.append('file', file);
+    const response = await fetch(`${API_URL}/rooms/${roomId}/avatar`, {
+      method: 'POST',
+      headers: authHeader(),
+      body,
+    });
+    if (!response.ok) {
+      throw new Error(await errorMessage(response));
+    }
+    return response.json() as Promise<Room>;
+  },
+  updateNickname(roomId: string, userId: string, nickname: string) {
+    return request<RoomMember[]>(`/rooms/${roomId}/nickname`, {
+      method: 'PATCH',
+      body: JSON.stringify({ userId, nickname }),
+    });
+  },
+  links(roomId: string) {
+    return request<RoomLink[]>(`/rooms/${roomId}/links`);
+  },
+  pins(roomId: string) {
+    return request<ChatMessage[]>(`/rooms/${roomId}/pins`);
+  },
+  pinMessage(roomId: string, messageId: string, pinned: boolean) {
+    return request<ChatMessage>(`/rooms/${roomId}/messages/${messageId}/pin`, {
+      method: 'PATCH',
+      body: JSON.stringify({ pinned }),
+    });
+  },
+  recallMessage(roomId: string, messageId: string) {
+    return request<ChatMessage>(`/rooms/${roomId}/messages/${messageId}/recall`, {
+      method: 'POST',
+    });
+  },
+  deleteMessage(roomId: string, messageId: string) {
+    return request<{ ok: boolean; id: string }>(`/rooms/${roomId}/messages/${messageId}`, {
+      method: 'DELETE',
     });
   },
   gallery(roomId: string) {

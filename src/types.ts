@@ -3,6 +3,7 @@ export type User = {
   name: string;
   email?: string;
   team?: string;
+  avatarUrl?: string;
   createdAt?: string;
 };
 
@@ -12,6 +13,15 @@ export type Room = {
   name: string;
   team?: string;
   agentName: string;
+  avatarUrl?: string;
+};
+
+export type MessageReply = {
+  id: string;
+  authorName: string;
+  content: string;
+  imageUrl?: string | null;
+  recalled?: boolean;
 };
 
 export type ChatMessage = {
@@ -23,6 +33,10 @@ export type ChatMessage = {
   content: string;
   imageId?: string | null;
   imageUrl?: string | null;
+  replyToId?: string | null;
+  replyTo?: MessageReply | null;
+  pinned?: boolean;
+  recalled?: boolean;
   createdAt: string;
 };
 
@@ -35,7 +49,10 @@ export type PresenceUser = {
 export type RoomMember = {
   id: string;
   name: string;
+  nickname?: string;
+  displayName?: string;
   handle: string;
+  avatarUrl?: string;
 };
 
 export type RoomRead = {
@@ -49,6 +66,13 @@ export type GalleryImage = {
   id: string;
   filename: string;
   url: string;
+  createdAt: string;
+};
+
+export type RoomLink = {
+  url: string;
+  messageId: string;
+  authorName: string;
   createdAt: string;
 };
 

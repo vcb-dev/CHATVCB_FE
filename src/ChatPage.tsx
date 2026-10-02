@@ -1,5 +1,5 @@
-import { LogoutOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons';
-import { Avatar, Badge, Button, Image, Mentions, Typography, message as antMessage } from 'antd';
+import { CameraOutlined, CloseOutlined, LogoutOutlined, PushpinOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons';
+import { Avatar, Badge, Button, Dropdown, Image, Mentions, Modal, Typography, message as antMessage } from 'antd';
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react';
 import type { Socket } from 'socket.io-client';
 import { api, fileSrc } from './api';
@@ -20,7 +20,8 @@ import {
   mentionsUser,
 } from './mentions';
 import { lastSeenOn, SeenAvatars, SeenBubble, viewersOf } from './seen';
-import { notifyIncoming, requestNotifyPermission, restoreTitle } from './notify';
+import { isChatVisible, notifyIncoming, requestNotifyPermission, restoreTitle } from './notify';
+import { GroupDrawer } from './GroupDrawer';
 import { ProfileDrawer } from './ProfileDrawer';
 import { connectSocket } from './socket';
 import { initials } from './theme';
@@ -61,7 +62,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [members, setMembers] = useState<RoomMember[]>([]);
   const [membersLoaded, setMembersLoaded] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [groupOpen, setGroupOpen] = useState(false);
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const myAvatarRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const roomIdRef = useRef('');
   const mentionMeasuringRef = useRef(false);
@@ -86,6 +90,28 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     () => buildMentionOptions(members, online, user.id, room),
     [members, online, room, user.id],
   );
+
+  useEffect(() => {
+    void api
+      .me()
+      .then((next) => {
+        const token = localStorage.getItem('chatvcb.token');
+        if (token) {
+          onUserUpdate({ token, user: { ...userRef.current, ...next } });
+        }
+      })
+      .catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleMyAvatar(file: File) {
+    try {
+      onUserUpdate(await api.uploadMyAvatar(file));
+      antMessage.success('Đã đổi ảnh đại diện.');
+    } catch (err) {
+      antMessage.error(err instanceof Error ? err.message : 'Không đổi được ảnh.');
+    }
+  }
 
   useEffect(() => {
     void requestNotifyPermission();
@@ -130,6 +156,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     revokePending(pendingImagesRef.current);
     setPendingImages([]);
     setGalleryOpen(false);
+    setReplyTo(null);
     api
       .messages(roomId)
       .then((nextMessages) => {
@@ -214,6 +241,44 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     socket.on('agent.pending', () => setPending(true));
     socket.on('room.presence', (users: PresenceUser[]) => setOnline(users));
     socket.on('room.reads', (next: RoomRead[]) => setReads(next));
+    socket.on('message.updated', (message: ChatMessage) => {
+      setMessages((current) =>
+        current.map((item) => {
+          if (item.id === message.id) {
+            return message;
+          }
+          if (item.replyTo?.id === message.id) {
+            return {
+              ...item,
+              replyTo: {
+                id: message.id,
+                authorName: message.authorName,
+                content: message.content,
+                imageUrl: message.imageUrl,
+                recalled: message.recalled,
+              },
+            };
+          }
+          return item;
+        }),
+      );
+    });
+    socket.on('room.updated', (next: Room) => {
+      setRooms((current) => current.map((item) => (item.id === next.id ? { ...item, ...next } : item)));
+    });
+    socket.on('room.members', (next: RoomMember[]) => {
+      setMembers(next);
+      const names = new Map(next.map((item) => [item.id, item.displayName || item.name]));
+      setMessages((current) =>
+        current.map((item) => {
+          if (!item.userId) {
+            return item;
+          }
+          const name = names.get(item.userId);
+          return name && name !== item.authorName ? { ...item, authorName: name } : item;
+        }),
+      );
+    });
     return () => {
       socket.disconnect();
       socketRef.current = null;
@@ -236,14 +301,28 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
 
   useEffect(() => {
     const last = messages[messages.length - 1];
-    if (!roomId || !last || lastReadSentRef.current === `${roomId}:${last.id}`) {
+    if (!roomId || !last) {
       return;
     }
-    const timer = window.setTimeout(() => {
+
+    function tryMarkRead() {
+      if (!isChatVisible() || lastReadSentRef.current === `${roomId}:${last.id}`) {
+        return;
+      }
       lastReadSentRef.current = `${roomId}:${last.id}`;
-      void api.markRead(roomId, last.id).then(setReads).catch(() => undefined);
-    }, 280);
-    return () => window.clearTimeout(timer);
+      void api.markRead(roomId, last.id).then(setReads).catch(() => {
+        lastReadSentRef.current = '';
+      });
+    }
+
+    const timer = window.setTimeout(tryMarkRead, 280);
+    window.addEventListener('focus', tryMarkRead);
+    document.addEventListener('visibilitychange', tryMarkRead);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('focus', tryMarkRead);
+      document.removeEventListener('visibilitychange', tryMarkRead);
+    };
   }, [roomId, messages]);
 
   useEffect(() => {
@@ -311,8 +390,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       return;
     }
     lastSentRef.current = { at: now, text: fingerprint };
+    const replyId = replyTo?.id;
     setDraft('');
     setPendingImages([]);
+    setReplyTo(null);
     setError('');
     try {
       const uploaded: { imageId?: string; caption: string }[] = [];
@@ -328,12 +409,17 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         }
       }
       if (!uploaded.length) {
-        const message = await api.sendMessage(roomId, content);
+        const message = await api.sendMessage(roomId, content, undefined, replyId);
         appendMessage(message);
         return;
       }
-      for (const item of uploaded) {
-        const message = await api.sendMessage(roomId, item.caption, item.imageId);
+      for (const [index, item] of uploaded.entries()) {
+        const message = await api.sendMessage(
+          roomId,
+          item.caption,
+          item.imageId,
+          index === uploaded.length - 1 ? replyId : undefined,
+        );
         appendMessage(message);
       }
       revokePending(attachments);
@@ -341,6 +427,60 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       setDraft(content);
       setPendingImages(attachments);
       setError('Gửi tin thất bại.');
+    }
+  }
+
+  function jumpToMessage(id: string) {
+    const el = document.getElementById(`msg-${id}`);
+    if (!el) {
+      return;
+    }
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('flash');
+    window.setTimeout(() => el.classList.remove('flash'), 1400);
+  }
+
+  async function handleMessageAction(key: string, message: ChatMessage) {
+    if (!roomId) {
+      return;
+    }
+    if (key === 'reply') {
+      setReplyTo(message);
+      return;
+    }
+    try {
+      if (key === 'pin') {
+        const next = await api.pinMessage(roomId, message.id, !message.pinned);
+        setMessages((current) => current.map((item) => (item.id === next.id ? next : item)));
+        return;
+      }
+      if (key === 'delete') {
+        Modal.confirm({
+          title: 'Xóa tin nhắn?',
+          content: 'Chỉ xóa với bạn. Người khác vẫn thấy tin này.',
+          okText: 'Xóa',
+          okButtonProps: { danger: true },
+          onOk: async () => {
+            await api.deleteMessage(roomId, message.id);
+            setMessages((current) => current.filter((item) => item.id !== message.id));
+          },
+        });
+        return;
+      }
+      if (key === 'recall') {
+        Modal.confirm({
+          title: 'Thu hồi tin nhắn?',
+          content: 'Mọi người trong nhóm sẽ không còn thấy nội dung.',
+          okText: 'Thu hồi',
+          okButtonProps: { danger: true },
+          onOk: async () => {
+            const next = await api.recallMessage(roomId, message.id);
+            setMessages((current) => current.map((item) => (item.id === next.id ? next : item)));
+          },
+        });
+      }
+    } catch (err) {
+      antMessage.error(err instanceof Error ? err.message : 'Không thực hiện được.');
     }
   }
 
@@ -404,7 +544,9 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               onClick={() => setRoomId(item.id)}
               type="button"
             >
-              <Avatar style={{ background: '#0084ff' }}>{initials(item.name)}</Avatar>
+              <Avatar src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
+                {initials(item.name)}
+              </Avatar>
               <span className="room-meta">
                 <strong>{item.name}</strong>
                 <small>@{item.agentName}</small>
@@ -415,12 +557,33 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         <div className="sidebar-foot">
           <button
             type="button"
-            className="profile-avatar-btn"
-            title="Thông tin cá nhân"
-            onClick={() => setProfileOpen(true)}
+            className="user-avatar-btn"
+            title="Đổi ảnh đại diện"
+            onClick={() => myAvatarRef.current?.click()}
           >
-            <Avatar style={{ background: '#00a400' }}>{initials(user.name)}</Avatar>
+            <Avatar
+              src={user.avatarUrl ? fileSrc(user.avatarUrl) : undefined}
+              style={{ background: '#00a400' }}
+            >
+              {initials(user.name)}
+            </Avatar>
+            <span className="user-cam">
+              <CameraOutlined />
+            </span>
           </button>
+          <input
+            ref={myAvatarRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = '';
+              if (file) {
+                void handleMyAvatar(file);
+              }
+            }}
+          />
           <button type="button" className="who profile-who" onClick={() => setProfileOpen(true)}>
             <strong>{user.name}</strong>
             <small>Team {team}</small>
@@ -433,8 +596,9 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
 
       <main className="chat">
         <header className="chat-head">
+          <button type="button" className="chat-head-btn" onClick={() => room && setGroupOpen(true)}>
           <Badge dot={online.length > 0} color="#31a24c">
-            <Avatar size={40} style={{ background: '#0084ff' }}>
+            <Avatar size={40} src={room?.avatarUrl ? fileSrc(room.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
               {room ? initials(room.name) : '?'}
             </Avatar>
           </Badge>
@@ -443,7 +607,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               {room?.name ?? 'Chọn phòng'}
             </Typography.Title>
             <Typography.Text type="secondary">
-              Gõ @ để tag{' '}
+              Nhấn để xem nhóm · Gõ @ để tag{' '}
               {mentionOptions.filter((item) => item.value !== 'agent' && item.value !== room?.agentName)
                 .length
                 ? mentionOptions
@@ -456,6 +620,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               {online.length ? ` · Online: ${online.map((item) => item.name).join(', ')}` : ''}
             </Typography.Text>
           </div>
+          </button>
         </header>
 
         <div className="messages" ref={listRef}>
@@ -477,7 +642,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             const hasImage = Boolean(message.imageUrl);
             const hasText = Boolean(message.content.trim());
             return (
-              <div key={message.id} className={cls}>
+              <div key={message.id} id={`msg-${message.id}`} className={cls}>
                 {!mine && first ? (
                   <Avatar
                     size={28}
@@ -493,27 +658,78 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                   {first && !mine ? (
                     <span className="who-line">{message.authorName}</span>
                   ) : null}
+                  <Dropdown
+                    trigger={['contextMenu']}
+                    menu={{
+                      items: [
+                        { key: 'reply', label: 'Trả lời tin nhắn', disabled: message.recalled },
+                        {
+                          key: 'pin',
+                          label: message.pinned ? 'Bỏ ghim tin nhắn' : 'Ghim tin nhắn',
+                          disabled: message.recalled,
+                        },
+                        { key: 'delete', label: 'Xóa tin nhắn' },
+                        ...(mine && !message.recalled
+                          ? [{ key: 'recall', label: 'Thu hồi tin nhắn', danger: true }]
+                          : []),
+                      ],
+                      onClick: ({ key }) => void handleMessageAction(key, message),
+                    }}
+                  >
+                  <div className="bubble-hit">
                   <SeenBubble viewers={viewers}>
                     <div
                       className={[
                         'bubble',
                         hasImage ? 'has-image' : '',
                         hasText ? 'has-text' : '',
+                        message.recalled ? 'recalled' : '',
+                        message.pinned ? 'pinned' : '',
                       ]
                         .filter(Boolean)
                         .join(' ')}
                     >
-                      {hasImage ? (
-                        <Image
-                          src={fileSrc(message.imageUrl as string)}
-                          alt=""
-                          className="chat-photo"
-                          onClick={(event) => event.stopPropagation()}
-                        />
+                      {message.replyTo ? (
+                        <button
+                          type="button"
+                          className="reply-quote"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            jumpToMessage(message.replyTo!.id);
+                          }}
+                        >
+                          <strong>{message.replyTo.authorName}</strong>
+                          <span>
+                            {message.replyTo.recalled
+                              ? 'Tin nhắn đã được thu hồi'
+                              : message.replyTo.content || (message.replyTo.imageUrl ? '[Ảnh]' : '')}
+                          </span>
+                        </button>
                       ) : null}
-                      {hasText ? <MentionText text={message.content} myHandle={myHandle} /> : null}
+                      {message.recalled ? (
+                        <p className="recalled-text">Tin nhắn đã được thu hồi</p>
+                      ) : (
+                        <>
+                          {hasImage ? (
+                            <Image
+                              src={fileSrc(message.imageUrl as string)}
+                              alt=""
+                              className="chat-photo"
+                              onClick={(event) => event.stopPropagation()}
+                            />
+                          ) : null}
+                          {hasText ? <MentionText text={message.content} myHandle={myHandle} /> : null}
+                        </>
+                      )}
+                      {message.pinned && !message.recalled ? (
+                        <span className="pin-mark">
+                          <PushpinOutlined /> Đã ghim
+                        </span>
+                      ) : null}
                     </div>
                   </SeenBubble>
+                  </div>
+                  </Dropdown>
                   <SeenAvatars readers={lastReaders} />
                   {first ? (
                     <time>
@@ -541,6 +757,24 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
 
         <form className="composer" onSubmit={handleSubmit} onPaste={handlePaste}>
           {error ? <Typography.Text type="danger">{error}</Typography.Text> : null}
+          {replyTo ? (
+            <div className="reply-bar">
+              <div>
+                <strong>Trả lời {replyTo.authorName}</strong>
+                <span>
+                  {replyTo.recalled
+                    ? 'Tin nhắn đã được thu hồi'
+                    : replyTo.content || (replyTo.imageUrl ? '[Ảnh]' : '')}
+                </span>
+              </div>
+              <Button
+                type="text"
+                size="small"
+                icon={<CloseOutlined />}
+                onClick={() => setReplyTo(null)}
+              />
+            </div>
+          ) : null}
           {membersLoaded && members.length === 0 && mentionOptions.length <= 2 ? (
             <Typography.Text type="warning" style={{ width: '100%' }}>
               Chưa tải được danh sách đồng đội — redeploy BE mới trên Railway rồi tải lại trang.
@@ -622,6 +856,17 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         user={user}
         onClose={() => setProfileOpen(false)}
         onUpdated={onUserUpdate}
+      />
+      <GroupDrawer
+        open={groupOpen}
+        room={room}
+        members={members}
+        onClose={() => setGroupOpen(false)}
+        onRoomUpdated={(next) =>
+          setRooms((current) => current.map((item) => (item.id === next.id ? { ...item, ...next } : item)))
+        }
+        onMembersUpdated={setMembers}
+        onJumpMessage={jumpToMessage}
       />
     </div>
   );

@@ -1,6 +1,16 @@
 const STORAGE_KEY = 'chatvcb.notify';
 const BASE_TITLE = 'CHATVCB';
 
+export function isChatVisible() {
+  if (document.visibilityState !== 'visible') {
+    return false;
+  }
+  if (window.chatvcb?.isWindowFocused) {
+    return window.chatvcb.isWindowFocused();
+  }
+  return document.hasFocus();
+}
+
 export function notifyEnabled() {
   return localStorage.getItem(STORAGE_KEY) !== '0';
 }

@@ -39,14 +39,19 @@ export default defineConfig({
     },
   },
   build: {
+    outDir: 'dist',
+    emptyOutDir: true,
     target: 'es2022',
     cssMinify: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom'],
-          antd: ['antd', '@ant-design/icons'],
-          socket: ['socket.io-client'],
+        manualChunks(id) {
+          if (id.includes('socket.io')) {
+            return 'socket';
+          }
+          if (id.includes('antd') || id.includes('@ant-design') || id.includes('rc-')) {
+            return 'antd';
+          }
         },
       },
     },

@@ -371,8 +371,27 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     }
   }, [messages, pending]);
 
+  useEffect(() => {
+    if (!roomId) {
+      return;
+    }
+    let cancelled = false;
+    const refresh = () => {
+      void api.reads(roomId).then((next) => {
+        if (!cancelled) {
+          setReads(next);
+        }
+      }).catch(() => undefined);
+    };
+    const timer = window.setInterval(refresh, 2500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [roomId]);
+
   function markMessageRead(message: ChatMessage) {
-    if (!roomId || message.userId === user.id) {
+    if (!roomId) {
       return;
     }
     const key = `${roomId}:${message.id}`;
@@ -737,7 +756,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             const first = index === 0 || !sameAuthor(messages[index - 1], message);
             const tagged = !mine && mentionsUser(message.content, myHandle);
             const viewers = viewersOf(message, messages, reads);
-            const lastReaders = lastSeenOn(message.id, reads, user.id);
+            const lastReaders = lastSeenOn(message, messages, reads, user.id);
             const cls = [
               'row',
               mine ? 'mine' : 'theirs',

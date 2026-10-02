@@ -11,6 +11,7 @@ import {
 import { Avatar, Button, Drawer, Empty, Image, Input, Modal, Typography, message } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { api, fileSrc } from './api';
+import { compressImage, mergePhotos } from './media';
 import { avatarColor, initials } from './theme';
 import type { ChatMessage, GalleryImage, Room, RoomLink, RoomMember } from './types';
 
@@ -18,6 +19,7 @@ type Props = {
   open: boolean;
   room: Room | null;
   members: RoomMember[];
+  chatPhotos?: GalleryImage[];
   onClose: () => void;
   onRoomUpdated: (room: Room) => void;
   onMembersUpdated: (members: RoomMember[]) => void;
@@ -28,6 +30,7 @@ export function GroupDrawer({
   open,
   room,
   members,
+  chatPhotos = [],
   onClose,
   onRoomUpdated,
   onMembersUpdated,
@@ -40,21 +43,26 @@ export function GroupDrawer({
   const [pins, setPins] = useState<ChatMessage[]>([]);
   const [nickUser, setNickUser] = useState<RoomMember | null>(null);
   const [nickValue, setNickValue] = useState('');
+  const [photoOpen, setPhotoOpen] = useState(false);
   const avatarRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setName(room?.name ?? '');
     setEditingName(false);
+    setPhotoOpen(false);
   }, [room?.id, open]);
 
   useEffect(() => {
     if (!open || !room) {
       return;
     }
-    void api.gallery(room.id).then(setPhotos).catch(() => setPhotos([]));
+    void api
+      .gallery(room.id)
+      .then((next) => setPhotos(mergePhotos(chatPhotos, next)))
+      .catch(() => setPhotos(chatPhotos));
     void api.links(room.id).then(setLinks).catch(() => setLinks([]));
     void api.pins(room.id).then(setPins).catch(() => setPins([]));
-  }, [open, room]);
+  }, [open, room, chatPhotos]);
 
   async function saveName() {
     if (!room) {
@@ -80,8 +88,14 @@ export function GroupDrawer({
       return;
     }
     try {
-      onRoomUpdated(await api.uploadRoomAvatar(room.id, file));
-      message.success('Đã đổi ảnh nhóm.');
+      const preview = URL.createObjectURL(file);
+      onRoomUpdated({ ...room, avatarUrl: preview });
+      try {
+        onRoomUpdated(await api.uploadRoomAvatar(room.id, await compressImage(file, 400)));
+        message.success('Đã đổi ảnh nhóm.');
+      } finally {
+        URL.revokeObjectURL(preview);
+      }
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không đổi được ảnh.');
     }
@@ -188,12 +202,15 @@ export function GroupDrawer({
             <PictureOutlined /> Ảnh
           </h3>
           {photos.length ? (
-            <div className="gallery-grid">
-              {photos.map((image) => (
-                <div key={image.id} className="gallery-item">
-                  <Image src={fileSrc(image.url)} alt={image.filename} />
-                </div>
-              ))}
+            <div className="group-photo-preview">
+              <div className="gallery-item">
+                <Image src={fileSrc(photos[0].url)} alt={photos[0].filename} />
+              </div>
+              {photos.length > 1 ? (
+                <button type="button" className="group-photo-more" onClick={() => setPhotoOpen(true)}>
+                  Xem thêm ({photos.length})
+                </button>
+              ) : null}
             </div>
           ) : (
             <Empty description="Chưa có ảnh trong nhóm" />
@@ -283,6 +300,22 @@ export function GroupDrawer({
           )}
         </section>
       </div>
+
+      <Modal
+        title={`Ảnh trong nhóm (${photos.length})`}
+        open={photoOpen}
+        onCancel={() => setPhotoOpen(false)}
+        footer={null}
+        width={640}
+      >
+        <div className="gallery-grid">
+          {photos.map((image) => (
+            <div key={image.id} className="gallery-item">
+              <Image src={fileSrc(image.url)} alt={image.filename} />
+            </div>
+          ))}
+        </div>
+      </Modal>
 
       <Modal
         title="Đổi biệt danh"

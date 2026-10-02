@@ -2,10 +2,46 @@ import { AppstoreOutlined, CloseOutlined, PictureOutlined, PlusOutlined } from '
 import { Button, Image, Modal, Tooltip } from 'antd';
 import { useRef, type ClipboardEvent, type ChangeEvent } from 'react';
 import { fileSrc } from './api';
-import type { GalleryImage, PendingImage } from './types';
+import type { ChatMessage, GalleryImage, PendingImage } from './types';
 
 const ACCEPT = 'image/jpeg,image/png,image/gif,image/webp';
 const MAX_PENDING = 8;
+
+export async function compressImage(file: File, max = 400) {
+  if (file.type === 'image/gif' || file.size < 80_000) {
+    return file;
+  }
+  return new Promise<File>((resolve) => {
+    const image = new window.Image();
+    const url = URL.createObjectURL(file);
+    image.onload = () => {
+      const scale = Math.min(1, max / Math.max(image.width, image.height));
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d')?.drawImage(image, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          URL.revokeObjectURL(url);
+          if (!blob) {
+            resolve(file);
+            return;
+          }
+          resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }));
+        },
+        'image/jpeg',
+        0.8,
+      );
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+    image.src = url;
+  });
+}
 
 export function filesFromClipboard(event: ClipboardEvent) {
   const files = Array.from(event.clipboardData?.files ?? []).filter((file) =>
@@ -41,6 +77,45 @@ export function addGalleryPick(current: PendingImage[], image: GalleryImage) {
       imageId: image.id,
     },
   ];
+}
+
+export function photosFromMessages(messages: ChatMessage[]) {
+  const seen = new Set<string>();
+  const list: GalleryImage[] = [];
+  for (const item of messages) {
+    if (item.recalled || !item.imageUrl) {
+      continue;
+    }
+    const id = item.imageId || item.id;
+    if (seen.has(id) || seen.has(item.imageUrl)) {
+      continue;
+    }
+    seen.add(id);
+    seen.add(item.imageUrl);
+    list.push({
+      id,
+      filename: 'Ảnh',
+      url: item.imageUrl,
+      createdAt: item.createdAt,
+    });
+  }
+  return list;
+}
+
+export function mergePhotos(...groups: GalleryImage[][]) {
+  const seen = new Set<string>();
+  const list: GalleryImage[] = [];
+  for (const group of groups) {
+    for (const item of group) {
+      if (!item.url || seen.has(item.id) || seen.has(item.url)) {
+        continue;
+      }
+      seen.add(item.id);
+      seen.add(item.url);
+      list.push(item);
+    }
+  }
+  return list;
 }
 
 export function revokePending(items: PendingImage[]) {

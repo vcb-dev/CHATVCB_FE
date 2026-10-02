@@ -1,17 +1,21 @@
 import { CameraOutlined, CloseOutlined, LogoutOutlined, MenuOutlined, PushpinOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons';
-import { Avatar, Badge, Button, Dropdown, Image, Mentions, Modal, Typography, message as antMessage } from 'antd';
+import { Avatar, Badge, Button, Dropdown, Image, Mentions, Modal, Popover, Typography, message as antMessage } from 'antd';
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react';
 import type { Socket } from 'socket.io-client';
 import { api, fileSrc } from './api';
 import {
   addGalleryPick,
   addPendingFiles,
+  compressImage,
   ComposerActions,
   filesFromClipboard,
   GalleryModal,
+  mergePhotos,
   PendingPreviews,
+  photosFromMessages,
   revokePending,
 } from './media';
+import { isStickerText, StickerButton } from './stickers';
 import {
   buildMentionOptions,
   handleFromEmail,
@@ -64,6 +68,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [groupOpen, setGroupOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [pins, setPins] = useState<ChatMessage[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
   const myAvatarRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -90,6 +95,19 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     () => buildMentionOptions(members, online, user.id, room),
     [members, online, room, user.id],
   );
+  const headerPins = useMemo(
+    () => pins.filter((item) => item.pinned && !item.recalled),
+    [pins],
+  );
+  const chatPhotos = useMemo(() => photosFromMessages(messages), [messages]);
+  const latestPin = headerPins[0];
+
+  function pinPreview(item: ChatMessage) {
+    if (item.recalled) {
+      return 'Tin nhắn đã được thu hồi';
+    }
+    return item.content.trim() || (item.imageUrl ? '[Ảnh]' : 'Tin đã ghim');
+  }
 
   useEffect(() => {
     void api
@@ -105,11 +123,43 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   }, []);
 
   async function handleMyAvatar(file: File) {
+    const preview = URL.createObjectURL(file);
+    onUserUpdate({
+      token: localStorage.getItem('chatvcb.token') || '',
+      user: { ...userRef.current, avatarUrl: preview },
+    });
     try {
-      onUserUpdate(await api.uploadMyAvatar(file));
+      onUserUpdate(await api.uploadMyAvatar(await compressImage(file, 400)));
       antMessage.success('Đã đổi ảnh đại diện.');
     } catch (err) {
       antMessage.error(err instanceof Error ? err.message : 'Không đổi được ảnh.');
+    } finally {
+      URL.revokeObjectURL(preview);
+    }
+  }
+
+  async function sendSticker(emoji: string) {
+    if (!roomId) {
+      return;
+    }
+    try {
+      appendMessage(await api.sendMessage(roomId, emoji, undefined, replyTo?.id));
+      setReplyTo(null);
+    } catch {
+      setError('Gửi sticker thất bại.');
+    }
+  }
+
+  async function sendGif(url: string) {
+    if (!roomId) {
+      return;
+    }
+    try {
+      const image = await api.attachRemoteImage(roomId, url);
+      appendMessage(await api.sendMessage(roomId, '', image.id, replyTo?.id));
+      setReplyTo(null);
+    } catch {
+      setError('Gửi GIF thất bại.');
     }
   }
 
@@ -157,6 +207,19 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setPendingImages([]);
     setGalleryOpen(false);
     setReplyTo(null);
+    setPins([]);
+    api
+      .pins(roomId)
+      .then((next) => {
+        if (!cancelled) {
+          setPins(next);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPins([]);
+        }
+      });
     api
       .messages(roomId)
       .then((nextMessages) => {
@@ -262,6 +325,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           return item;
         }),
       );
+      setPins((current) => {
+        if (message.pinned && !message.recalled) {
+          return [message, ...current.filter((item) => item.id !== message.id)];
+        }
+        return current.filter((item) => item.id !== message.id);
+      });
     });
     socket.on('room.updated', (next: Room) => {
       setRooms((current) => current.map((item) => (item.id === next.id ? { ...item, ...next } : item)));
@@ -336,7 +405,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setGalleryOpen(true);
     setGalleryLoading(true);
     try {
-      setGallery(await api.gallery(roomId));
+      setGallery(mergePhotos(photosFromMessages(messages), await api.gallery(roomId)));
     } catch {
       setError('Không tải được bộ sưu tập ảnh.');
     } finally {
@@ -452,6 +521,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       if (key === 'pin') {
         const next = await api.pinMessage(roomId, message.id, !message.pinned);
         setMessages((current) => current.map((item) => (item.id === next.id ? next : item)));
+        setPins((current) => {
+          if (next.pinned && !next.recalled) {
+            return [next, ...current.filter((item) => item.id !== next.id)];
+          }
+          return current.filter((item) => item.id !== next.id);
+        });
         return;
       }
       if (key === 'delete') {
@@ -631,6 +706,38 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             <MenuOutlined />
           </button>
         </header>
+        {latestPin ? (
+          <div className="pin-bar">
+            <button type="button" className="pin-bar-main" onClick={() => jumpToMessage(latestPin.id)}>
+              <PushpinOutlined />
+              <span>
+                <strong>{latestPin.authorName}</strong>
+                {pinPreview(latestPin)}
+              </span>
+            </button>
+            {headerPins.length > 1 ? (
+              <Popover
+                trigger="click"
+                placement="bottomRight"
+                title={`${headerPins.length} tin đã ghim`}
+                content={
+                  <div className="pin-bar-list">
+                    {headerPins.map((item) => (
+                      <button key={item.id} type="button" onClick={() => jumpToMessage(item.id)}>
+                        <strong>{item.authorName}</strong>
+                        <small>{pinPreview(item)}</small>
+                      </button>
+                    ))}
+                  </div>
+                }
+              >
+                <button type="button" className="pin-bar-count">
+                  {headerPins.length}
+                </button>
+              </Popover>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="messages" ref={listRef}>
           {messages.map((message, index) => {
@@ -650,6 +757,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               .join(' ');
             const hasImage = Boolean(message.imageUrl);
             const hasText = Boolean(message.content.trim());
+            const sticker = !hasImage && isStickerText(message.content);
             return (
               <div key={message.id} id={`msg-${message.id}`} className={cls}>
                 {!mine && first ? (
@@ -692,6 +800,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                         'bubble',
                         hasImage ? 'has-image' : '',
                         hasText ? 'has-text' : '',
+                        sticker ? 'sticker' : '',
                         message.recalled ? 'recalled' : '',
                         message.pinned ? 'pinned' : '',
                       ]
@@ -807,6 +916,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               onAddFiles={handleAddFiles}
               onOpenGallery={() => void openGallery()}
             />
+            <StickerButton
+              disabled={!roomId}
+              onEmoji={(emoji) => setDraft((current) => `${current}${emoji}`)}
+              onSticker={(emoji) => void sendSticker(emoji)}
+              onGif={(url) => void sendGif(url)}
+            />
             <Mentions
               value={draft}
               onChange={setDraft}
@@ -870,6 +985,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         open={groupOpen}
         room={room}
         members={members}
+        chatPhotos={chatPhotos}
         onClose={() => setGroupOpen(false)}
         onRoomUpdated={(next) =>
           setRooms((current) => current.map((item) => (item.id === next.id ? { ...item, ...next } : item)))

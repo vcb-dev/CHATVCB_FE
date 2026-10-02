@@ -2,6 +2,7 @@ import { CameraOutlined, LockOutlined, MailOutlined, TeamOutlined, UserOutlined 
 import { Avatar, Button, Divider, Drawer, Form, Input, Switch, Typography, message } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { api, fileSrc } from './api';
+import { compressImage } from './media';
 import { notifyEnabled, requestNotifyPermission, setNotifyEnabled } from './notify';
 import { avatarColor, initials } from './theme';
 import type { User } from './types';
@@ -90,13 +91,17 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
   }
 
   async function onAvatar(file: File) {
+    const preview = URL.createObjectURL(file);
+    setProfile((current) => ({ ...current, avatarUrl: preview }));
     try {
-      const result = await api.uploadMyAvatar(file);
+      const result = await api.uploadMyAvatar(await compressImage(file, 400));
       setProfile(result.user);
       onUpdated(result);
       message.success('Đã đổi ảnh đại diện.');
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không đổi được ảnh.');
+    } finally {
+      URL.revokeObjectURL(preview);
     }
   }
 

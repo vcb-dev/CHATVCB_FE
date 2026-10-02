@@ -170,6 +170,18 @@ export const api = {
       body: JSON.stringify({ messageId }),
     });
   },
+  gifs(query?: string) {
+    const q = query?.trim();
+    return request<{ items: { id: string; url: string; preview: string }[] }>(
+      `/gifs${q ? `?q=${encodeURIComponent(q)}` : ''}`,
+    ).then((body) => body.items);
+  },
+  attachRemoteImage(roomId: string, url: string) {
+    return request<GalleryImage>(`/rooms/${roomId}/images/remote`, {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    });
+  },
   async uploadImage(roomId: string, file: File) {
     const body = new FormData();
     body.append('file', file);

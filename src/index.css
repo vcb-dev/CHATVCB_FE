@@ -235,6 +235,88 @@ body {
   cursor: default;
 }
 
+.pin-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 8px 16px;
+  border-bottom: 1px solid #e4e6eb;
+  background: #f7f8fa;
+}
+
+.pin-bar-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  color: #050505;
+}
+
+.pin-bar-main span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.pin-bar-main strong {
+  margin-right: 6px;
+}
+
+.pin-bar-main .anticon {
+  color: #0084ff;
+  flex-shrink: 0;
+}
+
+.pin-bar-count {
+  flex-shrink: 0;
+  min-width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 12px;
+  background: #0084ff;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pin-bar-list {
+  display: grid;
+  gap: 6px;
+  min-width: 240px;
+  max-width: 320px;
+}
+
+.pin-bar-list button {
+  display: grid;
+  border: 0;
+  background: transparent;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.pin-bar-list button:hover {
+  background: #f0f2f5;
+}
+
+.pin-bar-list small {
+  color: #65676b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .messages {
   flex: 1;
   min-height: 0;
@@ -366,6 +448,17 @@ body {
   cursor: pointer;
 }
 
+.bubble.sticker {
+  background: transparent;
+  padding: 0;
+  font-size: 42px;
+  line-height: 1.1;
+}
+
+.row.mine .bubble.sticker {
+  background: transparent;
+}
+
 .seen-row {
   display: flex;
   align-items: center;
@@ -438,6 +531,115 @@ body {
   gap: 2px;
   flex-shrink: 0;
   padding-bottom: 2px;
+}
+
+.sticker-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.sticker-panel {
+  position: absolute;
+  left: 0;
+  bottom: 52px;
+  width: min(360px, 72vw);
+  background: #fff;
+  border: 1px solid #e4e6eb;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  z-index: 20;
+  overflow: hidden;
+}
+
+.sticker-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid #e4e6eb;
+}
+
+.sticker-tabs button {
+  border: 0;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.sticker-tabs button.active,
+.sticker-tabs button:hover {
+  background: #f0f2f5;
+}
+
+.sticker-close {
+  margin-left: auto;
+}
+
+.emoji-grid,
+.sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  padding: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.emoji-grid button,
+.sticker-grid button {
+  border: 0;
+  background: transparent;
+  font-size: 24px;
+  height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.sticker-grid button {
+  font-size: 32px;
+  height: 48px;
+}
+
+.emoji-grid button:hover,
+.sticker-grid button:hover {
+  background: #f0f2f5;
+}
+
+.gif-box {
+  padding: 8px;
+}
+
+.gif-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+  margin-top: 8px;
+}
+
+.gif-grid button {
+  border: 0;
+  padding: 0;
+  background: #f0f2f5;
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 1;
+  cursor: pointer;
+}
+
+.gif-grid img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gif-empty {
+  color: #65676b;
+  font-size: 13px;
+  padding: 12px 4px;
 }
 
 .composer-icon.ant-btn {
@@ -717,6 +919,30 @@ body {
   font-size: 14px;
   font-weight: 700;
   color: #050505;
+}
+
+.group-photo-preview {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.group-photo-preview .gallery-item {
+  width: 168px;
+}
+
+.group-photo-more {
+  border: 0;
+  background: #f0f2f5;
+  color: #0084ff;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.group-photo-more:hover {
+  background: #e8f3ff;
 }
 
 .group-list {

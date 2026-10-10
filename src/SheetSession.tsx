@@ -28,7 +28,7 @@ type Props = { user: User };
 export function SheetSession({ user }: Props) {
   const route = parseSheetHash();
   const sheetRef = useRef<SheetHandle>(null);
-  const saveTimer = useRef<number>();
+  const saveTimer = useRef<number | undefined>(undefined);
   const [doc, setDoc] = useState<DocItem | null>(null);
   const [title, setTitle] = useState(draftTitle('sheet'));
   const [saving, setSaving] = useState('Đang mở…');

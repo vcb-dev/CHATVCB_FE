@@ -79,7 +79,7 @@ export function DocsPage({ user }: Props) {
   const [saving, setSaving] = useState('');
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const saveTimer = useRef<number>();
+  const saveTimer = useRef<number | undefined>(undefined);
   const realIdRef = useRef('');
   const pendingSave = useRef<{ title?: string; content?: string }>({});
 

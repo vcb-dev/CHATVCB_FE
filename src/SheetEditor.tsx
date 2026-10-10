@@ -7,6 +7,8 @@ export const EMPTY_SHEET = {
 
 type CellStyle = { b?: boolean; i?: boolean; u?: boolean; color?: string; bg?: string; size?: number; align?: 'left' | 'center' | 'right' };
 type SheetData = { cols: number; rows: string[][]; styles?: Record<string, CellStyle> };
+export type WorkbookTab = { name: string; data: SheetData };
+export type Workbook = { tabs: WorkbookTab[]; active: number };
 
 export type SheetHandle = {
   undo: () => void;
@@ -33,12 +35,12 @@ function grow(data: SheetData, cols: number, rowCount: number): SheetData {
   return { cols: nextCols, rows };
 }
 
-export function parseWorkbook(raw: string) {
+export function parseWorkbook(raw: string): Workbook {
   try {
-    const data = raw ? JSON.parse(raw) : null;
+    const data = raw ? (JSON.parse(raw) as { tabs?: Array<SheetData & { name?: string }>; active?: number }) : null;
     if (data?.tabs && Array.isArray(data.tabs)) {
       return {
-        tabs: data.tabs.map((tab: SheetData & { name?: string }, index: number) => ({
+        tabs: data.tabs.map((tab, index) => ({
           name: tab.name || `Sheet${index + 1}`,
           data: grow(tab, tab.cols || 16, Math.max(tab.rows?.length || 0, 40)),
         })),

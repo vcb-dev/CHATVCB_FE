@@ -1,4 +1,15 @@
-import { CameraOutlined, CloseOutlined, LogoutOutlined, MenuOutlined, PushpinOutlined, RobotOutlined, SendOutlined } from '@ant-design/icons';
+import {
+  CameraOutlined,
+  CloseOutlined,
+  LogoutOutlined,
+  FileTextOutlined,
+  MailOutlined,
+  MessageOutlined,
+  PushpinOutlined,
+  RobotOutlined,
+  SendOutlined,
+  VideoCameraOutlined,
+} from '@ant-design/icons';
 import { Avatar, Badge, Button, Dropdown, Image, Mentions, Modal, Popover, Typography, message as antMessage } from 'antd';
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react';
 import type { Socket } from 'socket.io-client';
@@ -26,9 +37,12 @@ import {
 import { lastSeenOn, SeenAvatars, SeenBubble, viewersOf } from './seen';
 import { notifyIncoming, requestNotifyPermission, restoreTitle } from './notify';
 import { GroupDrawer } from './GroupDrawer';
+import { DocsPage } from './DocsPage';
+import { EmailPage } from './EmailPage';
+import { MeetingsPage } from './MeetingsPage';
 import { ProfileDrawer } from './ProfileDrawer';
 import { connectSocket } from './socket';
-import { initials } from './theme';
+import { avatarColor, initials } from './theme';
 import type {
   ChatMessage,
   GalleryImage,
@@ -40,11 +54,26 @@ import type {
   User,
 } from './types';
 
+type Workspace = 'messenger' | 'email' | 'docs' | 'meetings';
+
+const WORKSPACE_IDS: Workspace[] = ['messenger', 'email', 'docs', 'meetings'];
+
+function asWorkspace(value?: string | null): Workspace | null {
+  return value && WORKSPACE_IDS.includes(value as Workspace) ? (value as Workspace) : null;
+}
+
 type Props = {
   user: User;
   onLogout: () => void;
   onUserUpdate: (payload: { token: string; user: User }) => void;
 };
+
+const WORKSPACES: { id: Workspace; label: string; icon: typeof MessageOutlined }[] = [
+  { id: 'messenger', label: 'Messenger', icon: MessageOutlined },
+  { id: 'email', label: 'Email', icon: MailOutlined },
+  { id: 'docs', label: 'Docs', icon: FileTextOutlined },
+  { id: 'meetings', label: 'Cuộc họp', icon: VideoCameraOutlined },
+];
 
 function sameAuthor(a: ChatMessage, b: ChatMessage) {
   return a.role === b.role && a.userId === b.userId && a.authorName === b.authorName;
@@ -66,7 +95,14 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [members, setMembers] = useState<RoomMember[]>([]);
   const [membersLoaded, setMembersLoaded] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [groupOpen, setGroupOpen] = useState(false);
+  const [groupOverlay, setGroupOverlay] = useState(false);
+  const [workspace, setWorkspace] = useState<Workspace>(() => {
+    return (
+      asWorkspace(new URLSearchParams(window.location.search).get('workspace')) ||
+      asWorkspace(localStorage.getItem('chatvcb.workspace')) ||
+      'messenger'
+    );
+  });
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [pins, setPins] = useState<ChatMessage[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
@@ -178,6 +214,18 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
     };
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('chatvcb.workspace', workspace);
+  }, [workspace]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get('workspace') && !params.get('mail')) {
+      return;
+    }
+    window.history.replaceState({}, '', window.location.pathname || '/');
   }, []);
 
   useEffect(() => {
@@ -361,6 +409,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
 
   useEffect(() => {
     roomIdRef.current = roomId;
+    setGroupOverlay(false);
     if (roomId) {
       socketRef.current?.emit('join', roomId);
     }
@@ -620,13 +669,55 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const canSend = Boolean(roomId && (draft.trim() || pendingImages.length));
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell module-${workspace}`}>
+      <nav className="nav-rail">
+        <div className="nav-rail-brand">C</div>
+        <div className="nav-rail-items">
+          {WORKSPACES.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={workspace === item.id ? 'nav-rail-btn active' : 'nav-rail-btn'}
+                onClick={() => {
+                  setWorkspace(item.id);
+                  setGroupOverlay(false);
+                }}
+              >
+                <Icon />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="nav-rail-foot">
+          <button
+            type="button"
+            className="nav-rail-avatar"
+            title={user.name}
+            onClick={() => setProfileOpen(true)}
+          >
+            <Avatar
+              size={36}
+              src={user.avatarUrl ? fileSrc(user.avatarUrl) : undefined}
+              style={{ background: avatarColor(user.name), color: '#fff', fontWeight: 700 }}
+            >
+              {initials(user.name)}
+            </Avatar>
+          </button>
+          <button type="button" className="nav-rail-btn logout" title="Thoát" onClick={onLogout}>
+            <LogoutOutlined />
+            <span>Thoát</span>
+          </button>
+        </div>
+      </nav>
+
+      {workspace === 'messenger' ? (
       <aside className="sidebar">
         <div className="brand">
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            CHATVCB
-          </Typography.Title>
-          <Typography.Text type="secondary">Team {team}</Typography.Text>
+          <strong>Messenger</strong>
+          <small>Team {team}</small>
         </div>
         <div className="room-list">
           {rooms.map((item) => (
@@ -636,7 +727,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               onClick={() => setRoomId(item.id)}
               type="button"
             >
-              <Avatar src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
+              <Avatar size={48} src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
                 {initials(item.name)}
               </Avatar>
               <span className="room-meta">
@@ -655,7 +746,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           >
             <Avatar
               src={user.avatarUrl ? fileSrc(user.avatarUrl) : undefined}
-              style={{ background: '#00a400' }}
+              style={{ background: avatarColor(user.name), color: '#fff', fontWeight: 700 }}
             >
               {initials(user.name)}
             </Avatar>
@@ -680,47 +771,35 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             <strong>{user.name}</strong>
             <small>Team {team}</small>
           </button>
-          <Button type="text" danger icon={<LogoutOutlined />} onClick={onLogout}>
-            Thoát
-          </Button>
         </div>
       </aside>
+      ) : null}
 
+      {workspace === 'messenger' ? (
       <main className="chat">
         <header className="chat-head">
-          <div className="chat-head-info">
+          <button
+            type="button"
+            className="chat-head-info"
+            disabled={!room}
+            onClick={() => {
+              if (window.matchMedia('(max-width: 1100px)').matches) {
+                setGroupOverlay((current) => !current);
+              }
+            }}
+          >
             <Badge dot={online.length > 0} color="#31a24c">
               <Avatar size={40} src={room?.avatarUrl ? fileSrc(room.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
                 {room ? initials(room.name) : '?'}
               </Avatar>
             </Badge>
             <div>
-              <Typography.Title level={4} style={{ margin: 0 }}>
-                {room?.name ?? 'Chọn phòng'}
-              </Typography.Title>
-              <Typography.Text type="secondary">
-                Gõ @ để tag{' '}
-                {mentionOptions.filter((item) => item.value !== 'agent' && item.value !== room?.agentName)
-                  .length
-                  ? mentionOptions
-                      .filter((item) => item.value !== 'agent' && item.value !== room?.agentName)
-                      .map((item) => `@${item.value}`)
-                      .join(', ')
-                  : 'đồng đội'}
-                {' · '}
-                @{room?.agentName ?? 'agent'} để hỏi AI
-                {online.length ? ` · Online: ${online.map((item) => item.name).join(', ')}` : ''}
-              </Typography.Text>
+              <strong className="chat-head-name">{room?.name ?? 'Chọn phòng'}</strong>
+              <small>
+                {members.length ? `${members.length} thành viên` : 'Gõ @ để tag đồng đội'}
+                {online.length ? ` · Online ${online.length}` : ''}
+              </small>
             </div>
-          </div>
-          <button
-            type="button"
-            className="chat-head-menu"
-            disabled={!room}
-            title="Cài đặt nhóm"
-            onClick={() => setGroupOpen(true)}
-          >
-            <MenuOutlined />
           </button>
         </header>
         {latestPin ? (
@@ -969,7 +1048,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               }}
               onPressEnter={handlePressEnter}
               onKeyDown={handleKey}
-              autoSize={{ minRows: 2, maxRows: 5 }}
+              autoSize={{ minRows: 1, maxRows: 5 }}
               options={mentionOptions}
               prefix="@"
               placement="top"
@@ -996,7 +1075,28 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           </div>
         </form>
       </main>
+      ) : workspace === 'email' ? (
+        <EmailPage />
+      ) : workspace === 'docs' ? (
+        <DocsPage user={user} />
+      ) : (
+        <MeetingsPage user={user} />
+      )}
 
+      {workspace === 'messenger' ? (
+      <GroupDrawer
+        room={room}
+        members={members}
+        chatPhotos={chatPhotos}
+        overlay={groupOverlay}
+        onClose={() => setGroupOverlay(false)}
+        onRoomUpdated={(next) =>
+          setRooms((current) => current.map((item) => (item.id === next.id ? { ...item, ...next } : item)))
+        }
+        onMembersUpdated={setMembers}
+        onJumpMessage={jumpToMessage}
+      />
+      ) : null}
       <GalleryModal
         open={galleryOpen}
         loading={galleryLoading}
@@ -1013,18 +1113,6 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         user={user}
         onClose={() => setProfileOpen(false)}
         onUpdated={onUserUpdate}
-      />
-      <GroupDrawer
-        open={groupOpen}
-        room={room}
-        members={members}
-        chatPhotos={chatPhotos}
-        onClose={() => setGroupOpen(false)}
-        onRoomUpdated={(next) =>
-          setRooms((current) => current.map((item) => (item.id === next.id ? { ...item, ...next } : item)))
-        }
-        onMembersUpdated={setMembers}
-        onJumpMessage={jumpToMessage}
       />
     </div>
   );

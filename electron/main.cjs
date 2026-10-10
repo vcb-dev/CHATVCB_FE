@@ -91,6 +91,19 @@ function createWindow() {
   });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
+    if (String(url).includes('#/meet') || String(url).includes('#/sheet')) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 1280,
+          height: 840,
+          minWidth: 880,
+          minHeight: 600,
+          title: String(url).includes('#/sheet') ? 'Bảng tính · CHATVCB' : 'Cuộc họp · CHATVCB',
+          backgroundColor: '#f1f3f4',
+        },
+      };
+    }
     void shell.openExternal(url);
     return { action: 'deny' };
   });

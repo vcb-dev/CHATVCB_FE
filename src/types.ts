@@ -82,3 +82,64 @@ export type PendingImage = {
   file?: File;
   imageId?: string;
 };
+
+export type Meeting = {
+  id: string;
+  code: string;
+  title: string;
+  team: string;
+  hostId: string;
+  hostName: string;
+  notes: string;
+  scheduledAt: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  createdAt: string;
+  participants: { id: string; name: string; avatarUrl?: string }[];
+};
+
+export type MailAccount = {
+  id: string;
+  email: string;
+  provider?: string;
+  imapHost: string;
+  imapPort: number;
+  displayName: string;
+  createdAt: string;
+};
+
+export type MailItem = {
+  uid: string;
+  subject: string;
+  from: string;
+  date: string | null;
+  seen: boolean;
+};
+
+export type DocKind = 'doc' | 'sheet' | 'slides' | 'form' | 'mind' | 'folder' | 'board' | 'flow';
+
+export type DocItem = {
+  id: string;
+  team: string;
+  ownerId: string;
+  title: string;
+  kind: DocKind;
+  content: string;
+  folder: string;
+  googleId?: string;
+  googleUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+  starred: boolean;
+  owner: { id: string; name: string; avatarUrl?: string };
+};
+
+export type MailMessage = {
+  uid: string;
+  subject: string;
+  from: string;
+  to: string;
+  date: string | null;
+  text: string;
+  html: string;
+};

@@ -1,6 +1,10 @@
 import { Spin } from 'antd';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { LoginPage } from './LoginPage';
+import { MeetingSession } from './MeetingSession';
+import { parseMeetHash } from './meet';
+import { parseSheetHash } from './sheet';
+import { SheetSession } from './SheetSession';
 import { AppTheme } from './theme';
 import type { User } from './types';
 
@@ -26,12 +30,23 @@ export default function App() {
     return localStorage.getItem('chatvcb.token') ? readUser() : null;
   }, []);
   const [user, setUser] = useState<User | null>(initialUser);
+  const [meet, setMeet] = useState(() => parseMeetHash());
+  const [sheet, setSheet] = useState(() => parseSheetHash());
 
   useEffect(() => {
-    if (!user) {
+    const onHash = () => {
+      setMeet(parseMeetHash());
+      setSheet(parseSheetHash());
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  useEffect(() => {
+    if (!user && !meet && !sheet) {
       void import('./ChatPage');
     }
-  }, [user]);
+  }, [meet, sheet, user]);
 
   return (
     <AppTheme>
@@ -51,6 +66,11 @@ export default function App() {
             </div>
           }
         >
+          {sheet ? (
+            <SheetSession user={user} />
+          ) : meet ? (
+            <MeetingSession user={user} code={meet.code} />
+          ) : (
           <ChatPage
             user={user}
             onUserUpdate={(next) => {
@@ -64,6 +84,7 @@ export default function App() {
               setUser(null);
             }}
           />
+          )}
         </Suspense>
       )}
     </AppTheme>

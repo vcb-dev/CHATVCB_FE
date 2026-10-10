@@ -1,6 +1,11 @@
 import type {
   ChatMessage,
+  DocItem,
   GalleryImage,
+  MailAccount,
+  MailItem,
+  MailMessage,
+  Meeting,
   Room,
   RoomLink,
   RoomMember,
@@ -194,5 +199,106 @@ export const api = {
       throw new Error(await errorMessage(response));
     }
     return response.json() as Promise<GalleryImage>;
+  },
+  listMeetings() {
+    return request<{ upcoming: Meeting[]; history: Meeting[] }>('/meetings');
+  },
+  createMeeting(payload?: { title?: string; scheduledAt?: string }) {
+    return request<Meeting>('/meetings', {
+      method: 'POST',
+      body: JSON.stringify(payload ?? {}),
+    });
+  },
+  joinMeeting(code: string) {
+    return request<Meeting>('/meetings/join', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  },
+  saveMeetingNotes(id: string, notes: string) {
+    return request<Meeting>(`/meetings/${id}/notes`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notes }),
+    });
+  },
+  leaveMeeting(id: string) {
+    return request<Meeting>(`/meetings/${id}/leave`, { method: 'POST' });
+  },
+  endMeeting(id: string) {
+    return request<Meeting>(`/meetings/${id}/end`, { method: 'POST' });
+  },
+  closeMeetingOnExit(id: string, asHost: boolean) {
+    const token = localStorage.getItem('chatvcb.token');
+    if (!token) {
+      return;
+    }
+    void fetch(`${API_URL}/meetings/${id}/${asHost ? 'end' : 'leave'}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      keepalive: true,
+    });
+  },
+  googleMailUrl() {
+    return request<{ url: string }>('/mail/google');
+  },
+  listMailAccounts() {
+    return request<MailAccount[]>('/mail/accounts');
+  },
+  connectMail(payload: {
+    email: string;
+    password: string;
+    imapHost?: string;
+    imapPort?: number;
+    displayName?: string;
+  }) {
+    return request<MailAccount>('/mail/accounts', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+  removeMailAccount(id: string) {
+    return request<{ ok: boolean }>(`/mail/accounts/${id}`, { method: 'DELETE' });
+  },
+  mailInbox(id: string, limit = 40) {
+    return request<{ total: number; items: MailItem[] }>(`/mail/accounts/${id}/inbox?limit=${limit}`);
+  },
+  mailMessage(id: string, uid: string) {
+    return request<MailMessage>(`/mail/accounts/${id}/messages/${encodeURIComponent(uid)}`);
+  },
+  googleSheetsStatus() {
+    return request<{ ready: boolean; connected: boolean; email: string }>('/docs/google/status');
+  },
+  googleSheetsStart(intent = 'connect') {
+    return request<{ url: string }>(`/docs/google?intent=${encodeURIComponent(intent)}`);
+  },
+  listDocs(tab = 'recent', q = '') {
+    const query = new URLSearchParams({ tab, q });
+    return request<DocItem[]>(`/docs?${query.toString()}`);
+  },
+  createDoc(payload?: {
+    title?: string;
+    kind?: DocItem['kind'];
+    template?: 'blank' | 'meeting' | 'weekly';
+    content?: string;
+  }) {
+    return request<DocItem>('/docs', {
+      method: 'POST',
+      body: JSON.stringify(payload ?? {}),
+    });
+  },
+  getDoc(id: string) {
+    return request<DocItem>(`/docs/${id}`);
+  },
+  updateDoc(
+    id: string,
+    payload: { title?: string; content?: string; folder?: string; starred?: boolean },
+  ) {
+    return request<DocItem>(`/docs/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+  removeDoc(id: string) {
+    return request<{ ok: boolean }>(`/docs/${id}`, { method: 'DELETE' });
   },
 };

@@ -239,16 +239,17 @@ export function GroupDrawer({
                     }}
                   >
                     <Avatar
-                      size={36}
+                      size={40}
                       src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
                       style={{ background: avatarColor(item.displayName || item.name) }}
                     >
                       {initials(item.displayName || item.name)}
                     </Avatar>
-                    <span>
+                    <span className="group-member-info">
                       <strong>{item.displayName || item.name}</strong>
                       <small>@{item.handle}</small>
                     </span>
+                    <RightOutlined className="chev" />
                   </button>
                 ))}
               </div>
@@ -319,7 +320,7 @@ export function GroupDrawer({
                       <span className="group-file-ico">
                         <LinkOutlined />
                       </span>
-                      <span>
+                      <span className="group-member-info">
                         <strong>{item.url}</strong>
                         <small>{item.authorName}</small>
                       </span>
@@ -359,7 +360,7 @@ export function GroupDrawer({
                       <span className="group-file-ico">
                         <PushpinOutlined />
                       </span>
-                      <span>
+                      <span className="group-member-info">
                         <strong>{item.authorName}</strong>
                         <small>{item.content || (item.imageUrl ? '[Ảnh]' : 'Tin đã ghim')}</small>
                       </span>

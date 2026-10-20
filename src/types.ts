@@ -9,11 +9,20 @@ export type User = {
 
 export type Room = {
   id: string;
-  slug: string;
+  title: string;
   name: string;
-  team?: string;
-  agentName: string;
+  type: 'direct' | 'group';
+  kind: 'direct' | 'group';
   avatarUrl?: string;
+  lastMessagePreview: string;
+  updatedAt: string;
+  canDelete: boolean;
+  createdById: string | null;
+  unreadCount: number;
+  peerUserId: string | null;
+  slug?: string;
+  team?: string;
+  agentName?: string;
 };
 
 export type MessageReply = {
@@ -24,20 +33,44 @@ export type MessageReply = {
   recalled?: boolean;
 };
 
+export type MessageReaction = {
+  emoji: string;
+  count: number;
+  userIds: string[];
+  users: { id: string; name: string; avatarUrl?: string }[];
+};
+
 export type ChatMessage = {
   id: string;
   roomId: string;
   userId: string | null;
   authorName: string;
+  authorAvatarUrl?: string;
   role: 'user' | 'agent' | 'system';
   content: string;
   imageId?: string | null;
   imageUrl?: string | null;
+  fileId?: string | null;
+  fileUrl?: string | null;
+  fileName?: string | null;
+  fileMimeType?: string | null;
+  fileSizeBytes?: number | null;
   replyToId?: string | null;
   replyTo?: MessageReply | null;
   pinned?: boolean;
   recalled?: boolean;
+  reactions: MessageReaction[];
   createdAt: string;
+};
+
+export type PageMeta = {
+  hasMore: boolean;
+  nextCursor: string | null;
+};
+
+export type MessagesPage = {
+  data: ChatMessage[];
+  meta: PageMeta;
 };
 
 export type PresenceUser = {
@@ -69,6 +102,20 @@ export type GalleryImage = {
   createdAt: string;
 };
 
+export type ChatFile = {
+  id: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+  createdAt: string;
+};
+
+export type PendingFile = {
+  key: string;
+  file: File;
+};
+
 export type RoomLink = {
   url: string;
   messageId: string;
@@ -81,6 +128,47 @@ export type PendingImage = {
   preview: string;
   file?: File;
   imageId?: string;
+};
+
+export type DirectoryUser = {
+  id: string;
+  name: string;
+  email: string;
+  team: string;
+  avatarUrl?: string;
+};
+
+export type RoomHit = Pick<
+  Room,
+  | 'id'
+  | 'title'
+  | 'name'
+  | 'type'
+  | 'kind'
+  | 'avatarUrl'
+  | 'lastMessagePreview'
+  | 'canDelete'
+  | 'unreadCount'
+  | 'peerUserId'
+>;
+
+export type MessageHit = {
+  id: string;
+  roomId: string;
+  content: string;
+  authorName: string;
+  createdAt: string;
+  roomTitle: string;
+  roomAvatarUrl: string;
+  roomKind: 'direct' | 'group';
+  peerUserId: string | null;
+  canDelete: boolean;
+};
+
+export type RoomSearch = {
+  users: DirectoryUser[];
+  rooms: RoomHit[];
+  messages: MessageHit[];
 };
 
 export type Meeting = {

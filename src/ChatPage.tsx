@@ -128,7 +128,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     [rooms, roomId],
   );
   const team = user.team ?? room?.team ?? 'sale';
-  roomNameRef.current = room?.name ?? '';
+  roomNameRef.current = room ? (room.title || room.name) : '';
   const mentionOptions = useMemo(
     () => buildMentionOptions(members, online, user.id, room),
     [members, online, room, user.id],
@@ -272,9 +272,9 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       });
     api
       .messages(roomId)
-      .then((nextMessages) => {
+      .then((page) => {
         if (!cancelled) {
-          setMessages(nextMessages);
+          setMessages(page.data);
         }
       })
       .catch(() => setError('Không tải được tin nhắn.'));
@@ -728,11 +728,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               type="button"
             >
               <Avatar size={48} src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
-                {initials(item.name)}
+                {initials(item.title || item.name)}
               </Avatar>
               <span className="room-meta">
-                <strong>{item.name}</strong>
-                <small>@{item.agentName}</small>
+                <strong>{item.title || item.name}</strong>
+                <small>{item.lastMessagePreview || 'Chưa có tin nhắn'}</small>
               </span>
             </button>
           ))}
@@ -790,11 +790,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           >
             <Badge dot={online.length > 0} color="#31a24c">
               <Avatar size={40} src={room?.avatarUrl ? fileSrc(room.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
-                {room ? initials(room.name) : '?'}
+                {room ? initials(room.title || room.name) : '?'}
               </Avatar>
             </Badge>
             <div>
-              <strong className="chat-head-name">{room?.name ?? 'Chọn phòng'}</strong>
+              <strong className="chat-head-name">{room ? (room.title || room.name) : 'Chọn phòng'}</strong>
               <small>
                 {members.length ? `${members.length} thành viên` : 'Gõ @ để tag đồng đội'}
                 {online.length ? ` · Online ${online.length}` : ''}
@@ -1056,7 +1056,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               styles={{ popup: { zIndex: 2000 } }}
               placeholder={
                 room
-                  ? `Nhắn ${room.name} · Ctrl+V ảnh · @${room.agentName}`
+                  ? `Nhắn ${room.title || room.name} · Ctrl+V ảnh · @agent`
                   : 'Chọn phòng'
               }
               disabled={!roomId}

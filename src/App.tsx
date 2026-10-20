@@ -38,8 +38,15 @@ export default function App() {
       setMeet(parseMeetHash());
       setSheet(parseSheetHash());
     };
+    const onUnauthorized = () => {
+      setUser(null);
+    };
     window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
+    window.addEventListener('chatvcb:unauthorized', onUnauthorized);
+    return () => {
+      window.removeEventListener('hashchange', onHash);
+      window.removeEventListener('chatvcb:unauthorized', onUnauthorized);
+    };
   }, []);
 
   useEffect(() => {

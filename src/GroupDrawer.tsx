@@ -151,7 +151,7 @@ export function GroupDrawer({
             <div className="group-hero">
               <button type="button" className="group-avatar-btn" onClick={() => avatarRef.current?.click()}>
                 <Avatar size={72} src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
-                  {initials(room.name)}
+                  {initials(room.title || room.name)}
                 </Avatar>
                 <span className="group-cam">
                   <CameraOutlined />
@@ -185,7 +185,7 @@ export function GroupDrawer({
                 </div>
               ) : (
                 <button type="button" className="group-name-btn" onClick={() => setEditingName(true)}>
-                  <h2>{room.name}</h2>
+                  <h2>{room.title || room.name}</h2>
                   <EditOutlined />
                 </button>
               )}

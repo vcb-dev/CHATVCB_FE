@@ -40,13 +40,11 @@ export function buildMentionOptions(
       });
     }
   }
-  const agentName = room?.agentName;
-  const agents = agentName
-    ? [
-        { value: agentName, label: `${agentName} (AI)` },
-        { value: 'agent', label: '@agent (AI)' },
-      ]
-    : [];
+  const agentName = room?.agentName?.trim();
+  const agents = [
+    ...(agentName ? [{ value: agentName, label: `${agentName} (AI)` }] : []),
+    { value: 'agent', label: '@agent (AI)' },
+  ];
   return [...map.values(), ...agents];
 }
 

@@ -1,15 +1,19 @@
 import type {
+  ChatFile,
   ChatMessage,
+  DirectoryUser,
   DocItem,
   GalleryImage,
   MailAccount,
   MailItem,
   MailMessage,
   Meeting,
+  MessagesPage,
   Room,
   RoomLink,
   RoomMember,
   RoomRead,
+  RoomSearch,
   User,
 } from './types';
 
@@ -29,8 +33,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...init?.headers,
     },
   });
+  if (response.status === 401) {
+    localStorage.removeItem('chatvcb.token');
+    localStorage.removeItem('chatvcb.user');
+    window.dispatchEvent(new CustomEvent('chatvcb:unauthorized'));
+  }
   if (!response.ok) {
     throw new Error(await errorMessage(response));
+  }
+  if (response.status === 204) {
+    return undefined as T;
   }
   return response.json() as Promise<T>;
 }
@@ -101,19 +113,98 @@ export const api = {
     }
     return response.json() as Promise<{ token: string; user: User }>;
   },
-  rooms() {
-    return request<Room[]>('/rooms');
+  async rooms() {
+    const res = await request<Room[] | { data: Room[] }>('/rooms?limit=50');
+    return Array.isArray(res) ? res : res?.data ?? [];
   },
-  members(roomId: string) {
-    return request<RoomMember[]>(`/rooms/${roomId}/members`);
+  async members(roomId: string) {
+    const res = await request<RoomMember[] | { data: RoomMember[] }>(`/rooms/${roomId}/members`);
+    return Array.isArray(res) ? res : res?.data ?? [];
   },
-  messages(roomId: string) {
-    return request<ChatMessage[]>(`/rooms/${roomId}/messages`);
+  async messages(roomId: string, cursor?: string): Promise<MessagesPage> {
+    const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+    const res = await request<
+      | ChatMessage[]
+      | { data: ChatMessage[]; meta?: { hasMore: boolean; nextCursor: string | null } }
+    >(`/rooms/${roomId}/messages${q}`);
+    if (Array.isArray(res)) {
+      return { data: res, meta: { hasMore: false, nextCursor: null } };
+    }
+    return {
+      data: res.data ?? [],
+      meta: {
+        hasMore: Boolean(res.meta?.hasMore),
+        nextCursor: res.meta?.nextCursor ?? null,
+      },
+    };
   },
-  sendMessage(roomId: string, content: string, imageId?: string, replyToId?: string) {
+  sendMessage(
+    roomId: string,
+    content: string,
+    imageId?: string,
+    replyToId?: string,
+    fileId?: string,
+  ) {
     return request<ChatMessage>(`/rooms/${roomId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ content, imageId, replyToId }),
+      body: JSON.stringify({ content, imageId, replyToId, fileId }),
+    });
+  },
+  reactMessage(roomId: string, messageId: string, emoji: string) {
+    return request<ChatMessage>(`/rooms/${roomId}/messages/${messageId}/reactions`, {
+      method: 'POST',
+      body: JSON.stringify({ emoji }),
+    });
+  },
+  async uploadFile(roomId: string, file: File): Promise<ChatFile> {
+    const body = new FormData();
+    body.append('file', file);
+    const response = await fetch(`${API_URL}/rooms/${roomId}/files`, {
+      method: 'POST',
+      headers: authHeader(),
+      body,
+    });
+    if (!response.ok) {
+      throw new Error(await errorMessage(response));
+    }
+    return response.json() as Promise<ChatFile>;
+  },
+  files(roomId: string) {
+    return request<ChatFile[]>(`/rooms/${roomId}/files`);
+  },
+  users(q?: string) {
+    const query = q?.trim() ? `?q=${encodeURIComponent(q.trim())}` : '';
+    return request<DirectoryUser[]>(`/users${query}`);
+  },
+  searchRooms(q: string) {
+    return request<RoomSearch>(`/rooms/search?q=${encodeURIComponent(q.trim())}`);
+  },
+  createDirectRoom(userId: string) {
+    return request<Room>('/rooms/direct', {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  },
+  createGroupRoom(name: string, memberIds: string[]) {
+    return request<Room>('/rooms', {
+      method: 'POST',
+      body: JSON.stringify({ name, memberIds }),
+    });
+  },
+  addRoomMember(roomId: string, userId: string) {
+    return request<RoomMember[]>(`/rooms/${roomId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  },
+  removeRoomMember(roomId: string, userId: string) {
+    return request<RoomMember[]>(`/rooms/${roomId}/members/${userId}`, {
+      method: 'DELETE',
+    });
+  },
+  deleteRoom(roomId: string) {
+    return request<void>(`/rooms/${roomId}`, {
+      method: 'DELETE',
     });
   },
   updateRoom(roomId: string, name: string) {

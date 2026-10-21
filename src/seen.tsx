@@ -1,5 +1,6 @@
 import { Avatar, Popover } from 'antd';
 import type { ReactNode } from 'react';
+import { fileSrc } from './api';
 import { avatarColor, initials } from './theme';
 import type { ChatMessage, RoomRead } from './types';
 
@@ -83,7 +84,12 @@ function SeenNames({ viewers }: { viewers: RoomRead[] }) {
     <ul className="seen-names">
       {viewers.map((item) => (
         <li key={item.userId}>
-          <Avatar size={22} style={{ background: avatarColor(item.name) }}>
+          <Avatar
+            size={22}
+            className="avatar-initials"
+            src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
+            style={{ background: avatarColor(item.name) }}
+          >
             {initials(item.name)}
           </Avatar>
           <span>{item.name}</span>
@@ -103,7 +109,12 @@ export function SeenAvatars({ readers }: { readers: RoomRead[] }) {
     <div className="seen-row">
       {shown.map((item) => (
         <span key={item.userId} title={item.name}>
-          <Avatar size={16} style={{ background: avatarColor(item.name) }}>
+          <Avatar
+            size={16}
+            className="avatar-initials"
+            src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
+            style={{ background: avatarColor(item.name) }}
+          >
             {initials(item.name)}
           </Avatar>
         </span>

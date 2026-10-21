@@ -228,7 +228,12 @@ export function GroupDrawer({
                     className="group-avatar-btn"
                     onClick={() => avatarRef.current?.click()}
                   >
-                    <Avatar size={72} src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
+                    <Avatar
+                      size={72}
+                      className="avatar-initials"
+                      src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
+                      style={{ background: avatarColor(room.title || room.name) }}
+                    >
                       {initials(room.title || room.name)}
                     </Avatar>
                     <span className="group-cam">
@@ -276,7 +281,12 @@ export function GroupDrawer({
               ) : (
                 <>
                   <div className="group-avatar-btn" style={{ cursor: 'default' }}>
-                    <Avatar size={72} src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
+                    <Avatar
+                      size={72}
+                      className="avatar-initials"
+                      src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
+                      style={{ background: avatarColor(room.title || room.name) }}
+                    >
                       {initials(room.title || room.name)}
                     </Avatar>
                   </div>

@@ -986,8 +986,9 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               <Badge count={item.unreadCount} overflowCount={99}>
                 <Avatar
                   size={48}
+                  className="avatar-initials"
                   src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
-                  style={{ background: '#0084ff' }}
+                  style={{ background: avatarColor(item.title || item.name) }}
                 >
                   {initials(item.title || item.name)}
                 </Avatar>
@@ -1052,7 +1053,14 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             }}
           >
             <Badge dot={online.length > 0} color="#31a24c">
-              <Avatar size={40} src={room?.avatarUrl ? fileSrc(room.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
+              <Avatar
+                size={40}
+                className="avatar-initials"
+                src={room?.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
+                style={{
+                  background: room ? avatarColor(room.title || room.name) : '#0084ff',
+                }}
+              >
                 {room ? initials(room.title || room.name) : '?'}
               </Avatar>
             </Badge>
@@ -1139,8 +1147,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                 {!mine && first ? (
                   <Avatar
                     size={28}
+                    className="avatar-initials"
+                    src={message.authorAvatarUrl ? fileSrc(message.authorAvatarUrl) : undefined}
                     icon={agent ? <RobotOutlined /> : undefined}
-                    style={{ background: agent ? '#31a24c' : '#8a8d91' }}
+                    style={{ background: agent ? '#31a24c' : avatarColor(message.authorName) }}
                   >
                     {agent ? null : initials(message.authorName)}
                   </Avatar>

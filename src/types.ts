@@ -93,6 +93,7 @@ export type RoomMember = {
 export type RoomRead = {
   userId: string;
   name: string;
+  avatarUrl?: string;
   lastReadMessageId: string | null;
   lastReadAt: string | null;
 };

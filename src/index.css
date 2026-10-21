@@ -2885,3 +2885,110 @@ body {
     max-width: 92%;
   }
 }
+
+/* Reactions */
+.bubble-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.row.mine .bubble-wrap {
+  flex-direction: row-reverse;
+}
+
+.react-trigger {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  color: #65676b !important;
+  padding: 4px !important;
+  height: 28px !important;
+  width: 28px !important;
+  min-width: 28px !important;
+  border-radius: 50% !important;
+}
+
+.react-trigger:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #050505 !important;
+}
+
+.row:hover .react-trigger,
+.row:focus-within .react-trigger,
+.react-trigger:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .react-trigger {
+    opacity: 0.7;
+  }
+}
+
+.react-picker {
+  display: flex;
+  gap: 6px;
+  padding: 4px 6px;
+}
+
+.react-emoji-btn {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: transform 0.1s ease, background 0.1s ease;
+}
+
+.react-emoji-btn:hover {
+  transform: scale(1.25);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.react-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.row.mine .react-summary {
+  justify-content: flex-end;
+}
+
+.react-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 12px;
+  border: 1px solid #e4e6eb;
+  background: #f0f2f5;
+  color: #050505;
+  font-size: 12px;
+  cursor: pointer;
+  line-height: 1.2;
+  transition: all 0.15s ease;
+}
+
+.react-pill:hover {
+  background: #e4e6eb;
+}
+
+.react-pill.mine {
+  background: #e5f1ff;
+  border-color: #0084ff;
+  color: #0084ff;
+  font-weight: 600;
+}
+
+.react-pill-emoji {
+  font-size: 13px;
+}
+
+.react-pill-count {
+  font-size: 11px;
+}

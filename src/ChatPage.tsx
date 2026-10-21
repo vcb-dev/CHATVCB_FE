@@ -27,6 +27,7 @@ import {
   revokePending,
 } from './media';
 import { isStickerText, StickerButton } from './stickers';
+import { ReactionPicker, ReactionSummary } from './reactions';
 import {
   buildMentionOptions,
   handleFromEmail,
@@ -624,6 +625,18 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     }
   }
 
+  async function handleReact(message: ChatMessage, emoji: string) {
+    if (!roomId) {
+      return;
+    }
+    try {
+      const next = await api.reactMessage(roomId, message.id, emoji);
+      setMessages((current) => current.map((item) => (item.id === next.id ? next : item)));
+    } catch (err) {
+      antMessage.error(err instanceof Error ? err.message : 'Không thả được cảm xúc.');
+    }
+  }
+
   function appendMessage(message: ChatMessage) {
     setMessages((current) => {
       if (current.some((item) => item.id === message.id)) {
@@ -876,83 +889,101 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                   {first && !mine ? (
                     <span className="who-line">{message.authorName}</span>
                   ) : null}
-                  <Dropdown
-                    trigger={['contextMenu']}
-                    menu={{
-                      items: [
-                        { key: 'reply', label: 'Trả lời tin nhắn', disabled: message.recalled },
-                        {
-                          key: 'pin',
-                          label: message.pinned ? 'Bỏ ghim tin nhắn' : 'Ghim tin nhắn',
-                          disabled: message.recalled,
-                        },
-                        { key: 'delete', label: 'Xóa tin nhắn' },
-                        ...(mine && !message.recalled
-                          ? [{ key: 'recall', label: 'Thu hồi tin nhắn', danger: true }]
-                          : []),
-                      ],
-                      onClick: ({ key }) => void handleMessageAction(key, message),
-                    }}
-                  >
-                  <div className="bubble-hit">
-                  <SeenBubble viewers={viewers}>
-                    <div
-                      className={[
-                        'bubble',
-                        hasImage ? 'has-image' : '',
-                        hasText ? 'has-text' : '',
-                        sticker ? 'sticker' : '',
-                        message.recalled ? 'recalled' : '',
-                        message.pinned ? 'pinned' : '',
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
+                  <div className="bubble-wrap">
+                    <Dropdown
+                      trigger={['contextMenu']}
+                      menu={{
+                        items: [
+                          {
+                            key: 'reply',
+                            label: 'Trả lời tin nhắn',
+                            disabled: message.recalled,
+                          },
+                          {
+                            key: 'pin',
+                            label: message.pinned ? 'Bỏ ghim tin nhắn' : 'Ghim tin nhắn',
+                            disabled: message.recalled,
+                          },
+                          { key: 'delete', label: 'Xóa tin nhắn' },
+                          ...(mine && !message.recalled
+                            ? [{ key: 'recall', label: 'Thu hồi tin nhắn', danger: true }]
+                            : []),
+                        ],
+                        onClick: ({ key }) => void handleMessageAction(key, message),
+                      }}
                     >
-                      {message.replyTo ? (
-                        <button
-                          type="button"
-                          className="reply-quote"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            markMessageRead();
-                            jumpToMessage(message.replyTo!.id);
-                          }}
-                        >
-                          <strong>{message.replyTo.authorName}</strong>
-                          <span>
-                            {message.replyTo.recalled
-                              ? 'Tin nhắn đã được thu hồi'
-                              : message.replyTo.content || (message.replyTo.imageUrl ? '[Ảnh]' : '')}
-                          </span>
-                        </button>
-                      ) : null}
-                      {message.recalled ? (
-                        <p className="recalled-text">Tin nhắn đã được thu hồi</p>
-                      ) : (
-                        <>
-                          {hasImage ? (
-                            <Image
-                              src={fileSrc(message.imageUrl as string)}
-                              alt=""
-                              className="chat-photo"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                markMessageRead();
-                              }}
-                            />
-                          ) : null}
-                          {hasText ? <MentionText text={message.content} myHandle={myHandle} /> : null}
-                        </>
-                      )}
-                      {message.pinned && !message.recalled ? (
-                        <span className="pin-mark">
-                          <PushpinOutlined /> Đã ghim
-                        </span>
-                      ) : null}
-                    </div>
-                  </SeenBubble>
+                      <div className="bubble-hit">
+                        <SeenBubble viewers={viewers}>
+                          <div
+                            className={[
+                              'bubble',
+                              hasImage ? 'has-image' : '',
+                              hasText ? 'has-text' : '',
+                              sticker ? 'sticker' : '',
+                              message.recalled ? 'recalled' : '',
+                              message.pinned ? 'pinned' : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                          >
+                            {message.replyTo ? (
+                              <button
+                                type="button"
+                                className="reply-quote"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  markMessageRead();
+                                  jumpToMessage(message.replyTo!.id);
+                                }}
+                              >
+                                <strong>{message.replyTo.authorName}</strong>
+                                <span>
+                                  {message.replyTo.recalled
+                                    ? 'Tin nhắn đã được thu hồi'
+                                    : message.replyTo.content || (message.replyTo.imageUrl ? '[Ảnh]' : '')}
+                                </span>
+                              </button>
+                            ) : null}
+                            {message.recalled ? (
+                              <p className="recalled-text">Tin nhắn đã được thu hồi</p>
+                            ) : (
+                              <>
+                                {hasImage ? (
+                                  <Image
+                                    src={fileSrc(message.imageUrl as string)}
+                                    alt=""
+                                    className="chat-photo"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      markMessageRead();
+                                    }}
+                                  />
+                                ) : null}
+                                {hasText ? (
+                                  <MentionText text={message.content} myHandle={myHandle} />
+                                ) : null}
+                              </>
+                            )}
+                            {message.pinned && !message.recalled ? (
+                              <span className="pin-mark">
+                                <PushpinOutlined /> Đã ghim
+                              </span>
+                            ) : null}
+                          </div>
+                        </SeenBubble>
+                      </div>
+                    </Dropdown>
+                    {!message.recalled ? (
+                      <ReactionPicker
+                        onPick={(emoji) => void handleReact(message, emoji)}
+                      />
+                    ) : null}
                   </div>
-                  </Dropdown>
+                  <ReactionSummary
+                    reactions={message.reactions}
+                    myId={user.id}
+                    onToggle={(emoji) => void handleReact(message, emoji)}
+                  />
                   <SeenAvatars readers={lastReaders} />
                   {first ? (
                     <time>

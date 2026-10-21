@@ -12,9 +12,10 @@ import {
   RightOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
-import { Avatar, Button, Image, Input, Modal, Switch, Typography, message } from 'antd';
+import { Avatar, Button, Input, Modal, Switch, Typography, message } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { api, fileSrc } from './api';
+import { CopyableImage } from './CopyableImage';
 import { compressImage, mergePhotos } from './media';
 import { notifyEnabled, requestNotifyPermission, setNotifyEnabled } from './notify';
 import { formatBytes } from './attachments';
@@ -611,7 +612,7 @@ export function GroupDrawer({
         <div className="gallery-grid">
           {photos.map((image) => (
             <div key={image.id} className="gallery-item">
-              <Image src={fileSrc(image.url)} alt={image.filename} />
+              <CopyableImage src={fileSrc(image.url)} alt={image.filename} />
             </div>
           ))}
         </div>

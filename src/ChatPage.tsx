@@ -12,7 +12,7 @@ import {
   SendOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
-import { Avatar, Badge, Button, Dropdown, Image, Input, Mentions, Modal, Popover, Spin, Typography, message as antMessage } from 'antd';
+import { Avatar, Badge, Button, Dropdown, Input, Mentions, Modal, Popover, Spin, Typography, message as antMessage } from 'antd';
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react';
 import type { Socket } from 'socket.io-client';
 import { api, fileSrc } from './api';
@@ -59,6 +59,7 @@ import { RoomListItem } from './RoomListItem';
 import { SidebarSearch } from './SidebarSearch';
 import { isDirectRoom, mergeRooms, previewOf, sortRooms, upsertRoom } from './rooms';
 import { copyImage, copyText } from './clipboard';
+import { CopyableImage } from './CopyableImage';
 import { connectSocket } from './socket';
 import { avatarColor, initials } from './theme';
 import type {
@@ -1394,7 +1395,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                             ) : (
                               <>
                                 {hasImage ? (
-                                  <Image
+                                  <CopyableImage
                                     src={fileSrc(message.imageUrl as string)}
                                     alt=""
                                     className="chat-photo"

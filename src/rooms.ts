@@ -37,6 +37,7 @@ export function mergeRooms(
   next: Room[],
   currentId: string,
   hasMore = false,
+  viewing = false,
 ): Room[] {
   let combinedNext = next;
   if (hasMore && next.length > 0) {
@@ -48,7 +49,7 @@ export function mergeRooms(
     combinedNext = [...next, ...olderRooms];
   }
   const nextList = sortRooms(combinedNext).map((r) =>
-    r.id === currentId ? { ...r, unreadCount: 0 } : r,
+    viewing && r.id === currentId ? { ...r, unreadCount: 0 } : r,
   );
   const currentInPrev = prev.find((r) => r.id === currentId);
   if (

@@ -39,7 +39,7 @@ import {
   mentionsUser,
 } from './mentions';
 import { lastSeenOn, SeenAvatars, SeenBubble, viewersOf } from './seen';
-import { notifyIncoming, requestNotifyPermission, restoreTitle } from './notify';
+import { isChatVisible, notifyIncoming, requestNotifyPermission, restoreTitle } from './notify';
 import { GroupDrawer } from './GroupDrawer';
 import { DocsPage } from './DocsPage';
 import { EmailPage } from './EmailPage';
@@ -150,6 +150,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const pendingImagesRef = useRef<PendingImage[]>([]);
   const pendingFilesRef = useRef<PendingFile[]>([]);
   const userRef = useRef(user);
+  const workspaceRef = useRef(workspace);
   const roomNameRef = useRef('');
   const myHandle = handleFromEmail(user.email);
   const myHandleRef = useRef(myHandle);
@@ -157,6 +158,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   pendingFilesRef.current = pendingFiles;
   messagesRef.current = messages;
   userRef.current = user;
+  workspaceRef.current = workspace;
   myHandleRef.current = myHandle;
 
   const room = useMemo(
@@ -290,8 +292,15 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         if (cancelled) {
           return;
         }
+        const viewing = isViewingChat();
         setRooms((prev) => {
-          const merged = mergeRooms(prev, page.data, roomIdRef.current, page.meta.hasMore);
+          const merged = mergeRooms(
+            prev,
+            page.data,
+            roomIdRef.current,
+            page.meta.hasMore,
+            viewing,
+          );
           if (roomIdRef.current && !merged.some((r) => r.id === roomIdRef.current)) {
             setRoomId(merged[0]?.id ?? '');
           }
@@ -315,7 +324,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         if (cancelled) {
           return;
         }
-        setRooms((prev) => mergeRooms(prev, page.data, roomIdRef.current, page.meta.hasMore));
+        const viewing = isViewingChat();
+        setRooms((prev) =>
+          mergeRooms(prev, page.data, roomIdRef.current, page.meta.hasMore, viewing),
+        );
         setRoomsMeta(page.meta);
         roomsMetaRef.current = page.meta;
         setRoomId((current) => current || page.data[0]?.id || '');
@@ -374,12 +386,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           setMessages(page.data);
           setPageMeta(page.meta);
           const latest = page.data[page.data.length - 1];
-          if (latest) {
-            markMessageRead(latest, roomId);
-          } else {
+          if (!latest) {
             setRooms((current) =>
               current.map((r) => (r.id === roomId ? { ...r, unreadCount: 0 } : r)),
             );
+          } else if (isViewingChat()) {
+            markMessageRead(latest, roomId);
           }
           if (pendingJumpRef.current) {
             const targetId = pendingJumpRef.current;
@@ -459,6 +471,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           content: `${message.authorName} đã tag bạn`,
         });
       }
+      const viewing = message.roomId === roomIdRef.current && isViewingChat();
       if (!mine) {
         notifyIncoming({
           title: message.authorName,
@@ -469,7 +482,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             (message.imageUrl ? 'Đã gửi một ảnh' : 'Tin nhắn mới'),
           mentioned: tagged,
         });
-        if (message.roomId === roomIdRef.current) {
+        if (viewing) {
           markMessageRead(message, message.roomId);
         }
       }
@@ -478,12 +491,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         if (!target) {
           return current;
         }
-        const isCurrentRoom = message.roomId === roomIdRef.current;
         const updated: Room = {
           ...target,
           lastMessagePreview: previewOf(message, userRef.current?.id, isDirectRoom(target)),
           updatedAt: message.createdAt,
-          unreadCount: isCurrentRoom ? 0 : target.unreadCount + (mine ? 0 : 1),
+          unreadCount: viewing ? 0 : target.unreadCount + (mine ? 0 : 1),
         };
         return upsertRoom(current, updated);
       });
@@ -631,6 +643,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     };
   }, [roomId]);
 
+  function isViewingChat() {
+    return workspaceRef.current === 'messenger' && isChatVisible();
+  }
+
   function markMessageRead(message?: ChatMessage, targetRoomId?: string) {
     const rid = targetRoomId || roomIdRef.current;
     if (!rid) {
@@ -659,6 +675,21 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         lastReadSentRef.current = '';
       });
   }
+
+  useEffect(() => {
+    function markReadWhenViewing() {
+      if (isViewingChat()) {
+        markMessageRead();
+      }
+    }
+    markReadWhenViewing();
+    window.addEventListener('focus', markReadWhenViewing);
+    document.addEventListener('visibilitychange', markReadWhenViewing);
+    return () => {
+      window.removeEventListener('focus', markReadWhenViewing);
+      document.removeEventListener('visibilitychange', markReadWhenViewing);
+    };
+  }, [workspace]);
 
   useEffect(() => {
     return () => revokePending(pendingImagesRef.current);

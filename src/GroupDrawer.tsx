@@ -2,10 +2,12 @@ import {
   BellOutlined,
   CameraOutlined,
   CloseOutlined,
+  DeleteOutlined,
   EditOutlined,
   FileOutlined,
   LinkOutlined,
   PictureOutlined,
+  PlusOutlined,
   PushpinOutlined,
   RightOutlined,
   TeamOutlined,
@@ -16,28 +18,33 @@ import { api, fileSrc } from './api';
 import { compressImage, mergePhotos } from './media';
 import { notifyEnabled, requestNotifyPermission, setNotifyEnabled } from './notify';
 import { formatBytes } from './attachments';
+import { UserPicker } from './UserPicker';
 import { avatarColor, initials } from './theme';
-import type { ChatFile, ChatMessage, GalleryImage, Room, RoomLink, RoomMember } from './types';
+import type { ChatFile, ChatMessage, DirectoryUser, GalleryImage, Room, RoomLink, RoomMember } from './types';
 
 type Props = {
   room: Room | null;
   members: RoomMember[];
+  currentUserId: string;
   chatPhotos?: GalleryImage[];
   overlay?: boolean;
   onClose?: () => void;
   onRoomUpdated: (room: Room) => void;
   onMembersUpdated: (members: RoomMember[]) => void;
+  onRoomRemoved: (roomId: string) => void;
   onJumpMessage: (id: string) => void;
 };
 
 export function GroupDrawer({
   room,
   members,
+  currentUserId,
   chatPhotos = [],
   overlay = false,
   onClose,
   onRoomUpdated,
   onMembersUpdated,
+  onRoomRemoved,
   onJumpMessage,
 }: Props) {
   const [name, setName] = useState(room?.name ?? '');
@@ -49,16 +56,21 @@ export function GroupDrawer({
   const [nickUser, setNickUser] = useState<RoomMember | null>(null);
   const [nickValue, setNickValue] = useState('');
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [notifyOn, setNotifyOn] = useState(notifyEnabled);
   const [openSection, setOpenSection] = useState<'members' | 'photos' | 'files' | 'links' | 'pins' | null>(
     'members',
   );
   const avatarRef = useRef<HTMLInputElement>(null);
 
+  const isGroup = room?.type === 'group' || room?.kind === 'group';
+  const isOwner = Boolean(isGroup && room?.createdById === currentUserId);
+
   useEffect(() => {
     setName(room?.name ?? '');
     setEditingName(false);
     setPhotoOpen(false);
+    setAddMemberOpen(false);
     setOpenSection('members');
   }, [room?.id]);
 
@@ -133,6 +145,62 @@ export function GroupDrawer({
     }
   }
 
+  async function handleAddMember(pickedUser: DirectoryUser) {
+    if (!room) {
+      return;
+    }
+    try {
+      const next = await api.addRoomMember(room.id, pickedUser.id);
+      onMembersUpdated(next);
+      setAddMemberOpen(false);
+      message.success(`Đã thêm ${pickedUser.name} vào nhóm.`);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'Không thêm được thành viên.');
+    }
+  }
+
+  function handleRemoveMember(member: RoomMember) {
+    if (!room) {
+      return;
+    }
+    Modal.confirm({
+      title: 'Xóa khỏi nhóm?',
+      content: `Bạn có chắc muốn xóa ${member.displayName || member.name} khỏi nhóm?`,
+      okText: 'Xóa',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          const next = await api.removeRoomMember(room.id, member.id);
+          onMembersUpdated(next);
+          message.success('Đã xóa thành viên.');
+        } catch (err) {
+          message.error(err instanceof Error ? err.message : 'Không xóa được thành viên.');
+        }
+      },
+    });
+  }
+
+  function handleDeleteRoom() {
+    if (!room) {
+      return;
+    }
+    Modal.confirm({
+      title: 'Giải tán nhóm?',
+      content: 'Tất cả tin nhắn và dữ liệu nhóm sẽ bị xóa vĩnh viễn.',
+      okText: 'Giải tán',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await api.deleteRoom(room.id);
+          onRoomRemoved(room.id);
+          message.success('Đã giải tán nhóm.');
+        } catch (err) {
+          message.error(err instanceof Error ? err.message : 'Không giải tán được nhóm.');
+        }
+      },
+    });
+  }
+
   const previewPhotos = photos.slice(0, 6);
 
   return (
@@ -141,7 +209,7 @@ export function GroupDrawer({
         <button type="button" className="group-pane-mask" aria-label="Đóng thông tin nhóm" onClick={onClose} />
       ) : null}
       <div className="group-pane-head">
-        <strong>Thông tin nhóm</strong>
+        <strong>{isGroup ? 'Thông tin nhóm' : 'Thông tin cuộc trò chuyện'}</strong>
         {overlay ? (
           <button type="button" className="group-pane-close" onClick={onClose} aria-label="Đóng">
             <CloseOutlined />
@@ -153,47 +221,69 @@ export function GroupDrawer({
         <div className="group-scroll">
           <div className="group-card group-hero-card">
             <div className="group-hero">
-              <button type="button" className="group-avatar-btn" onClick={() => avatarRef.current?.click()}>
-                <Avatar size={72} src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
-                  {initials(room.title || room.name)}
-                </Avatar>
-                <span className="group-cam">
-                  <CameraOutlined />
-                </span>
-              </button>
-              <input
-                ref={avatarRef}
-                type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp"
-                hidden
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = '';
-                  if (file) {
-                    void onAvatar(file);
-                  }
-                }}
-              />
-              {editingName ? (
-                <div className="group-name-edit">
-                  <Input
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    onPressEnter={() => void saveName()}
-                    maxLength={80}
-                    autoFocus
+              {isGroup ? (
+                <>
+                  <button
+                    type="button"
+                    className="group-avatar-btn"
+                    onClick={() => avatarRef.current?.click()}
+                  >
+                    <Avatar size={72} src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
+                      {initials(room.title || room.name)}
+                    </Avatar>
+                    <span className="group-cam">
+                      <CameraOutlined />
+                    </span>
+                  </button>
+                  <input
+                    ref={avatarRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    hidden
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = '';
+                      if (file) {
+                        void onAvatar(file);
+                      }
+                    }}
                   />
-                  <Button type="primary" size="small" onClick={() => void saveName()}>
-                    Lưu
-                  </Button>
-                </div>
+                  {editingName ? (
+                    <div className="group-name-edit">
+                      <Input
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                        onPressEnter={() => void saveName()}
+                        maxLength={80}
+                        autoFocus
+                      />
+                      <Button type="primary" size="small" onClick={() => void saveName()}>
+                        Lưu
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="group-name-btn"
+                      onClick={() => setEditingName(true)}
+                    >
+                      <h2>{room.title || room.name}</h2>
+                      <EditOutlined />
+                    </button>
+                  )}
+                  <p className="group-sub">{members.length} thành viên</p>
+                </>
               ) : (
-                <button type="button" className="group-name-btn" onClick={() => setEditingName(true)}>
+                <>
+                  <div className="group-avatar-btn" style={{ cursor: 'default' }}>
+                    <Avatar size={72} src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
+                      {initials(room.title || room.name)}
+                    </Avatar>
+                  </div>
                   <h2>{room.title || room.name}</h2>
-                  <EditOutlined />
-                </button>
+                  <p className="group-sub">Trò chuyện trực tiếp</p>
+                </>
               )}
-              <p className="group-sub">{members.length} thành viên</p>
             </div>
           </div>
 
@@ -219,46 +309,76 @@ export function GroupDrawer({
             </div>
           </div>
 
-          <div className="group-card">
-            <button type="button" className="group-row" onClick={() => toggle('members')}>
-              <span className="group-ico">
-                <TeamOutlined />
-              </span>
-              <span className="group-row-text">
-                <strong>Thành viên</strong>
-                <small>{members.length} người</small>
-              </span>
-              <RightOutlined className={openSection === 'members' ? 'chev open' : 'chev'} />
-            </button>
-            {openSection === 'members' ? (
-              <div className="group-list">
-                {members.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className="group-member"
-                    onClick={() => {
-                      setNickUser(item);
-                      setNickValue(item.nickname || '');
-                    }}
-                  >
-                    <Avatar
-                      size={40}
-                      src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
-                      style={{ background: avatarColor(item.displayName || item.name) }}
+          {isGroup ? (
+            <div className="group-card">
+              <button type="button" className="group-row" onClick={() => toggle('members')}>
+                <span className="group-ico">
+                  <TeamOutlined />
+                </span>
+                <span className="group-row-text">
+                  <strong>Thành viên</strong>
+                  <small>{members.length} người</small>
+                </span>
+                <RightOutlined className={openSection === 'members' ? 'chev open' : 'chev'} />
+              </button>
+              {openSection === 'members' ? (
+                <div className="group-list">
+                  {isOwner ? (
+                    <button
+                      type="button"
+                      className="group-member group-add-btn"
+                      onClick={() => setAddMemberOpen(true)}
                     >
-                      {initials(item.displayName || item.name)}
-                    </Avatar>
-                    <span className="group-member-info">
-                      <strong>{item.displayName || item.name}</strong>
-                      <small>@{item.handle}</small>
-                    </span>
-                    <RightOutlined className="chev" />
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
+                      <span className="group-file-ico">
+                        <PlusOutlined />
+                      </span>
+                      <span className="group-member-info">
+                        <strong>Thêm thành viên</strong>
+                      </span>
+                    </button>
+                  ) : null}
+                  {members.map((item) => (
+                    <div key={item.id} className="group-member-wrap">
+                      <button
+                        type="button"
+                        className="group-member"
+                        onClick={() => {
+                          setNickUser(item);
+                          setNickValue(item.nickname || '');
+                        }}
+                      >
+                        <Avatar
+                          size={40}
+                          src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
+                          style={{ background: avatarColor(item.displayName || item.name) }}
+                        >
+                          {initials(item.displayName || item.name)}
+                        </Avatar>
+                        <span className="group-member-info">
+                          <strong>{item.displayName || item.name}</strong>
+                          <small>@{item.handle}</small>
+                        </span>
+                        <RightOutlined className="chev" />
+                      </button>
+                      {isOwner && item.id !== currentUserId && item.id !== room.createdById ? (
+                        <button
+                          type="button"
+                          className="group-member-remove"
+                          title="Xóa khỏi nhóm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveMember(item);
+                          }}
+                        >
+                          <CloseOutlined />
+                        </button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="group-card">
             <button type="button" className="group-row" onClick={() => toggle('photos')}>
@@ -315,7 +435,7 @@ export function GroupDrawer({
                         <FileOutlined />
                       </span>
                       <span className="group-member-info">
-                        <strong>{file.filename}</strong>
+                        <strong title={file.filename}>{file.filename}</strong>
                         <small>{formatBytes(file.sizeBytes)}</small>
                       </span>
                     </a>
@@ -401,6 +521,24 @@ export function GroupDrawer({
               )
             ) : null}
           </div>
+
+          {room.canDelete ? (
+            <div className="group-card">
+              <button
+                type="button"
+                className="group-row group-danger"
+                onClick={handleDeleteRoom}
+              >
+                <span className="group-ico">
+                  <DeleteOutlined />
+                </span>
+                <span className="group-row-text">
+                  <strong>Giải tán nhóm</strong>
+                  <small>Xóa vĩnh viễn cuộc trò chuyện</small>
+                </span>
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : (
         <p className="group-muted pad">Chọn một nhóm để xem thông tin</p>
@@ -437,6 +575,21 @@ export function GroupDrawer({
           onChange={(event) => setNickValue(event.target.value)}
           placeholder="Biệt danh trong nhóm"
           maxLength={50}
+        />
+      </Modal>
+
+      <Modal
+        title="Thêm thành viên"
+        open={addMemberOpen}
+        onCancel={() => setAddMemberOpen(false)}
+        footer={null}
+        destroyOnHidden
+        width={440}
+      >
+        <UserPicker
+          mode="single"
+          exclude={members.map((m) => m.id)}
+          onPick={(u) => void handleAddMember(u)}
         />
       </Modal>
     </aside>

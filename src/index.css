@@ -3256,3 +3256,57 @@ body {
   padding-top: 10px;
   border-top: 1px solid #f0f2f5;
 }
+
+/* Group Management */
+.group-member-wrap {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.group-member-wrap .group-member {
+  flex: 1;
+}
+
+.group-member-remove {
+  background: none;
+  border: none;
+  color: #8a8d91;
+  padding: 6px;
+  margin-right: 8px;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.group-member-remove:hover {
+  background: #ffebe8;
+  color: #fa3e3e;
+}
+
+.group-add-btn {
+  color: #0084ff;
+  border: 1px dashed #d8dadf;
+  margin-bottom: 8px;
+  border-radius: 8px;
+}
+
+.group-add-btn:hover {
+  border-color: #0084ff;
+  background: #f0f7ff;
+}
+
+.group-danger {
+  color: #fa3e3e;
+}
+
+.group-danger .group-ico {
+  color: #fa3e3e;
+}
+
+.group-danger:hover {
+  background: #fff0f0;
+}

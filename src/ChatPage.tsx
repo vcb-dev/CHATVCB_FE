@@ -692,6 +692,16 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setRoomId(nextRoom.id);
   }
 
+  function handleRoomRemoved(removedRoomId: string) {
+    setRooms((prev) => {
+      const next = prev.filter((item) => item.id !== removedRoomId);
+      if (roomIdRef.current === removedRoomId) {
+        setRoomId(next[0]?.id ?? '');
+      }
+      return next;
+    });
+  }
+
   function appendMessage(message: ChatMessage) {
     setMessages((current) => {
       if (current.some((item) => item.id === message.id)) {
@@ -1211,6 +1221,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       <GroupDrawer
         room={room}
         members={members}
+        currentUserId={user.id}
         chatPhotos={chatPhotos}
         overlay={groupOverlay}
         onClose={() => setGroupOverlay(false)}
@@ -1218,6 +1229,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           setRooms((current) => current.map((item) => (item.id === next.id ? { ...item, ...next } : item)))
         }
         onMembersUpdated={setMembers}
+        onRoomRemoved={handleRoomRemoved}
         onJumpMessage={jumpToMessage}
       />
       ) : null}

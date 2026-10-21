@@ -12,7 +12,7 @@ import {
   SendOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
-import { Avatar, Badge, Button, Dropdown, Image, Input, Mentions, Modal, Popover, Typography, message as antMessage } from 'antd';
+import { Avatar, Badge, Button, Dropdown, Image, Input, Mentions, Modal, Popover, Spin, Typography, message as antMessage } from 'antd';
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react';
 import type { Socket } from 'socket.io-client';
 import { api, fileSrc } from './api';
@@ -49,7 +49,7 @@ import { UserProfileModal } from './UserProfileModal';
 import { NewChatModal } from './NewChatModal';
 import { RoomListItem } from './RoomListItem';
 import { SidebarSearch } from './SidebarSearch';
-import { isDirectRoom, mergeRooms, previewOf, upsertRoom } from './rooms';
+import { isDirectRoom, mergeRooms, previewOf, sortRooms, upsertRoom } from './rooms';
 import { connectSocket } from './socket';
 import { avatarColor, initials } from './theme';
 import type {
@@ -121,6 +121,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [roomsMeta, setRoomsMeta] = useState<PageMeta>({ hasMore: false, nextCursor: null });
+  const [loadingOlderRooms, setLoadingOlderRooms] = useState(false);
+  const roomsMetaRef = useRef<PageMeta>({ hasMore: false, nextCursor: null });
+  const hasLoadedMoreRoomsRef = useRef(false);
   const [pageMeta, setPageMeta] = useState<PageMeta>({ hasMore: false, nextCursor: null });
   const [loadingOlder, setLoadingOlder] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -260,17 +264,24 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
 
     async function refreshRooms() {
       try {
-        const next = await api.rooms();
+        const page = await api.rooms();
         if (cancelled) {
           return;
         }
         setRooms((prev) => {
-          const merged = mergeRooms(prev, next, roomIdRef.current);
+          const merged = mergeRooms(prev, page.data, roomIdRef.current, page.meta.hasMore);
           if (roomIdRef.current && !merged.some((r) => r.id === roomIdRef.current)) {
             setRoomId(merged[0]?.id ?? '');
           }
           return merged;
         });
+        if (!hasLoadedMoreRoomsRef.current || !page.meta.hasMore) {
+          if (!page.meta.hasMore) {
+            hasLoadedMoreRoomsRef.current = false;
+          }
+          setRoomsMeta(page.meta);
+          roomsMetaRef.current = page.meta;
+        }
       } catch {
         // ignore polling errors
       }
@@ -278,12 +289,14 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
 
     api
       .rooms()
-      .then((next) => {
+      .then((page) => {
         if (cancelled) {
           return;
         }
-        setRooms((prev) => mergeRooms(prev, next, roomIdRef.current));
-        setRoomId((current) => current || next[0]?.id || '');
+        setRooms((prev) => mergeRooms(prev, page.data, roomIdRef.current, page.meta.hasMore));
+        setRoomsMeta(page.meta);
+        roomsMetaRef.current = page.meta;
+        setRoomId((current) => current || page.data[0]?.id || '');
       })
       .catch(() => setError('Không tải được danh sách phòng.'));
 
@@ -843,6 +856,41 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     );
   }
 
+  async function loadMoreRooms() {
+    if (loadingOlderRooms || !roomsMetaRef.current.hasMore || !roomsMetaRef.current.nextCursor) {
+      return;
+    }
+    setLoadingOlderRooms(true);
+    hasLoadedMoreRoomsRef.current = true;
+    try {
+      const page = await api.rooms(roomsMetaRef.current.nextCursor);
+      setRooms((prev) => {
+        const existingIds = new Set(prev.map((r) => r.id));
+        const newRooms = page.data.filter((r) => !existingIds.has(r.id));
+        return sortRooms([...prev, ...newRooms]);
+      });
+      setRoomsMeta(page.meta);
+      roomsMetaRef.current = page.meta;
+    } catch (err) {
+      antMessage.error(
+        err instanceof Error ? err.message : 'Không tải thêm được danh sách phòng.',
+      );
+    } finally {
+      setLoadingOlderRooms(false);
+    }
+  }
+
+  function handleRoomsScroll(e: React.UIEvent<HTMLDivElement>) {
+    if (searchText.trim() || loadingOlderRooms || !roomsMeta.hasMore || !roomsMeta.nextCursor) {
+      return;
+    }
+    const target = e.currentTarget;
+    const distanceToBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+    if (distanceToBottom < 80) {
+      void loadMoreRooms();
+    }
+  }
+
   function handleRoomRemoved(removedRoomId: string) {
     setRooms((prev) => {
       const next = prev.filter((item) => item.id !== removedRoomId);
@@ -990,7 +1038,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             rooms={rooms}
           />
         ) : (
-        <div className="room-list">
+        <div className="room-list" onScroll={handleRoomsScroll}>
           {rooms.map((item) => (
             <RoomListItem
               key={item.id}
@@ -999,6 +1047,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               onSelect={selectRoom}
             />
           ))}
+          {loadingOlderRooms ? (
+            <div className="room-list-loading">
+              <Spin size="small" /> <span>Đang tải thêm…</span>
+            </div>
+          ) : null}
         </div>
         )}
         <div className="sidebar-foot">

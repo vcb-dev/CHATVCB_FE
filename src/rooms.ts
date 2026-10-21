@@ -32,8 +32,22 @@ export function upsertRoom(list: Room[], room: Room): Room[] {
   return sortRooms(next);
 }
 
-export function mergeRooms(prev: Room[], next: Room[], currentId: string): Room[] {
-  const nextList = sortRooms(next).map((r) =>
+export function mergeRooms(
+  prev: Room[],
+  next: Room[],
+  currentId: string,
+  hasMore = false,
+): Room[] {
+  let combinedNext = next;
+  if (hasMore && next.length > 0) {
+    const nextIds = new Set(next.map((r) => r.id));
+    const lastTime = new Date(next[next.length - 1].updatedAt).getTime();
+    const olderRooms = prev.filter(
+      (r) => !nextIds.has(r.id) && new Date(r.updatedAt).getTime() < lastTime,
+    );
+    combinedNext = [...next, ...olderRooms];
+  }
+  const nextList = sortRooms(combinedNext).map((r) =>
     r.id === currentId ? { ...r, unreadCount: 0 } : r,
   );
   const currentInPrev = prev.find((r) => r.id === currentId);

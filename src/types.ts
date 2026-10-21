@@ -75,6 +75,11 @@ export type MessagesPage = {
   meta: PageMeta;
 };
 
+export type RoomsPage = {
+  data: Room[];
+  meta: PageMeta;
+};
+
 export type PresenceUser = {
   id: string;
   name: string;

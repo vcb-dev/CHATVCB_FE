@@ -10,6 +10,7 @@ import type {
   Meeting,
   MessagesPage,
   Room,
+  RoomsPage,
   RoomLink,
   RoomMember,
   RoomRead,
@@ -113,9 +114,28 @@ export const api = {
     }
     return response.json() as Promise<{ token: string; user: User }>;
   },
-  async rooms() {
-    const res = await request<Room[] | { data: Room[] }>('/rooms?limit=50');
-    return Array.isArray(res) ? res : res?.data ?? [];
+  async rooms(cursor?: string, limit = 50): Promise<RoomsPage> {
+    const params = new URLSearchParams();
+    if (limit) {
+      params.set('limit', String(limit));
+    }
+    if (cursor) {
+      params.set('cursor', cursor);
+    }
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const res = await request<
+      Room[] | { data: Room[]; meta?: { hasMore: boolean; nextCursor: string | null } }
+    >(`/rooms${qs}`);
+    if (Array.isArray(res)) {
+      return { data: res, meta: { hasMore: false, nextCursor: null } };
+    }
+    return {
+      data: res.data ?? [],
+      meta: {
+        hasMore: Boolean(res.meta?.hasMore),
+        nextCursor: res.meta?.nextCursor ?? null,
+      },
+    };
   },
   async members(roomId: string) {
     const res = await request<RoomMember[] | { data: RoomMember[] }>(`/rooms/${roomId}/members`);

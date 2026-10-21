@@ -3467,3 +3467,14 @@ body {
   align-items: center;
   gap: 8px;
 }
+
+/* Room List */
+.room-list-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  font-size: 13px;
+  color: #65676b;
+}

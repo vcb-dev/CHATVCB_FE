@@ -60,6 +60,7 @@ import type {
   Room,
   RoomMember,
   RoomRead,
+  RoomReadsEvent,
   User,
 } from './types';
 
@@ -436,7 +437,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     });
     socket.on('agent.pending', () => setPending(true));
     socket.on('room.presence', (users: PresenceUser[]) => setOnline(users));
-    socket.on('room.reads', (next: RoomRead[]) => setReads(next));
+    socket.on('room.reads', (payload: RoomReadsEvent) => {
+      if (payload.roomId !== roomIdRef.current) {
+        return;
+      }
+      setReads(payload.reads);
+    });
     socket.on('message.updated', (message: ChatMessage) => {
       setMessages((current) =>
         current.map((item) => {

@@ -97,6 +97,12 @@ export type RoomRead = {
   lastReadAt: string | null;
 };
 
+/** Payload socket `room.reads` (BE emit `{ roomId, reads }`, khác HTTP trả mảng). */
+export type RoomReadsEvent = {
+  roomId: string;
+  reads: RoomRead[];
+};
+
 export type GalleryImage = {
   id: string;
   filename: string;

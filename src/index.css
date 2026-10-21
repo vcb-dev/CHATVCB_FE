@@ -1272,7 +1272,7 @@ body {
   gap: 12px;
   flex: 1;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 0;
   background: transparent;
   padding: 0;
@@ -3477,4 +3477,12 @@ body {
   padding: 12px;
   font-size: 13px;
   color: #65676b;
+}
+
+/* Online Presence */
+.chat-head-info .ant-badge-dot,
+.room-item .ant-badge-dot {
+  box-shadow: 0 0 0 2px #fff;
+  width: 10px;
+  height: 10px;
 }

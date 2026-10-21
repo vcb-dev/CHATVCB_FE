@@ -20,6 +20,7 @@ export type Room = {
   createdById: string | null;
   unreadCount: number;
   peerUserId: string | null;
+  memberIds?: string[];
   slug?: string;
   team?: string;
   agentName?: string;

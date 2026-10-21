@@ -6,11 +6,13 @@ import type { Room } from './types';
 export function RoomListItem(props: {
   room: Room;
   active: boolean;
+  online: boolean;
   onSelect: (room: Room) => void;
 }) {
   const { room } = props;
   const name = room.title || room.name;
   const hasUnread = room.unreadCount > 0;
+  const showOnline = !hasUnread && props.online;
 
   return (
     <button
@@ -20,7 +22,13 @@ export function RoomListItem(props: {
       onClick={() => props.onSelect(room)}
       type="button"
     >
-      <Badge count={room.unreadCount} overflowCount={99}>
+      <Badge
+        count={hasUnread ? room.unreadCount : undefined}
+        overflowCount={99}
+        dot={showOnline}
+        color={showOnline ? '#31a24c' : undefined}
+        offset={[-2, 4]}
+      >
         <Avatar
           size={48}
           className="avatar-initials"

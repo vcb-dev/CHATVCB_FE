@@ -47,6 +47,14 @@ import { MeetingsPage } from './MeetingsPage';
 import { ProfileDrawer } from './ProfileDrawer';
 import { UserProfileModal } from './UserProfileModal';
 import { NewChatModal } from './NewChatModal';
+import {
+  countOnlineMembers,
+  hasOnlineMember,
+  isOtherRoomOnline,
+  isOtherUserOnline,
+  peerUserIdOf,
+  type Presence,
+} from './presence';
 import { RoomListItem } from './RoomListItem';
 import { SidebarSearch } from './SidebarSearch';
 import { isDirectRoom, mergeRooms, previewOf, sortRooms, upsertRoom } from './rooms';
@@ -105,6 +113,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [online, setOnline] = useState<PresenceUser[]>([]);
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [members, setMembers] = useState<RoomMember[]>([]);
   const [membersLoaded, setMembersLoaded] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -154,6 +163,19 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     () => rooms.find((item) => item.id === roomId) ?? null,
     [rooms, roomId],
   );
+  const isDirect = Boolean(room && isDirectRoom(room));
+  const presence: Presence = { myId: user.id, online, onlineUserIds };
+  const isPeerOnline = isOtherUserOnline(presence, peerUserIdOf(room, members, user.id));
+  const isGroupOnline = hasOnlineMember(presence, members);
+  const onlineMembersCount = countOnlineMembers(presence, members);
+
+  function isRoomOnline(item: Room) {
+    if (item.id !== roomId) {
+      return isOtherRoomOnline(presence, item);
+    }
+    return isDirect ? isPeerOnline : isGroupOnline;
+  }
+
   const team = user.team ?? room?.team ?? 'sale';
   roomNameRef.current = room ? (room.title || room.name) : '';
   const mentionOptions = useMemo(
@@ -324,6 +346,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setPending(false);
     setMembersLoaded(false);
     setReads([]);
+    setOnline([]);
     revokePending(pendingImagesRef.current);
     setPendingImages([]);
     setPendingFiles([]);
@@ -407,6 +430,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     const socket = connectSocket(token);
     socketRef.current = socket;
     socket.on('connect', () => {
+      socket.emit('presence.get');
       if (roomIdRef.current) {
         socket.emit('join', roomIdRef.current);
       }
@@ -465,7 +489,19 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       });
     });
     socket.on('agent.pending', () => setPending(true));
-    socket.on('room.presence', (users: PresenceUser[]) => setOnline(users));
+    socket.on('presence.online', (users: PresenceUser[]) => {
+      setOnlineUserIds(new Set(users.map((u) => u.id)));
+    });
+    socket.on('room.presence', (users: PresenceUser[]) => {
+      setOnline(users);
+      setOnlineUserIds((current) => {
+        const next = new Set(current);
+        for (const u of users) {
+          next.add(u.id);
+        }
+        return next;
+      });
+    });
     socket.on('room.reads', (payload: RoomReadsEvent) => {
       if (payload.roomId !== roomIdRef.current) {
         return;
@@ -1044,6 +1080,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               key={item.id}
               room={item}
               active={item.id === roomId}
+              online={isRoomOnline(item)}
               onSelect={selectRoom}
             />
           ))}
@@ -1105,7 +1142,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               }
             }}
           >
-            <Badge dot={online.length > 0} color="#31a24c">
+            <Badge
+              dot={isDirect ? isPeerOnline : isGroupOnline}
+              color="#31a24c"
+              offset={[-2, 4]}
+            >
               <Avatar
                 size={40}
                 className="avatar-initials"
@@ -1118,10 +1159,22 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               </Avatar>
             </Badge>
             <div>
-              <strong className="chat-head-name">{room ? (room.title || room.name) : 'Chọn phòng'}</strong>
+              <strong className="chat-head-name">
+                {room ? (room.title || room.name) : 'Chọn phòng'}
+              </strong>
               <small>
-                {members.length ? `${members.length} thành viên` : 'Gõ @ để tag đồng đội'}
-                {online.length ? ` · Online ${online.length}` : ''}
+                {isDirect ? (
+                  isPeerOnline ? 'Đang hoạt động' : 'Không hoạt động'
+                ) : (
+                  <>
+                    {members.length
+                      ? `${members.length} thành viên`
+                      : 'Gõ @ để tag đồng đội'}
+                    {members.length && onlineMembersCount > 0
+                      ? ` · Online ${onlineMembersCount}`
+                      : ''}
+                  </>
+                )}
               </small>
             </div>
           </button>

@@ -1,4 +1,12 @@
-import type { ChatMessage, Room } from './types';
+import type { ChatMessage, Room, RoomHit } from './types';
+
+export function roomFromHit(hit: RoomHit): Room {
+  return {
+    ...hit,
+    updatedAt: new Date().toISOString(),
+    createdById: null,
+  };
+}
 
 export function isDirectRoom(room: Room): boolean {
   return room.type === 'direct' || room.kind === 'direct';

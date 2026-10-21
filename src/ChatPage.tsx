@@ -8,10 +8,11 @@ import {
   PlusOutlined,
   PushpinOutlined,
   RobotOutlined,
+  SearchOutlined,
   SendOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
-import { Avatar, Badge, Button, Dropdown, Image, Mentions, Modal, Popover, Typography, message as antMessage } from 'antd';
+import { Avatar, Badge, Button, Dropdown, Image, Input, Mentions, Modal, Popover, Typography, message as antMessage } from 'antd';
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from 'react';
 import type { Socket } from 'socket.io-client';
 import { api, fileSrc } from './api';
@@ -45,6 +46,7 @@ import { EmailPage } from './EmailPage';
 import { MeetingsPage } from './MeetingsPage';
 import { ProfileDrawer } from './ProfileDrawer';
 import { NewChatModal } from './NewChatModal';
+import { SidebarSearch } from './SidebarSearch';
 import { mergeRooms, previewOf, upsertRoom } from './rooms';
 import { connectSocket } from './socket';
 import { avatarColor, initials } from './theme';
@@ -114,6 +116,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [pins, setPins] = useState<ChatMessage[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
   const [pageMeta, setPageMeta] = useState<PageMeta>({ hasMore: false, nextCursor: null });
   const [loadingOlder, setLoadingOlder] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -122,6 +125,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const roomIdRef = useRef('');
   const lastMessageIdRef = useRef<string>('');
   const lastRoomIdRef = useRef<string>('');
+  const pendingJumpRef = useRef<string | null>(null);
   const mentionMeasuringRef = useRef(false);
   const lastSentRef = useRef<{ at: number; text: string }>({ at: 0, text: '' });
   const lastReadSentRef = useRef('');
@@ -329,6 +333,13 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         if (!cancelled) {
           setMessages(page.data);
           setPageMeta(page.meta);
+          if (pendingJumpRef.current) {
+            const targetId = pendingJumpRef.current;
+            pendingJumpRef.current = null;
+            requestAnimationFrame(() => {
+              jumpToMessage(targetId);
+            });
+          }
         }
       })
       .catch(() => setError('Không tải được tin nhắn.'));
@@ -716,11 +727,21 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   function jumpToMessage(id: string) {
     const el = document.getElementById(`msg-${id}`);
     if (!el) {
+      antMessage.info('Tin nhắn nằm ở phần cũ hơn.');
       return;
     }
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     el.classList.add('flash');
     window.setTimeout(() => el.classList.remove('flash'), 1400);
+  }
+
+  function openMessage(targetRoomId: string, messageId: string) {
+    if (roomId !== targetRoomId) {
+      pendingJumpRef.current = messageId;
+      setRoomId(targetRoomId);
+    } else {
+      jumpToMessage(messageId);
+    }
   }
 
   async function handleMessageAction(key: string, message: ChatMessage) {
@@ -919,6 +940,24 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onClick={() => setNewChatOpen(true)}
           />
         </div>
+        <div className="sidebar-search-box">
+          <Input
+            prefix={<SearchOutlined style={{ color: '#8a8d91' }} />}
+            placeholder="Tìm người, nhóm, tin nhắn"
+            allowClear
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </div>
+        {searchText.trim() ? (
+          <SidebarSearch
+            query={searchText}
+            onClose={() => setSearchText('')}
+            onOpenRoom={openRoom}
+            onOpenMessage={openMessage}
+            rooms={rooms}
+          />
+        ) : (
         <div className="room-list">
           {rooms.map((item) => (
             <button
@@ -954,6 +993,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             </button>
           ))}
         </div>
+        )}
         <div className="sidebar-foot">
           <button
             type="button"

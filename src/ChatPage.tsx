@@ -1259,6 +1259,8 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             const mine = message.userId === user.id;
             const agent = message.role === 'agent';
             const first = index === 0 || !sameAuthor(messages[index - 1], message);
+            const last =
+              index === messages.length - 1 || !sameAuthor(message, messages[index + 1]);
             const tagged = !mine && mentionsUser(message.content, myHandle);
             const viewers = viewersOf(message, messages, reads);
             const lastReaders = lastSeenOn(message, messages, reads, user.id);
@@ -1416,7 +1418,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                     onToggle={(emoji) => void handleReact(message, emoji)}
                   />
                   <SeenAvatars readers={lastReaders} />
-                  {first ? (
+                  {last ? (
                     <time>
                       {new Date(message.createdAt).toLocaleTimeString('vi-VN', {
                         hour: '2-digit',

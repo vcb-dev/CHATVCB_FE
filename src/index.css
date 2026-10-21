@@ -3320,3 +3320,12 @@ body {
 .group-danger:hover {
   background: #fff0f0;
 }
+
+/* Messages Loading */
+.messages-loading {
+  text-align: center;
+  padding: 8px 0;
+  font-size: 12px;
+  color: #8a8d91;
+  font-style: italic;
+}

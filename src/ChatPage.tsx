@@ -51,6 +51,7 @@ import { avatarColor, initials } from './theme';
 import type {
   ChatMessage,
   GalleryImage,
+  PageMeta,
   PendingFile,
   PendingImage,
   PresenceUser,
@@ -113,10 +114,14 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [pins, setPins] = useState<ChatMessage[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const [pageMeta, setPageMeta] = useState<PageMeta>({ hasMore: false, nextCursor: null });
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const myAvatarRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const roomIdRef = useRef('');
+  const lastMessageIdRef = useRef<string>('');
+  const lastRoomIdRef = useRef<string>('');
   const mentionMeasuringRef = useRef(false);
   const lastSentRef = useRef<{ at: number; text: string }>({ at: 0, text: '' });
   const lastReadSentRef = useRef('');
@@ -304,6 +309,8 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setGalleryOpen(false);
     setReplyTo(null);
     setPins([]);
+    setPageMeta({ hasMore: false, nextCursor: null });
+    setLoadingOlder(false);
     api
       .pins(roomId)
       .then((next) => {
@@ -321,6 +328,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       .then((page) => {
         if (!cancelled) {
           setMessages(page.data);
+          setPageMeta(page.meta);
         }
       })
       .catch(() => setError('Không tải được tin nhắn.'));
@@ -478,10 +486,49 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
 
   useEffect(() => {
     const el = listRef.current;
-    if (el) {
-      el.scrollTop = el.scrollHeight;
+    if (!el) {
+      return;
     }
-  }, [messages, pending]);
+    const latestId = messages[messages.length - 1]?.id ?? '';
+    const roomChanged = lastRoomIdRef.current !== roomId;
+    const latestChanged = lastMessageIdRef.current !== latestId;
+
+    if (roomChanged || latestChanged || pending) {
+      el.scrollTop = el.scrollHeight;
+      lastRoomIdRef.current = roomId;
+      lastMessageIdRef.current = latestId;
+    }
+  }, [messages, pending, roomId]);
+
+  async function loadOlder() {
+    if (!roomId || loadingOlder || !pageMeta.hasMore || !pageMeta.nextCursor) {
+      return;
+    }
+    const el = listRef.current;
+    if (!el) {
+      return;
+    }
+    setLoadingOlder(true);
+    const prevScrollHeight = el.scrollHeight;
+    try {
+      const page = await api.messages(roomId, pageMeta.nextCursor);
+      setPageMeta(page.meta);
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        const older = page.data.filter((m) => !existingIds.has(m.id));
+        return [...older, ...prev];
+      });
+      requestAnimationFrame(() => {
+        if (el) {
+          el.scrollTop += el.scrollHeight - prevScrollHeight;
+        }
+      });
+    } catch {
+      // ignore loading errors
+    } finally {
+      setLoadingOlder(false);
+    }
+  }
 
   useEffect(() => {
     if (!roomId) {
@@ -1005,7 +1052,18 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           </div>
         ) : null}
 
-        <div className="messages" ref={listRef}>
+        <div
+          className="messages"
+          ref={listRef}
+          onScroll={(e) => {
+            if (e.currentTarget.scrollTop < 40) {
+              void loadOlder();
+            }
+          }}
+        >
+          {loadingOlder ? (
+            <div className="messages-loading">Đang tải tin cũ…</div>
+          ) : null}
           {messages.map((message, index) => {
             const mine = message.userId === user.id;
             const agent = message.role === 'agent';

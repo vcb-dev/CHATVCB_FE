@@ -33,7 +33,9 @@ export function upsertRoom(list: Room[], room: Room): Room[] {
 }
 
 export function mergeRooms(prev: Room[], next: Room[], currentId: string): Room[] {
-  const nextList = sortRooms(next);
+  const nextList = sortRooms(next).map((r) =>
+    r.id === currentId ? { ...r, unreadCount: 0 } : r,
+  );
   const currentInPrev = prev.find((r) => r.id === currentId);
   if (
     currentInPrev &&

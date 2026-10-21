@@ -337,6 +337,14 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         if (!cancelled) {
           setMessages(page.data);
           setPageMeta(page.meta);
+          const latest = page.data[page.data.length - 1];
+          if (latest) {
+            markMessageRead(latest, roomId);
+          } else {
+            setRooms((current) =>
+              current.map((r) => (r.id === roomId ? { ...r, unreadCount: 0 } : r)),
+            );
+          }
           if (pendingJumpRef.current) {
             const targetId = pendingJumpRef.current;
             pendingJumpRef.current = null;
@@ -424,16 +432,21 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             (message.imageUrl ? 'Đã gửi một ảnh' : 'Tin nhắn mới'),
           mentioned: tagged,
         });
+        if (message.roomId === roomIdRef.current) {
+          markMessageRead(message, message.roomId);
+        }
       }
       setRooms((current) => {
         const target = current.find((r) => r.id === message.roomId);
         if (!target) {
           return current;
         }
+        const isCurrentRoom = message.roomId === roomIdRef.current;
         const updated: Room = {
           ...target,
           lastMessagePreview: previewOf(message, userRef.current?.id, isDirectRoom(target)),
           updatedAt: message.createdAt,
+          unreadCount: isCurrentRoom ? 0 : target.unreadCount + (mine ? 0 : 1),
         };
         return upsertRoom(current, updated);
       });
@@ -569,25 +582,28 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     };
   }, [roomId]);
 
-  function markMessageRead(message?: ChatMessage) {
-    if (!roomId) {
+  function markMessageRead(message?: ChatMessage, targetRoomId?: string) {
+    const rid = targetRoomId || roomIdRef.current;
+    if (!rid) {
       return;
     }
     const latest = message ?? messagesRef.current[messagesRef.current.length - 1];
     if (!latest) {
       return;
     }
-    const key = `${roomId}:${latest.id}`;
+    const key = `${rid}:${latest.id}`;
     if (lastReadSentRef.current === key) {
       return;
     }
     lastReadSentRef.current = key;
     void api
-      .markRead(roomId, latest.id)
+      .markRead(rid, latest.id)
       .then((readsRes) => {
-        setReads(readsRes);
+        if (roomIdRef.current === rid) {
+          setReads(readsRes);
+        }
         setRooms((current) =>
-          current.map((r) => (r.id === roomId ? { ...r, unreadCount: 0 } : r)),
+          current.map((r) => (r.id === rid ? { ...r, unreadCount: 0 } : r)),
         );
       })
       .catch(() => {

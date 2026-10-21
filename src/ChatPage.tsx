@@ -5,6 +5,7 @@ import {
   FileTextOutlined,
   MailOutlined,
   MessageOutlined,
+  PlusOutlined,
   PushpinOutlined,
   RobotOutlined,
   SendOutlined,
@@ -43,6 +44,8 @@ import { DocsPage } from './DocsPage';
 import { EmailPage } from './EmailPage';
 import { MeetingsPage } from './MeetingsPage';
 import { ProfileDrawer } from './ProfileDrawer';
+import { NewChatModal } from './NewChatModal';
+import { upsertRoom } from './rooms';
 import { connectSocket } from './socket';
 import { avatarColor, initials } from './theme';
 import type {
@@ -109,6 +112,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   });
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [pins, setPins] = useState<ChatMessage[]>([]);
+  const [newChatOpen, setNewChatOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const myAvatarRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -683,6 +687,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     }
   }
 
+  function openRoom(nextRoom: Room) {
+    setRooms((prev) => upsertRoom(prev, nextRoom));
+    setRoomId(nextRoom.id);
+  }
+
   function appendMessage(message: ChatMessage) {
     setMessages((current) => {
       if (current.some((item) => item.id === message.id)) {
@@ -776,9 +785,19 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
 
       {workspace === 'messenger' ? (
       <aside className="sidebar">
-        <div className="brand">
-          <strong>Messenger</strong>
-          <small>Team {team}</small>
+        <div className="sidebar-head">
+          <div className="brand">
+            <strong>Messenger</strong>
+            <small>Team {team}</small>
+          </div>
+          <Button
+            type="text"
+            shape="circle"
+            icon={<PlusOutlined />}
+            className="sidebar-new-btn"
+            title="Cuộc trò chuyện mới"
+            onClick={() => setNewChatOpen(true)}
+          />
         </div>
         <div className="room-list">
           {rooms.map((item) => (
@@ -1218,6 +1237,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         user={user}
         onClose={() => setProfileOpen(false)}
         onUpdated={onUserUpdate}
+      />
+      <NewChatModal
+        open={newChatOpen}
+        onClose={() => setNewChatOpen(false)}
+        onOpenRoom={openRoom}
       />
     </div>
   );

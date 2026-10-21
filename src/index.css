@@ -3132,3 +3132,127 @@ body {
 .pending-file-remove:hover {
   color: #050505;
 }
+
+/* Sidebar Head */
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 12px;
+}
+
+.sidebar-new-btn {
+  color: #050505 !important;
+  font-size: 16px !important;
+  width: 34px !important;
+  height: 34px !important;
+  background: #f0f2f5 !important;
+  border-radius: 50% !important;
+  transition: all 0.15s ease !important;
+}
+
+.sidebar-new-btn:hover {
+  background: #e4e6eb !important;
+  color: #0084ff !important;
+}
+
+/* User Picker & New Chat */
+.user-pick-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 240px;
+}
+
+.user-pick-search {
+  margin-bottom: 4px;
+}
+
+.user-pick-loading {
+  display: flex;
+  justify-content: center;
+  padding: 30px;
+}
+
+.user-pick-empty {
+  text-align: center;
+  color: #8a8d91;
+  padding: 30px 10px;
+  font-size: 13px;
+}
+
+.user-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.user-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.user-pick-row:hover {
+  background: #f0f2f5;
+}
+
+.user-pick-row.selected {
+  background: #eef6ff;
+}
+
+.user-pick-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.user-pick-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #050505;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-pick-sub {
+  font-size: 12px;
+  color: #65676b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.new-chat-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.new-group-name-row {
+  margin-bottom: 2px;
+}
+
+.new-group-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #65676b;
+}
+
+.new-group-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f2f5;
+}

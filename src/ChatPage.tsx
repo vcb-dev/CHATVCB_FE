@@ -46,6 +46,7 @@ import { EmailPage } from './EmailPage';
 import { MeetingsPage } from './MeetingsPage';
 import { ProfileDrawer } from './ProfileDrawer';
 import { NewChatModal } from './NewChatModal';
+import { RoomListItem } from './RoomListItem';
 import { SidebarSearch } from './SidebarSearch';
 import { mergeRooms, previewOf, upsertRoom } from './rooms';
 import { connectSocket } from './socket';
@@ -817,6 +818,13 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setRoomId(nextRoom.id);
   }
 
+  function selectRoom(next: Room) {
+    setRoomId(next.id);
+    setRooms((current) =>
+      current.map((r) => (r.id === next.id ? { ...r, unreadCount: 0 } : r)),
+    );
+  }
+
   function handleRoomRemoved(removedRoomId: string) {
     setRooms((prev) => {
       const next = prev.filter((item) => item.id !== removedRoomId);
@@ -966,38 +974,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         ) : (
         <div className="room-list">
           {rooms.map((item) => (
-            <button
+            <RoomListItem
               key={item.id}
-              className={[
-                'room-item',
-                item.id === roomId ? 'active' : '',
-                item.unreadCount > 0 ? 'unread' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              onClick={() => {
-                setRoomId(item.id);
-                setRooms((current) =>
-                  current.map((r) => (r.id === item.id ? { ...r, unreadCount: 0 } : r)),
-                );
-              }}
-              type="button"
-            >
-              <Badge count={item.unreadCount} overflowCount={99}>
-                <Avatar
-                  size={48}
-                  className="avatar-initials"
-                  src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
-                  style={{ background: avatarColor(item.title || item.name) }}
-                >
-                  {initials(item.title || item.name)}
-                </Avatar>
-              </Badge>
-              <span className="room-meta">
-                <strong>{item.title || item.name}</strong>
-                <small>{item.lastMessagePreview || 'Chưa có tin nhắn'}</small>
-              </span>
-            </button>
+              room={item}
+              active={item.id === roomId}
+              onSelect={selectRoom}
+            />
           ))}
         </div>
         )}

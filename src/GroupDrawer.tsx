@@ -33,6 +33,7 @@ type Props = {
   onMembersUpdated: (members: RoomMember[]) => void;
   onRoomRemoved: (roomId: string) => void;
   onJumpMessage: (id: string) => void;
+  onViewProfile: (userId: string) => void;
 };
 
 export function GroupDrawer({
@@ -46,6 +47,7 @@ export function GroupDrawer({
   onMembersUpdated,
   onRoomRemoved,
   onJumpMessage,
+  onViewProfile,
 }: Props) {
   const [name, setName] = useState(room?.name ?? '');
   const [editingName, setEditingName] = useState(false);
@@ -574,8 +576,26 @@ export function GroupDrawer({
         title="Đổi biệt danh"
         open={Boolean(nickUser)}
         onCancel={() => setNickUser(null)}
-        onOk={() => void saveNick()}
-        okText="Lưu"
+        footer={[
+          <Button
+            key="profile"
+            onClick={() => {
+              if (nickUser) {
+                const targetId = nickUser.id;
+                setNickUser(null);
+                onViewProfile(targetId);
+              }
+            }}
+          >
+            Xem hồ sơ
+          </Button>,
+          <Button key="cancel" onClick={() => setNickUser(null)}>
+            Hủy
+          </Button>,
+          <Button key="save" type="primary" onClick={() => void saveNick()}>
+            Lưu
+          </Button>,
+        ]}
       >
         <Typography.Paragraph type="secondary">
           {nickUser?.name} (@{nickUser?.handle})

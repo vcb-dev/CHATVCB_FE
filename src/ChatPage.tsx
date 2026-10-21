@@ -45,6 +45,7 @@ import { DocsPage } from './DocsPage';
 import { EmailPage } from './EmailPage';
 import { MeetingsPage } from './MeetingsPage';
 import { ProfileDrawer } from './ProfileDrawer';
+import { UserProfileModal } from './UserProfileModal';
 import { NewChatModal } from './NewChatModal';
 import { RoomListItem } from './RoomListItem';
 import { SidebarSearch } from './SidebarSearch';
@@ -118,6 +119,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [pins, setPins] = useState<ChatMessage[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const [viewProfileId, setViewProfileId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [pageMeta, setPageMeta] = useState<PageMeta>({ hasMore: false, nextCursor: null });
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -1132,7 +1134,16 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                     className="avatar-initials"
                     src={message.authorAvatarUrl ? fileSrc(message.authorAvatarUrl) : undefined}
                     icon={agent ? <RobotOutlined /> : undefined}
-                    style={{ background: agent ? '#31a24c' : avatarColor(message.authorName) }}
+                    style={{
+                      background: agent ? '#31a24c' : avatarColor(message.authorName),
+                      cursor: !agent && message.userId ? 'pointer' : 'default',
+                    }}
+                    onClick={(e) => {
+                      if (!agent && message.userId) {
+                        e?.stopPropagation();
+                        setViewProfileId(message.userId);
+                      }
+                    }}
                   >
                     {agent ? null : initials(message.authorName)}
                   </Avatar>
@@ -1407,6 +1418,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         onMembersUpdated={setMembers}
         onRoomRemoved={handleRoomRemoved}
         onJumpMessage={jumpToMessage}
+        onViewProfile={(uid) => setViewProfileId(uid)}
       />
       ) : null}
       <GalleryModal
@@ -1429,6 +1441,13 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       <NewChatModal
         open={newChatOpen}
         onClose={() => setNewChatOpen(false)}
+        onOpenRoom={openRoom}
+      />
+      <UserProfileModal
+        open={Boolean(viewProfileId)}
+        userId={viewProfileId}
+        currentUserId={user.id}
+        onClose={() => setViewProfileId(null)}
         onOpenRoom={openRoom}
       />
     </div>

@@ -176,6 +176,9 @@ export const api = {
     const query = q?.trim() ? `?q=${encodeURIComponent(q.trim())}` : '';
     return request<DirectoryUser[]>(`/users${query}`);
   },
+  user(id: string) {
+    return request<DirectoryUser>(`/users/${id}`);
+  },
   searchRooms(q: string) {
     return request<RoomSearch>(`/rooms/search?q=${encodeURIComponent(q.trim())}`);
   },

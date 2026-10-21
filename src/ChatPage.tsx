@@ -58,6 +58,7 @@ import {
 import { RoomListItem } from './RoomListItem';
 import { SidebarSearch } from './SidebarSearch';
 import { isDirectRoom, mergeRooms, previewOf, sortRooms, upsertRoom } from './rooms';
+import { copyImage, copyText } from './clipboard';
 import { connectSocket } from './socket';
 import { avatarColor, initials } from './theme';
 import type {
@@ -857,6 +858,23 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       setReplyTo(message);
       return;
     }
+    if (key === 'copy' || key === 'copyImage') {
+      try {
+        if (key === 'copy') {
+          await copyText(message.content);
+        } else if (message.imageUrl) {
+          await copyImage(fileSrc(message.imageUrl));
+        }
+        antMessage.success('Đã sao chép.');
+      } catch {
+        antMessage.error(
+          key === 'copy'
+            ? 'Không sao chép được tin nhắn.'
+            : 'Không sao chép được ảnh.',
+        );
+      }
+      return;
+    }
     try {
       if (key === 'pin') {
         const next = await api.pinMessage(roomId, message.id, !message.pinned);
@@ -1319,6 +1337,8 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                             label: 'Trả lời tin nhắn',
                             disabled: message.recalled,
                           },
+                          ...(hasText ? [{ key: 'copy', label: 'Sao chép tin nhắn' }] : []),
+                          ...(hasImage ? [{ key: 'copyImage', label: 'Sao chép ảnh' }] : []),
                           {
                             key: 'pin',
                             label: message.pinned ? 'Bỏ ghim tin nhắn' : 'Ghim tin nhắn',

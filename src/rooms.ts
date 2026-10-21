@@ -1,4 +1,8 @@
-import type { Room } from './types';
+import type { ChatMessage, Room } from './types';
+
+export function isDirectRoom(room: Room): boolean {
+  return room.type === 'direct' || room.kind === 'direct';
+}
 
 export function sortRooms(list: Room[]): Room[] {
   return [...list].sort((a, b) => {
@@ -18,4 +22,37 @@ export function upsertRoom(list: Room[], room: Room): Room[] {
     next = [room, ...list];
   }
   return sortRooms(next);
+}
+
+export function mergeRooms(prev: Room[], next: Room[], currentId: string): Room[] {
+  const nextList = sortRooms(next);
+  const currentInPrev = prev.find((r) => r.id === currentId);
+  if (
+    currentInPrev &&
+    isDirectRoom(currentInPrev) &&
+    !currentInPrev.lastMessagePreview
+  ) {
+    const existsInNext = nextList.some((r) => r.id === currentId);
+    if (!existsInNext) {
+      return [currentInPrev, ...nextList];
+    }
+  }
+  return nextList;
+}
+
+export function previewOf(message: ChatMessage): string {
+  if (message.recalled) {
+    return 'Tin nhắn đã được thu hồi';
+  }
+  if (message.imageId || message.imageUrl) {
+    return 'Hình ảnh';
+  }
+  if (message.fileId || message.fileUrl) {
+    return message.fileName ? `[Tệp] ${message.fileName}` : 'Tệp đính kèm';
+  }
+  const text = message.content.trim();
+  if (text.length <= 120) {
+    return text;
+  }
+  return `${text.slice(0, 120)}…`;
 }

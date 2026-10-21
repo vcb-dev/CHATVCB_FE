@@ -45,7 +45,7 @@ import { EmailPage } from './EmailPage';
 import { MeetingsPage } from './MeetingsPage';
 import { ProfileDrawer } from './ProfileDrawer';
 import { NewChatModal } from './NewChatModal';
-import { upsertRoom } from './rooms';
+import { mergeRooms, previewOf, upsertRoom } from './rooms';
 import { connectSocket } from './socket';
 import { avatarColor, initials } from './theme';
 import type {
@@ -244,18 +244,49 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
 
   useEffect(() => {
     let cancelled = false;
+
+    async function refreshRooms() {
+      try {
+        const next = await api.rooms();
+        if (cancelled) {
+          return;
+        }
+        setRooms((prev) => {
+          const merged = mergeRooms(prev, next, roomIdRef.current);
+          if (roomIdRef.current && !merged.some((r) => r.id === roomIdRef.current)) {
+            setRoomId(merged[0]?.id ?? '');
+          }
+          return merged;
+        });
+      } catch {
+        // ignore polling errors
+      }
+    }
+
     api
       .rooms()
       .then((next) => {
         if (cancelled) {
           return;
         }
-        setRooms(next);
+        setRooms((prev) => mergeRooms(prev, next, roomIdRef.current));
         setRoomId((current) => current || next[0]?.id || '');
       })
       .catch(() => setError('Không tải được danh sách phòng.'));
+
+    const interval = window.setInterval(() => {
+      void refreshRooms();
+    }, 10_000);
+
+    const onFocus = () => void refreshRooms();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
     };
   }, []);
 
@@ -371,6 +402,18 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           mentioned: tagged,
         });
       }
+      setRooms((current) => {
+        const target = current.find((r) => r.id === message.roomId);
+        if (!target) {
+          return current;
+        }
+        const updated: Room = {
+          ...target,
+          lastMessagePreview: previewOf(message),
+          updatedAt: message.createdAt,
+        };
+        return upsertRoom(current, updated);
+      });
     });
     socket.on('agent.pending', () => setPending(true));
     socket.on('room.presence', (users: PresenceUser[]) => setOnline(users));
@@ -472,9 +515,17 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       return;
     }
     lastReadSentRef.current = key;
-    void api.markRead(roomId, latest.id).then(setReads).catch(() => {
-      lastReadSentRef.current = '';
-    });
+    void api
+      .markRead(roomId, latest.id)
+      .then((readsRes) => {
+        setReads(readsRes);
+        setRooms((current) =>
+          current.map((r) => (r.id === roomId ? { ...r, unreadCount: 0 } : r)),
+        );
+      })
+      .catch(() => {
+        lastReadSentRef.current = '';
+      });
   }
 
   useEffect(() => {
@@ -709,6 +760,18 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       }
       return [...current, message];
     });
+    setRooms((current) => {
+      const target = current.find((r) => r.id === (message.roomId || roomIdRef.current));
+      if (!target) {
+        return current;
+      }
+      const updated: Room = {
+        ...target,
+        lastMessagePreview: previewOf(message),
+        updatedAt: message.createdAt,
+      };
+      return upsertRoom(current, updated);
+    });
     markMessageRead(message);
   }
 
@@ -813,13 +876,30 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           {rooms.map((item) => (
             <button
               key={item.id}
-              className={item.id === roomId ? 'room-item active' : 'room-item'}
-              onClick={() => setRoomId(item.id)}
+              className={[
+                'room-item',
+                item.id === roomId ? 'active' : '',
+                item.unreadCount > 0 ? 'unread' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              onClick={() => {
+                setRoomId(item.id);
+                setRooms((current) =>
+                  current.map((r) => (r.id === item.id ? { ...r, unreadCount: 0 } : r)),
+                );
+              }}
               type="button"
             >
-              <Avatar size={48} src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined} style={{ background: '#0084ff' }}>
-                {initials(item.title || item.name)}
-              </Avatar>
+              <Badge count={item.unreadCount} overflowCount={99}>
+                <Avatar
+                  size={48}
+                  src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
+                  style={{ background: '#0084ff' }}
+                >
+                  {initials(item.title || item.name)}
+                </Avatar>
+              </Badge>
               <span className="room-meta">
                 <strong>{item.title || item.name}</strong>
                 <small>{item.lastMessagePreview || 'Chưa có tin nhắn'}</small>

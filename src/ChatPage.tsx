@@ -49,7 +49,7 @@ import { UserProfileModal } from './UserProfileModal';
 import { NewChatModal } from './NewChatModal';
 import { RoomListItem } from './RoomListItem';
 import { SidebarSearch } from './SidebarSearch';
-import { mergeRooms, previewOf, upsertRoom } from './rooms';
+import { isDirectRoom, mergeRooms, previewOf, upsertRoom } from './rooms';
 import { connectSocket } from './socket';
 import { avatarColor, initials } from './theme';
 import type {
@@ -432,7 +432,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         }
         const updated: Room = {
           ...target,
-          lastMessagePreview: previewOf(message),
+          lastMessagePreview: previewOf(message, userRef.current?.id, isDirectRoom(target)),
           updatedAt: message.createdAt,
         };
         return upsertRoom(current, updated);
@@ -851,7 +851,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       }
       const updated: Room = {
         ...target,
-        lastMessagePreview: previewOf(message),
+        lastMessagePreview: previewOf(message, userRef.current?.id, isDirectRoom(target)),
         updatedAt: message.createdAt,
       };
       return upsertRoom(current, updated);

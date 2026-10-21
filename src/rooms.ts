@@ -48,19 +48,34 @@ export function mergeRooms(prev: Room[], next: Room[], currentId: string): Room[
   return nextList;
 }
 
-export function previewOf(message: ChatMessage): string {
+export function previewOf(
+  message: ChatMessage,
+  currentUserId?: string,
+  isDirect = false,
+): string {
+  let body = '';
   if (message.recalled) {
-    return 'Tin nhắn đã được thu hồi';
+    body = 'Tin nhắn đã được thu hồi';
+  } else if (message.imageId || message.imageUrl) {
+    body = 'Hình ảnh';
+  } else if (message.fileId || message.fileUrl) {
+    body = message.fileName ? `[Tệp] ${message.fileName}` : 'Tệp đính kèm';
+  } else {
+    const text = message.content.trim();
+    body = text.length <= 120 ? text : `${text.slice(0, 120)}…`;
   }
-  if (message.imageId || message.imageUrl) {
-    return 'Hình ảnh';
+
+  if (!body) {
+    return '';
   }
-  if (message.fileId || message.fileUrl) {
-    return message.fileName ? `[Tệp] ${message.fileName}` : 'Tệp đính kèm';
+
+  if (currentUserId && message.userId === currentUserId) {
+    return `Bạn: ${body}`;
   }
-  const text = message.content.trim();
-  if (text.length <= 120) {
-    return text;
+
+  if (!isDirect && message.authorName) {
+    return `${message.authorName}: ${body}`;
   }
-  return `${text.slice(0, 120)}…`;
+
+  return body;
 }

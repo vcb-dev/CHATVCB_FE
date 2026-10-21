@@ -84,13 +84,58 @@ export function GroupDrawer({
       setPins([]);
       return;
     }
+    let cancelled = false;
     void api
       .gallery(room.id)
-      .then((next) => setPhotos(mergePhotos(chatPhotos, next)))
-      .catch(() => setPhotos(chatPhotos));
-    void api.files(room.id).then(setFiles).catch(() => setFiles([]));
-    void api.links(room.id).then(setLinks).catch(() => setLinks([]));
-    void api.pins(room.id).then(setPins).catch(() => setPins([]));
+      .then((next) => {
+        if (!cancelled) {
+          setPhotos(mergePhotos(chatPhotos, next));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPhotos(chatPhotos);
+        }
+      });
+    void api
+      .files(room.id)
+      .then((next) => {
+        if (!cancelled) {
+          setFiles(next);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFiles([]);
+        }
+      });
+    void api
+      .links(room.id)
+      .then((next) => {
+        if (!cancelled) {
+          setLinks(next);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLinks([]);
+        }
+      });
+    void api
+      .pins(room.id)
+      .then((next) => {
+        if (!cancelled) {
+          setPins(next);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPins([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [room, chatPhotos]);
 
   function toggle(section: 'members' | 'photos' | 'files' | 'links' | 'pins') {

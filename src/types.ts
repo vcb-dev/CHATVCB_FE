@@ -30,6 +30,8 @@ export type MessageReply = {
   authorName: string;
   content: string;
   imageUrl?: string | null;
+  fileName?: string | null;
+  fileUrl?: string | null;
   recalled?: boolean;
 };
 

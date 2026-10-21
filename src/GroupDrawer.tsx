@@ -15,8 +15,9 @@ import { useEffect, useRef, useState } from 'react';
 import { api, fileSrc } from './api';
 import { compressImage, mergePhotos } from './media';
 import { notifyEnabled, requestNotifyPermission, setNotifyEnabled } from './notify';
+import { formatBytes } from './attachments';
 import { avatarColor, initials } from './theme';
-import type { ChatMessage, GalleryImage, Room, RoomLink, RoomMember } from './types';
+import type { ChatFile, ChatMessage, GalleryImage, Room, RoomLink, RoomMember } from './types';
 
 type Props = {
   room: Room | null;
@@ -42,6 +43,7 @@ export function GroupDrawer({
   const [name, setName] = useState(room?.name ?? '');
   const [editingName, setEditingName] = useState(false);
   const [photos, setPhotos] = useState<GalleryImage[]>([]);
+  const [files, setFiles] = useState<ChatFile[]>([]);
   const [links, setLinks] = useState<RoomLink[]>([]);
   const [pins, setPins] = useState<ChatMessage[]>([]);
   const [nickUser, setNickUser] = useState<RoomMember | null>(null);
@@ -63,6 +65,7 @@ export function GroupDrawer({
   useEffect(() => {
     if (!room) {
       setPhotos([]);
+      setFiles([]);
       setLinks([]);
       setPins([]);
       return;
@@ -71,6 +74,7 @@ export function GroupDrawer({
       .gallery(room.id)
       .then((next) => setPhotos(mergePhotos(chatPhotos, next)))
       .catch(() => setPhotos(chatPhotos));
+    void api.files(room.id).then(setFiles).catch(() => setFiles([]));
     void api.links(room.id).then(setLinks).catch(() => setLinks([]));
     void api.pins(room.id).then(setPins).catch(() => setPins([]));
   }, [room, chatPhotos]);
@@ -291,11 +295,36 @@ export function GroupDrawer({
               </span>
               <span className="group-row-text">
                 <strong>File</strong>
-                <small>0 file</small>
+                <small>{files.length} file</small>
               </span>
               <RightOutlined className={openSection === 'files' ? 'chev open' : 'chev'} />
             </button>
-            {openSection === 'files' ? <p className="group-muted">Chưa có file</p> : null}
+            {openSection === 'files' ? (
+              files.length ? (
+                <div className="group-list">
+                  {files.map((file) => (
+                    <a
+                      key={file.id}
+                      className="group-member"
+                      href={fileSrc(file.url)}
+                      target="_blank"
+                      rel="noreferrer"
+                      download={file.filename}
+                    >
+                      <span className="group-file-ico">
+                        <FileOutlined />
+                      </span>
+                      <span className="group-member-info">
+                        <strong>{file.filename}</strong>
+                        <small>{formatBytes(file.sizeBytes)}</small>
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="group-muted">Chưa có file</p>
+              )
+            ) : null}
             <button type="button" className="group-row" onClick={() => toggle('links')}>
               <span className="group-ico">
                 <LinkOutlined />

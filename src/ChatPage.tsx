@@ -28,6 +28,7 @@ import {
 } from './media';
 import { isStickerText, StickerButton } from './stickers';
 import { ReactionPicker, ReactionSummary } from './reactions';
+import { AttachButton, FileCard, PendingFiles, addPendingDocs } from './attachments';
 import {
   buildMentionOptions,
   handleFromEmail,
@@ -47,6 +48,7 @@ import { avatarColor, initials } from './theme';
 import type {
   ChatMessage,
   GalleryImage,
+  PendingFile,
   PendingImage,
   PresenceUser,
   Room,
@@ -87,6 +89,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [reads, setReads] = useState<RoomRead[]>([]);
   const [draft, setDraft] = useState('');
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
@@ -115,11 +118,13 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const lastReadSentRef = useRef('');
   const messagesRef = useRef<ChatMessage[]>([]);
   const pendingImagesRef = useRef<PendingImage[]>([]);
+  const pendingFilesRef = useRef<PendingFile[]>([]);
   const userRef = useRef(user);
   const roomNameRef = useRef('');
   const myHandle = handleFromEmail(user.email);
   const myHandleRef = useRef(myHandle);
   pendingImagesRef.current = pendingImages;
+  pendingFilesRef.current = pendingFiles;
   messagesRef.current = messages;
   userRef.current = user;
   myHandleRef.current = myHandle;
@@ -145,7 +150,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     if (item.recalled) {
       return 'Tin nhắn đã được thu hồi';
     }
-    return item.content.trim() || (item.imageUrl ? '[Ảnh]' : 'Tin đã ghim');
+    return (
+      item.content.trim() ||
+      (item.fileName ? `[Tệp] ${item.fileName}` : '') ||
+      (item.imageUrl ? '[Ảnh]' : 'Tin đã ghim')
+    );
   }
 
   useEffect(() => {
@@ -256,6 +265,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setReads([]);
     revokePending(pendingImagesRef.current);
     setPendingImages([]);
+    setPendingFiles([]);
     setGalleryOpen(false);
     setReplyTo(null);
     setPins([]);
@@ -350,7 +360,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         notifyIncoming({
           title: message.authorName,
           subtitle: roomNameRef.current,
-          body: message.content.trim() || (message.imageUrl ? 'Đã gửi một ảnh' : 'Tin nhắn mới'),
+          body:
+            message.content.trim() ||
+            (message.fileName ? `[Tệp] ${message.fileName}` : '') ||
+            (message.imageUrl ? 'Đã gửi một ảnh' : 'Tin nhắn mới'),
           mentioned: tagged,
         });
       }
@@ -510,17 +523,28 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     handleAddFiles(files);
   }
 
+  function handleAddPendingDocs(files: File[]) {
+    const { next, error } = addPendingDocs(pendingFiles, files);
+    if (error) {
+      antMessage.error(error);
+    }
+    setPendingFiles(next);
+  }
+
   async function sendContent(raw: string) {
     if (!roomId) {
       return;
     }
     const content = raw.trim();
     const attachments = pendingImages;
-    if (!content && attachments.length === 0) {
+    const filesToSend = pendingFiles;
+    if (!content && attachments.length === 0 && filesToSend.length === 0) {
       return;
     }
     const now = Date.now();
-    const fingerprint = `${content}|${attachments.map((item) => item.imageId || item.key).join(',')}`;
+    const imageKeys = attachments.map((item) => item.imageId || item.key).join(',');
+    const fileKeys = filesToSend.map((item) => item.key).join(',');
+    const fingerprint = `${content}|img:${imageKeys}|file:${fileKeys}`;
     if (lastSentRef.current.text === fingerprint && now - lastSentRef.current.at < 800) {
       return;
     }
@@ -528,40 +552,62 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     const replyId = replyTo?.id;
     setDraft('');
     setPendingImages([]);
+    setPendingFiles([]);
     setReplyTo(null);
     setError('');
+    const unsentFiles = [...filesToSend];
     try {
-      const uploaded: { imageId?: string; caption: string }[] = [];
+      const uploadedImages: { imageId?: string; caption: string }[] = [];
       for (const [index, item] of attachments.entries()) {
-        const caption = index === attachments.length - 1 ? content : '';
+        const isLastOverall = filesToSend.length === 0 && index === attachments.length - 1;
+        const caption = isLastOverall ? content : '';
         if (item.imageId) {
-          uploaded.push({ imageId: item.imageId, caption });
+          uploadedImages.push({ imageId: item.imageId, caption });
           continue;
         }
         if (item.file) {
           const image = await api.uploadImage(roomId, item.file);
-          uploaded.push({ imageId: image.id, caption });
+          uploadedImages.push({ imageId: image.id, caption });
         }
       }
-      if (!uploaded.length) {
-        const message = await api.sendMessage(roomId, content, undefined, replyId);
-        appendMessage(message);
-        return;
-      }
-      for (const [index, item] of uploaded.entries()) {
+      for (const [index, item] of uploadedImages.entries()) {
+        const isLastOverall = filesToSend.length === 0 && index === uploadedImages.length - 1;
         const message = await api.sendMessage(
           roomId,
           item.caption,
           item.imageId,
-          index === uploaded.length - 1 ? replyId : undefined,
+          isLastOverall ? replyId : undefined,
         );
         appendMessage(message);
       }
       revokePending(attachments);
-    } catch {
+
+      for (const [index, fileItem] of filesToSend.entries()) {
+        const uploadedDoc = await api.uploadFile(roomId, fileItem.file);
+        const isLastOverall = index === filesToSend.length - 1;
+        const caption = isLastOverall ? content : '';
+        const reply = isLastOverall ? replyId : undefined;
+        const message = await api.sendMessage(
+          roomId,
+          caption,
+          undefined,
+          reply,
+          uploadedDoc.id,
+        );
+        appendMessage(message);
+        unsentFiles.shift();
+      }
+
+      if (attachments.length === 0 && filesToSend.length === 0) {
+        const message = await api.sendMessage(roomId, content, undefined, replyId);
+        appendMessage(message);
+      }
+    } catch (err) {
       setDraft(content);
       setPendingImages(attachments);
+      setPendingFiles(unsentFiles);
       setError('Gửi tin thất bại.');
+      antMessage.error(err instanceof Error ? err.message : 'Gửi tin thất bại.');
     }
   }
 
@@ -679,7 +725,9 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     }
   }
 
-  const canSend = Boolean(roomId && (draft.trim() || pendingImages.length));
+  const canSend = Boolean(
+    roomId && (draft.trim() || pendingImages.length || pendingFiles.length),
+  );
 
   return (
     <div className={`app-shell module-${workspace}`}>
@@ -864,9 +912,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             ]
               .filter(Boolean)
               .join(' ');
-            const hasImage = Boolean(message.imageUrl);
-            const hasText = Boolean(message.content.trim());
-            const sticker = !hasImage && isStickerText(message.content);
+            const hasImage = Boolean(message.imageUrl && !message.recalled);
+            const hasFile = Boolean(message.fileUrl && !message.recalled);
+            const hasText = Boolean(message.content && !message.recalled);
+            const sticker = !hasImage && !hasFile && hasText && isStickerText(message.content);
             return (
               <div
                 key={message.id}
@@ -918,6 +967,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                             className={[
                               'bubble',
                               hasImage ? 'has-image' : '',
+                              hasFile ? 'has-file' : '',
                               hasText ? 'has-text' : '',
                               sticker ? 'sticker' : '',
                               message.recalled ? 'recalled' : '',
@@ -940,7 +990,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                                 <span>
                                   {message.replyTo.recalled
                                     ? 'Tin nhắn đã được thu hồi'
-                                    : message.replyTo.content || (message.replyTo.imageUrl ? '[Ảnh]' : '')}
+                                    : message.replyTo.content ||
+                                      (message.replyTo.fileName
+                                        ? `[Tệp] ${message.replyTo.fileName}`
+                                        : '') ||
+                                      (message.replyTo.imageUrl ? '[Ảnh]' : '')}
                                 </span>
                               </button>
                             ) : null}
@@ -957,6 +1011,14 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                                       event.stopPropagation();
                                       markMessageRead();
                                     }}
+                                  />
+                                ) : null}
+                                {hasFile ? (
+                                  <FileCard
+                                    name={message.fileName || 'Tệp'}
+                                    sizeBytes={message.fileSizeBytes}
+                                    url={message.fileUrl as string}
+                                    mimeType={message.fileMimeType}
                                   />
                                 ) : null}
                                 {hasText ? (
@@ -1023,7 +1085,9 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                 <span>
                   {replyTo.recalled
                     ? 'Tin nhắn đã được thu hồi'
-                    : replyTo.content || (replyTo.imageUrl ? '[Ảnh]' : '')}
+                    : replyTo.content ||
+                      (replyTo.fileName ? `[Tệp] ${replyTo.fileName}` : '') ||
+                      (replyTo.imageUrl ? '[Ảnh]' : '')}
                 </span>
               </div>
               <Button
@@ -1051,11 +1115,21 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               })
             }
           />
+          <PendingFiles
+            items={pendingFiles}
+            onRemove={(key) =>
+              setPendingFiles((current) => current.filter((item) => item.key !== key))
+            }
+          />
           <div className="composer-row">
             <ComposerActions
               disabled={!roomId}
               onAddFiles={handleAddFiles}
               onOpenGallery={() => void openGallery()}
+            />
+            <AttachButton
+              disabled={!roomId}
+              onAddFiles={handleAddPendingDocs}
             />
             <StickerButton
               disabled={!roomId}

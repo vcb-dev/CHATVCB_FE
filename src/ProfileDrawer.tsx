@@ -114,7 +114,7 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
       title="Thông tin cá nhân"
       open={open}
       onClose={onClose}
-      width={360}
+      size={360}
     >
       <div className="profile-head">
         <button

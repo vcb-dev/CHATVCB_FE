@@ -24,7 +24,8 @@ type Options = {
   myHandle: string;
   roomId: string;
   roomIdRef: RefObject<string>;
-  roomName: string;
+  rooms: Room[];
+  refreshRooms: () => Promise<Room[]>;
   isViewingChat: () => boolean;
   markMessageRead: (message?: ChatMessage, targetRoomId?: string) => void;
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
@@ -39,6 +40,7 @@ type Options = {
 export function useChatSocket(options: Options) {
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const socketRef = useRef<Socket | null>(null);
+  const joinedRoomRef = useRef('');
   const latestRef = useRef(options);
   latestRef.current = options;
   const queryClient = useQueryClient();
@@ -62,52 +64,78 @@ export function useChatSocket(options: Options) {
     } = latestRef.current;
     const socket = connectSocket(token);
     socketRef.current = socket;
+
+    function alertIncoming(message: ChatMessage, room: Room, tagged: boolean) {
+      const name = room.title || room.name;
+      if (tagged) {
+        void antMessage.info({
+          className: 'mention-alert',
+          content:
+            room.id === roomIdRef.current
+              ? `${message.authorName} đã tag bạn`
+              : `${message.authorName} đã tag bạn trong ${name}`,
+        });
+      }
+      notifyIncoming({
+        title: message.authorName,
+        subtitle: name,
+        body:
+          message.content.trim() ||
+          (message.fileName ? `[Tệp] ${message.fileName}` : '') ||
+          (message.imageUrl ? 'Đã gửi một ảnh' : 'Tin nhắn mới'),
+        mentioned: tagged,
+        tag: message.id,
+      });
+    }
+
     socket.on('connect', () => {
       socket.emit('presence.get');
+      socket.emit('inbox.subscribe');
       if (roomIdRef.current) {
         socket.emit('join', roomIdRef.current);
       }
     });
     socket.on('message', (message: ChatMessage) => {
-      if (message.roomId && message.roomId !== roomIdRef.current) {
-        return;
-      }
-      setMessages((current) => {
-        if (current.some((item) => item.id === message.id)) {
-          return current;
+      const open = message.roomId === roomIdRef.current;
+      if (open) {
+        setMessages((current) => {
+          if (current.some((item) => item.id === message.id)) {
+            return current;
+          }
+          return [...current, message];
+        });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.roomMedia(message.roomId) });
+        if (message.role === 'agent') {
+          setPending(false);
         }
-        return [...current, message];
-      });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.roomMedia(message.roomId) });
-      if (message.role === 'agent') {
-        setPending(false);
       }
-      const { user, myHandle, roomName } = latestRef.current;
+      const { user, myHandle, rooms, refreshRooms } = latestRef.current;
       const mine = message.userId === user.id;
       const tagged =
         !mine &&
         message.role === 'user' &&
         mentionsUser(message.content, myHandle);
-      if (tagged) {
-        void antMessage.info({
-          className: 'mention-alert',
-          content: `${message.authorName} đã tag bạn`,
-        });
+      const viewing = open && isViewingChat();
+      if (!mine && viewing) {
+        markMessageRead(message, message.roomId);
       }
-      const viewing = message.roomId === roomIdRef.current && isViewingChat();
+      const known = rooms.find((r) => r.id === message.roomId);
+      if (!known) {
+        // refreshRooms gộp trang 1 vào cache và dùng lại lần tải đang chạy
+        void refreshRooms()
+          .then((list) => {
+            const fresh = list.find((r) => r.id === message.roomId);
+            if (fresh && !mine) {
+              alertIncoming(message, fresh, tagged);
+            }
+          })
+          .catch(() => {
+            // poll 10 giây sẽ bù
+          });
+        return;
+      }
       if (!mine) {
-        notifyIncoming({
-          title: message.authorName,
-          subtitle: roomName,
-          body:
-            message.content.trim() ||
-            (message.fileName ? `[Tệp] ${message.fileName}` : '') ||
-            (message.imageUrl ? 'Đã gửi một ảnh' : 'Tin nhắn mới'),
-          mentioned: tagged,
-        });
-        if (viewing) {
-          markMessageRead(message, message.roomId);
-        }
+        alertIncoming(message, known, tagged);
       }
       setRooms((current) => {
         const target = current.find((r) => r.id === message.roomId);
@@ -215,9 +243,17 @@ export function useChatSocket(options: Options) {
   }, []);
 
   useEffect(() => {
-    if (options.roomId) {
-      socketRef.current?.emit('join', options.roomId);
+    const socket = socketRef.current;
+    if (!socket) {
+      return;
     }
+    if (joinedRoomRef.current && joinedRoomRef.current !== options.roomId) {
+      socket.emit('leave', joinedRoomRef.current);
+    }
+    if (options.roomId) {
+      socket.emit('join', options.roomId);
+    }
+    joinedRoomRef.current = options.roomId;
   }, [options.roomId]);
 
   return { onlineUserIds };

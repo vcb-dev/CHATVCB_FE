@@ -76,6 +76,7 @@ export function notifyIncoming(input: {
   body: string;
   subtitle?: string;
   mentioned?: boolean;
+  tag: string;
 }) {
   if (!notifyEnabled()) {
     return;
@@ -109,7 +110,7 @@ export function notifyIncoming(input: {
   try {
     const toast = new Notification(input.mentioned ? `${title} đã tag bạn` : title, {
       body: subtitle ? `${subtitle}\n${body}`.slice(0, 240) : body.slice(0, 240),
-      tag: `chatvcb-${Date.now()}`,
+      tag: `chatvcb-${input.tag}`,
       silent: false,
     });
     toast.onclick = () => {

@@ -6,6 +6,7 @@ import {
   EditOutlined,
   FileOutlined,
   LinkOutlined,
+  LogoutOutlined,
   PictureOutlined,
   PlusOutlined,
   PushpinOutlined,
@@ -239,6 +240,27 @@ export function GroupDrawer({
           message.success('Đã giải tán nhóm.');
         } catch (err) {
           message.error(err instanceof Error ? err.message : 'Không giải tán được nhóm.');
+        }
+      },
+    });
+  }
+
+  function handleLeaveRoom() {
+    if (!room) {
+      return;
+    }
+    Modal.confirm({
+      title: 'Rời nhóm?',
+      content: 'Bạn sẽ không còn nhận tin nhắn của nhóm này. Muốn quay lại, chủ nhóm phải thêm bạn.',
+      okText: 'Rời nhóm',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await api.leaveRoom(room.id);
+          onRoomRemoved(room.id);
+          message.success('Đã rời nhóm.');
+        } catch (err) {
+          message.error(err instanceof Error ? err.message : 'Không rời được nhóm.');
         }
       },
     });
@@ -574,6 +596,24 @@ export function GroupDrawer({
               )
             ) : null}
           </div>
+
+          {room.canLeave ? (
+            <div className="group-card">
+              <button
+                type="button"
+                className="group-row group-danger"
+                onClick={handleLeaveRoom}
+              >
+                <span className="group-ico">
+                  <LogoutOutlined />
+                </span>
+                <span className="group-row-text">
+                  <strong>Rời nhóm</strong>
+                  <small>Không nhận tin nhắn của nhóm này nữa</small>
+                </span>
+              </button>
+            </div>
+          ) : null}
 
           {room.canDelete ? (
             <div className="group-card">

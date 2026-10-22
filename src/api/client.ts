@@ -238,6 +238,11 @@ export const api = {
       method: 'DELETE',
     });
   },
+  leaveRoom(roomId: string) {
+    return request<void>(`/rooms/${roomId}/leave`, {
+      method: 'POST',
+    });
+  },
   updateRoom(roomId: string, name: string) {
     return request<Room>(`/rooms/${roomId}/settings`, {
       method: 'PATCH',

@@ -23,6 +23,7 @@ export type Room = {
   memberIds?: string[];
   /** Có ở GET /rooms; kết quả tìm kiếm và room.updated không có. */
   muted?: boolean;
+  canLeave?: boolean;
   slug?: string;
   team?: string;
   agentName?: string;

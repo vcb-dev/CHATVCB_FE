@@ -8,7 +8,9 @@ import {
   type RefObject,
   type SetStateAction,
 } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
 import type {
   ChatMessage,
   PageMeta,
@@ -19,9 +21,13 @@ import type {
   User,
 } from '@/types';
 import { isDirectRoom, previewOf, upsertRoom } from '../utils/rooms';
+import { useRoomCacheSetter } from './useRoomCacheSetter';
 import type { Workspace } from './useWorkspace';
 
 const MAX_JUMP_PAGES = 10;
+const EMPTY_READS: RoomRead[] = [];
+const EMPTY_MEMBERS: RoomMember[] = [];
+const EMPTY_PINS: ChatMessage[] = [];
 
 function flashMessage(el: HTMLElement) {
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -49,10 +55,30 @@ export function useChatRoom({
   setError: (error: string) => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [reads, setReads] = useState<RoomRead[]>([]);
-  const [members, setMembers] = useState<RoomMember[]>([]);
-  const [membersLoaded, setMembersLoaded] = useState(false);
-  const [pins, setPins] = useState<ChatMessage[]>([]);
+  const readsQuery = useQuery({
+    queryKey: queryKeys.reads(roomId),
+    queryFn: () => api.reads(roomId),
+    enabled: Boolean(roomId),
+    refetchInterval: 2500,
+    refetchIntervalInBackground: true,
+  });
+  const membersQuery = useQuery({
+    queryKey: queryKeys.members(roomId),
+    queryFn: () => api.members(roomId),
+    enabled: Boolean(roomId),
+  });
+  const pinsQuery = useQuery({
+    queryKey: queryKeys.pins(roomId),
+    queryFn: () => api.pins(roomId),
+    enabled: Boolean(roomId),
+  });
+  const reads = readsQuery.data ?? EMPTY_READS;
+  const members = membersQuery.data ?? EMPTY_MEMBERS;
+  const membersLoaded = membersQuery.status !== 'pending';
+  const pins = pinsQuery.data ?? EMPTY_PINS;
+  const setReads = useRoomCacheSetter<RoomRead>(queryKeys.reads, roomIdRef);
+  const setMembers = useRoomCacheSetter<RoomMember>(queryKeys.members, roomIdRef);
+  const setPins = useRoomCacheSetter<ChatMessage>(queryKeys.pins, roomIdRef);
   const [online, setOnline] = useState<PresenceUser[]>([]);
   const [pending, setPending] = useState(false);
   const [pageMeta, setPageMeta] = useState<PageMeta>({ hasMore: false, nextCursor: null });
@@ -99,7 +125,7 @@ export function useChatRoom({
           lastReadSentRef.current = '';
         });
     },
-    [roomIdRef, setRooms],
+    [roomIdRef, setReads, setRooms],
   );
 
   useEffect(() => {
@@ -108,25 +134,10 @@ export function useChatRoom({
     }
     let cancelled = false;
     setPending(false);
-    setMembersLoaded(false);
-    setReads([]);
     setOnline([]);
-    setPins([]);
     setPageMeta({ hasMore: false, nextCursor: null });
     pageMetaRef.current = { hasMore: false, nextCursor: null };
     setLoadingOlder(false);
-    api
-      .pins(roomId)
-      .then((next) => {
-        if (!cancelled) {
-          setPins(next);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPins([]);
-        }
-      });
     api
       .messages(roomId)
       .then((page) => {
@@ -152,32 +163,6 @@ export function useChatRoom({
         }
       })
       .catch(() => setError('Không tải được tin nhắn.'));
-    api
-      .reads(roomId)
-      .then((nextReads) => {
-        if (!cancelled) {
-          setReads(nextReads);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setReads([]);
-        }
-      });
-    api
-      .members(roomId)
-      .then((next) => {
-        if (!cancelled) {
-          setMembers(next);
-          setMembersLoaded(true);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setMembers([]);
-          setMembersLoaded(true);
-        }
-      });
     return () => {
       cancelled = true;
     };
@@ -198,25 +183,6 @@ export function useChatRoom({
       lastMessageIdRef.current = latestId;
     }
   }, [messages, pending, roomId]);
-
-  useEffect(() => {
-    if (!roomId) {
-      return;
-    }
-    let cancelled = false;
-    const refresh = () => {
-      void api.reads(roomId).then((next) => {
-        if (!cancelled) {
-          setReads(next);
-        }
-      }).catch(() => undefined);
-    };
-    const timer = window.setInterval(refresh, 2500);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [roomId]);
 
   useEffect(() => {
     function markReadWhenViewing() {

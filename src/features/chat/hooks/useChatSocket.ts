@@ -1,7 +1,9 @@
 import { message as antMessage } from 'antd';
 import { useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Socket } from 'socket.io-client';
 import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
 import { connectSocket } from '@/api/socket';
 import { notifyIncoming } from '@/lib/notify';
 import type {
@@ -39,6 +41,7 @@ export function useChatSocket(options: Options) {
   const socketRef = useRef<Socket | null>(null);
   const latestRef = useRef(options);
   latestRef.current = options;
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const token = localStorage.getItem('chatvcb.token');
@@ -75,6 +78,7 @@ export function useChatSocket(options: Options) {
         }
         return [...current, message];
       });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.roomMedia(message.roomId) });
       if (message.role === 'agent') {
         setPending(false);
       }
@@ -165,6 +169,7 @@ export function useChatSocket(options: Options) {
         }),
       );
       if (message.roomId === roomIdRef.current) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.roomMedia(message.roomId) });
         setPins((current) => {
           if (message.pinned && !message.recalled) {
             return [message, ...current.filter((item) => item.id !== message.id)];

@@ -13,8 +13,10 @@ import {
   TeamOutlined,
 } from '@ant-design/icons';
 import { Avatar, Button, Input, Modal, Switch, Typography, message } from 'antd';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { api, fileSrc } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
 import { CopyableImage } from '@/components/CopyableImage';
 import { compressImage } from '@/lib/image';
 import { mergePhotos } from '../utils/media';
@@ -23,6 +25,11 @@ import { formatBytes } from '../utils/attachments';
 import { UserPicker } from './UserPicker';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { ChatFile, ChatMessage, DirectoryUser, GalleryImage, Room, RoomLink, RoomMember } from '@/types';
+
+const EMPTY_PHOTOS: GalleryImage[] = [];
+const EMPTY_FILES: ChatFile[] = [];
+const EMPTY_LINKS: RoomLink[] = [];
+const EMPTY_PINS: ChatMessage[] = [];
 
 type Props = {
   room: Room | null;
@@ -53,10 +60,35 @@ export function GroupDrawer({
 }: Props) {
   const [name, setName] = useState(room?.name ?? '');
   const [editingName, setEditingName] = useState(false);
-  const [photos, setPhotos] = useState<GalleryImage[]>([]);
-  const [files, setFiles] = useState<ChatFile[]>([]);
-  const [links, setLinks] = useState<RoomLink[]>([]);
-  const [pins, setPins] = useState<ChatMessage[]>([]);
+  const roomKey = room?.id ?? '';
+  const enabled = Boolean(room);
+  const galleryQuery = useQuery({
+    queryKey: queryKeys.gallery(roomKey),
+    queryFn: () => api.gallery(roomKey),
+    enabled,
+  });
+  const filesQuery = useQuery({
+    queryKey: queryKeys.files(roomKey),
+    queryFn: () => api.files(roomKey),
+    enabled,
+  });
+  const linksQuery = useQuery({
+    queryKey: queryKeys.links(roomKey),
+    queryFn: () => api.links(roomKey),
+    enabled,
+  });
+  const pinsQuery = useQuery({
+    queryKey: queryKeys.pins(roomKey),
+    queryFn: () => api.pins(roomKey),
+    enabled,
+  });
+  const photos = useMemo(
+    () => mergePhotos(chatPhotos, galleryQuery.data ?? EMPTY_PHOTOS),
+    [chatPhotos, galleryQuery.data],
+  );
+  const files = filesQuery.data ?? EMPTY_FILES;
+  const links = linksQuery.data ?? EMPTY_LINKS;
+  const pins = pinsQuery.data ?? EMPTY_PINS;
   const [nickUser, setNickUser] = useState<RoomMember | null>(null);
   const [nickValue, setNickValue] = useState('');
   const [photoOpen, setPhotoOpen] = useState(false);
@@ -77,68 +109,6 @@ export function GroupDrawer({
     setAddMemberOpen(false);
     setOpenSection('members');
   }, [room?.id]);
-
-  useEffect(() => {
-    if (!room) {
-      setPhotos([]);
-      setFiles([]);
-      setLinks([]);
-      setPins([]);
-      return;
-    }
-    let cancelled = false;
-    void api
-      .gallery(room.id)
-      .then((next) => {
-        if (!cancelled) {
-          setPhotos(mergePhotos(chatPhotos, next));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPhotos(chatPhotos);
-        }
-      });
-    void api
-      .files(room.id)
-      .then((next) => {
-        if (!cancelled) {
-          setFiles(next);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setFiles([]);
-        }
-      });
-    void api
-      .links(room.id)
-      .then((next) => {
-        if (!cancelled) {
-          setLinks(next);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setLinks([]);
-        }
-      });
-    void api
-      .pins(room.id)
-      .then((next) => {
-        if (!cancelled) {
-          setPins(next);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPins([]);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [room, chatPhotos]);
 
   function toggle(section: 'members' | 'photos' | 'files' | 'links' | 'pins') {
     setOpenSection((current) => (current === section ? null : section));

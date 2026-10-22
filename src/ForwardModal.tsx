@@ -29,13 +29,17 @@ export function ForwardModal(props: {
     setSending(true);
     let successCount = 0;
     const failedRoomIds: string[] = [];
+    let firstError = '';
     for (const roomId of selected) {
       try {
         const sent = await forwardMessage(props.message, roomId);
         props.onForwarded(sent);
         successCount += 1;
-      } catch {
+      } catch (err) {
         failedRoomIds.push(roomId);
+        if (!firstError) {
+          firstError = err instanceof Error ? err.message : 'Lỗi không xác định';
+        }
       }
     }
     setSending(false);
@@ -48,7 +52,7 @@ export function ForwardModal(props: {
         const r = props.rooms.find((item) => item.id === id);
         return r ? r.title || r.name : id;
       });
-      antMessage.error(`Không chuyển tiếp được tới: ${failedNames.join(', ')}.`);
+      antMessage.error(`Không chuyển tiếp được tới: ${failedNames.join(', ')}. ${firstError}`);
       setSelected(failedRoomIds);
     }
   }

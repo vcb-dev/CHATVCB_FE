@@ -119,6 +119,13 @@ export type AgentPendingEvent = {
   agentName: string;
 };
 
+export type TypingEvent = {
+  roomId: string;
+  userId: string;
+  name: string;
+  typing: boolean;
+};
+
 export type RoomMute = {
   roomId: string;
   muted: boolean;

@@ -1,5 +1,13 @@
 import { message as antMessage } from 'antd';
-import { useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Socket } from 'socket.io-client';
 import { api } from '@/api/client';
@@ -14,10 +22,13 @@ import type {
   RoomMember,
   RoomRead,
   RoomReadsEvent,
+  TypingEvent,
   User,
 } from '@/types';
 import { mentionsUser } from '../utils/mentions';
 import { isDirectRoom, previewOf, upsertRoom } from '../utils/rooms';
+
+const TYPING_TTL_MS = 6000;
 
 type Options = {
   user: User;
@@ -39,6 +50,8 @@ type Options = {
 
 export function useChatSocket(options: Options) {
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+  const [typing, setTyping] = useState<TypingEvent[]>([]);
+  const typingTimersRef = useRef(new Map<string, number>());
   const socketRef = useRef<Socket | null>(null);
   const joinedRoomRef = useRef('');
   const latestRef = useRef(options);
@@ -64,6 +77,16 @@ export function useChatSocket(options: Options) {
     } = latestRef.current;
     const socket = connectSocket(token);
     socketRef.current = socket;
+    const typingTimers = typingTimersRef.current;
+
+    function dropTyping(roomId: string, userId: string) {
+      const key = `${roomId}:${userId}`;
+      window.clearTimeout(typingTimers.get(key));
+      typingTimers.delete(key);
+      setTyping((current) =>
+        current.filter((item) => item.roomId !== roomId || item.userId !== userId),
+      );
+    }
 
     function alertIncoming(message: ChatMessage, room: Room, tagged: boolean) {
       if (room.muted && !tagged) {
@@ -99,6 +122,9 @@ export function useChatSocket(options: Options) {
       }
     });
     socket.on('message', (message: ChatMessage) => {
+      if (message.userId) {
+        dropTyping(message.roomId, message.userId);
+      }
       const open = message.roomId === roomIdRef.current;
       if (open) {
         setMessages((current) => {
@@ -153,6 +179,28 @@ export function useChatSocket(options: Options) {
         };
         return upsertRoom(current, updated);
       });
+    });
+    socket.on('room.typing', (payload: TypingEvent) => {
+      if (payload.userId === latestRef.current.user.id) {
+        return;
+      }
+      if (!payload.typing) {
+        dropTyping(payload.roomId, payload.userId);
+        return;
+      }
+      const key = `${payload.roomId}:${payload.userId}`;
+      window.clearTimeout(typingTimers.get(key));
+      setTyping((current) => {
+        const same = (item: TypingEvent) =>
+          item.roomId === payload.roomId && item.userId === payload.userId;
+        return current.some(same)
+          ? current.map((item) => (same(item) ? payload : item))
+          : [...current, payload];
+      });
+      typingTimers.set(
+        key,
+        window.setTimeout(() => dropTyping(payload.roomId, payload.userId), TYPING_TTL_MS),
+      );
     });
     socket.on('agent.pending', (payload: AgentPendingEvent) => {
       if (payload.roomId === roomIdRef.current) {
@@ -242,6 +290,10 @@ export function useChatSocket(options: Options) {
     return () => {
       socket.disconnect();
       socketRef.current = null;
+      for (const timer of typingTimers.values()) {
+        window.clearTimeout(timer);
+      }
+      typingTimers.clear();
     };
   }, []);
 
@@ -259,5 +311,9 @@ export function useChatSocket(options: Options) {
     joinedRoomRef.current = options.roomId;
   }, [options.roomId]);
 
-  return { onlineUserIds };
+  const emitTyping = useCallback((roomId: string, active: boolean) => {
+    socketRef.current?.emit('typing', { roomId, typing: active });
+  }, []);
+
+  return { onlineUserIds, typing, emitTyping };
 }

@@ -16,12 +16,14 @@ import { MessageList } from './components/MessageList';
 import { NavRail } from './components/NavRail';
 import { NewChatModal } from './components/NewChatModal';
 import { PinBar } from './components/PinBar';
+import { TypingIndicator } from './components/TypingIndicator';
 import { useChatNotifications } from './hooks/useChatNotifications';
 import { useChatRoom } from './hooks/useChatRoom';
 import { useChatSocket } from './hooks/useChatSocket';
 import { useComposer } from './hooks/useComposer';
 import { useMessageActions } from './hooks/useMessageActions';
 import { useRoomList } from './hooks/useRoomList';
+import { useTypingSignal } from './hooks/useTypingSignal';
 import { useWorkspace } from './hooks/useWorkspace';
 import { photosFromMessages } from './utils/media';
 import { handleFromEmail } from './utils/mentions';
@@ -81,7 +83,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     onForward: setForwarding,
     onEdit: composer.startEdit,
   });
-  const { onlineUserIds } = useChatSocket({
+  const { onlineUserIds, typing, emitTyping } = useChatSocket({
     user,
     myHandle,
     roomId,
@@ -98,6 +100,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setPins: chat.setPins,
     setMembers: chat.setMembers,
   });
+  useTypingSignal({ roomId, draft: composer.draft, emitTyping });
 
   useEffect(() => {
     setGroupOverlay(false);
@@ -180,6 +183,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onReact={handleReact}
             onJump={chat.jumpToMessage}
           />
+          <TypingIndicator typing={typing} roomId={roomId} members={chat.members} />
           <Composer
             room={room}
             userId={user.id}

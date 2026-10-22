@@ -3571,3 +3571,18 @@ body {
   font-size: 11px;
   opacity: 0.7;
 }
+
+/* Typing Indicator */
+.typing-line {
+  flex-shrink: 0;
+  height: 20px;
+  line-height: 20px;
+  padding: 0 16px;
+  font-size: 12px;
+  font-style: italic;
+  color: #65676b;
+  background: #f0f2f5;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

@@ -1,15 +1,15 @@
 import { Spin } from 'antd';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { LoginPage } from './LoginPage';
-import { MeetingSession } from './MeetingSession';
-import { parseMeetHash } from './meet';
-import { parseSheetHash } from './sheet';
-import { SheetSession } from './SheetSession';
-import { AppTheme } from './theme';
-import type { User } from './types';
+import { LoginPage } from '@/features/auth/LoginPage';
+import { MeetingSession } from '@/features/meetings/MeetingSession';
+import { parseMeetHash } from '@/features/meetings/meet';
+import { parseSheetHash } from '@/features/docs/sheet';
+import { SheetSession } from '@/features/docs/SheetSession';
+import { AppTheme } from '@/theme';
+import type { User } from '@/types';
 
 const ChatPage = lazy(async () => {
-  const mod = await import('./ChatPage');
+  const mod = await import('@/features/chat/ChatPage');
   return { default: mod.ChatPage };
 });
 
@@ -51,7 +51,7 @@ export default function App() {
 
   useEffect(() => {
     if (!user && !meet && !sheet) {
-      void import('./ChatPage');
+      void import('@/features/chat/ChatPage');
     }
   }, [meet, sheet, user]);
 

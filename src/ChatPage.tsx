@@ -63,6 +63,7 @@ import { CopyableImage } from './CopyableImage';
 import { connectSocket } from './socket';
 import { avatarColor, initials } from './theme';
 import type {
+  AgentPendingEvent,
   ChatMessage,
   GalleryImage,
   PageMeta,
@@ -502,7 +503,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         return upsertRoom(current, updated);
       });
     });
-    socket.on('agent.pending', () => setPending(true));
+    socket.on('agent.pending', (payload: AgentPendingEvent) => {
+      if (payload.roomId === roomIdRef.current) {
+        setPending(true);
+      }
+    });
     socket.on('presence.online', (users: PresenceUser[]) => {
       setOnlineUserIds(new Set(users.map((u) => u.id)));
     });
@@ -543,28 +548,44 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           return item;
         }),
       );
-      setPins((current) => {
-        if (message.pinned && !message.recalled) {
-          return [message, ...current.filter((item) => item.id !== message.id)];
-        }
-        return current.filter((item) => item.id !== message.id);
-      });
+      if (message.roomId === roomIdRef.current) {
+        setPins((current) => {
+          if (message.pinned && !message.recalled) {
+            return [message, ...current.filter((item) => item.id !== message.id)];
+          }
+          return current.filter((item) => item.id !== message.id);
+        });
+      }
     });
     socket.on('room.updated', (next: Room) => {
       setRooms((current) => current.map((item) => (item.id === next.id ? { ...item, ...next } : item)));
     });
-    socket.on('room.members', (next: RoomMember[]) => {
-      setMembers(next);
-      const names = new Map(next.map((item) => [item.id, item.displayName || item.name]));
-      setMessages((current) =>
-        current.map((item) => {
-          if (!item.userId) {
-            return item;
+    socket.on('room.members', () => {
+      const targetRoomId = roomIdRef.current;
+      if (!targetRoomId) {
+        return;
+      }
+      void api
+        .members(targetRoomId)
+        .then((next) => {
+          if (roomIdRef.current !== targetRoomId) {
+            return;
           }
-          const name = names.get(item.userId);
-          return name && name !== item.authorName ? { ...item, authorName: name } : item;
-        }),
-      );
+          setMembers(next);
+          const names = new Map(next.map((item) => [item.id, item.displayName || item.name]));
+          setMessages((current) =>
+            current.map((item) => {
+              if (!item.userId) {
+                return item;
+              }
+              const name = names.get(item.userId);
+              return name && name !== item.authorName ? { ...item, authorName: name } : item;
+            }),
+          );
+        })
+        .catch(() => {
+          // làm mới nền; lỗi mạng thì giữ danh sách cũ
+        });
     });
     return () => {
       socket.disconnect();

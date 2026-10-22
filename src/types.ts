@@ -110,6 +110,11 @@ export type RoomReadsEvent = {
   reads: RoomRead[];
 };
 
+export type AgentPendingEvent = {
+  roomId: string;
+  agentName: string;
+};
+
 export type GalleryImage = {
   id: string;
   filename: string;

@@ -66,6 +66,9 @@ export function useChatSocket(options: Options) {
     socketRef.current = socket;
 
     function alertIncoming(message: ChatMessage, room: Room, tagged: boolean) {
+      if (room.muted && !tagged) {
+        return;
+      }
       const name = room.title || room.name;
       if (tagged) {
         void antMessage.info({

@@ -13,6 +13,7 @@ import type {
   RoomsPage,
   RoomLink,
   RoomMember,
+  RoomMute,
   RoomRead,
   RoomSearch,
   User,
@@ -260,6 +261,12 @@ export const api = {
     return request<RoomMember[]>(`/rooms/${roomId}/nickname`, {
       method: 'PATCH',
       body: JSON.stringify({ userId, nickname }),
+    });
+  },
+  muteRoom(roomId: string, muted: boolean) {
+    return request<RoomMute>(`/rooms/${roomId}/mute`, {
+      method: 'PATCH',
+      body: JSON.stringify({ muted }),
     });
   },
   links(roomId: string) {

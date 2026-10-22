@@ -1,3 +1,4 @@
+import { MutedOutlined } from '@ant-design/icons';
 import { Avatar, Badge } from 'antd';
 import { fileSrc } from '@/api/client';
 import { avatarColor, initials } from '@/lib/avatar';
@@ -26,7 +27,7 @@ export function RoomListItem(props: {
         count={hasUnread ? room.unreadCount : undefined}
         overflowCount={99}
         dot={showOnline}
-        color={showOnline ? '#31a24c' : undefined}
+        color={showOnline ? '#31a24c' : room.muted ? '#8a8d91' : undefined}
         offset={[-2, 4]}
       >
         <Avatar
@@ -39,7 +40,10 @@ export function RoomListItem(props: {
         </Avatar>
       </Badge>
       <span className="room-meta">
-        <strong>{name}</strong>
+        <span className="room-name-row">
+          <strong>{name}</strong>
+          {room.muted ? <MutedOutlined className="room-muted" title="Đã tắt thông báo" /> : null}
+        </span>
         <small>{room.lastMessagePreview || 'Chưa có tin nhắn'}</small>
       </span>
     </button>

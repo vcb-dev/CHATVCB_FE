@@ -21,6 +21,8 @@ export type Room = {
   unreadCount: number;
   peerUserId: string | null;
   memberIds?: string[];
+  /** Có ở GET /rooms; kết quả tìm kiếm và room.updated không có. */
+  muted?: boolean;
   slug?: string;
   team?: string;
   agentName?: string;
@@ -113,6 +115,11 @@ export type RoomReadsEvent = {
 export type AgentPendingEvent = {
   roomId: string;
   agentName: string;
+};
+
+export type RoomMute = {
+  roomId: string;
+  muted: boolean;
 };
 
 export type GalleryImage = {

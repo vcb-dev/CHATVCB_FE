@@ -14,13 +14,13 @@ import {
 } from '@ant-design/icons';
 import { Avatar, Button, Input, Modal, Switch, Typography, message } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, fileSrc } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { CopyableImage } from '@/components/CopyableImage';
 import { compressImage } from '@/lib/image';
 import { mergePhotos } from '../utils/media';
-import { notifyEnabled, requestNotifyPermission, setNotifyEnabled } from '@/lib/notify';
+import { notifyEnabled, requestNotifyPermission } from '@/lib/notify';
 import { formatBytes } from '../utils/attachments';
 import { UserPicker } from './UserPicker';
 import { avatarColor, initials } from '@/lib/avatar';
@@ -89,11 +89,35 @@ export function GroupDrawer({
   const files = filesQuery.data ?? EMPTY_FILES;
   const links = linksQuery.data ?? EMPTY_LINKS;
   const pins = pinsQuery.data ?? EMPTY_PINS;
+  const queryClient = useQueryClient();
+  const muteMutation = useMutation({
+    mutationFn: ({ target, muted }: { target: Room; muted: boolean }) =>
+      api.muteRoom(target.id, muted),
+    onMutate: async ({ target, muted }) => {
+      // hủy lần poll đang chạy để nó không ghi đè trạng thái vừa bấm
+      await queryClient.cancelQueries({ queryKey: queryKeys.rooms });
+      onRoomUpdated({ ...target, muted });
+    },
+    onError: (err, { target }) => {
+      onRoomUpdated(target);
+      message.error(err instanceof Error ? err.message : 'Không đổi được thông báo.');
+    },
+    onSuccess: (res) => {
+      if (res.muted) {
+        message.success('Đã tắt thông báo cuộc trò chuyện này.');
+      } else {
+        message.success('Đã bật thông báo cuộc trò chuyện này.');
+        void requestNotifyPermission();
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
+    },
+  });
   const [nickUser, setNickUser] = useState<RoomMember | null>(null);
   const [nickValue, setNickValue] = useState('');
   const [photoOpen, setPhotoOpen] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
-  const [notifyOn, setNotifyOn] = useState(notifyEnabled);
   const [openSection, setOpenSection] = useState<'members' | 'photos' | 'files' | 'links' | 'pins' | null>(
     'members',
   );
@@ -323,17 +347,17 @@ export function GroupDrawer({
               </span>
               <span className="group-row-text">
                 <strong>Thông báo tin nhắn</strong>
+                <small>
+                  {notifyEnabled()
+                    ? 'Chỉ áp dụng cho cuộc trò chuyện này'
+                    : 'Đang tắt mọi thông báo trong Hồ sơ'}
+                </small>
               </span>
               <Switch
                 size="small"
-                checked={notifyOn}
-                onChange={(checked) => {
-                  setNotifyEnabled(checked);
-                  setNotifyOn(checked);
-                  if (checked) {
-                    void requestNotifyPermission();
-                  }
-                }}
+                checked={!room.muted}
+                loading={muteMutation.isPending}
+                onChange={(checked) => muteMutation.mutate({ target: room, muted: !checked })}
               />
             </div>
           </div>

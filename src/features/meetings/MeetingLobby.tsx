@@ -3,7 +3,7 @@ import { Avatar, Button, Input, message } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { fileSrc } from '@/api/client';
 import { openCamera } from './meet';
-import { avatarColor, initials } from '@/theme';
+import { avatarColor, initials } from '@/lib/avatar';
 import type { Meeting, User } from '@/types';
 
 export type LobbyReady = {

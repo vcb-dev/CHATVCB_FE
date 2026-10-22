@@ -18,9 +18,10 @@ import {
 import { Avatar, Button, Dropdown, Input, Modal, message } from 'antd';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, fileSrc } from '@/api/client';
-import { DocsEditor, draftContent, draftTitle, kindLabel } from './DocsEditor';
+import { DocsEditor } from './DocsEditor';
+import { draftContent, draftTitle, kindLabel } from './utils/drafts';
 import { openSheetTab } from './sheet';
-import { avatarColor, initials } from '@/theme';
+import { avatarColor, initials } from '@/lib/avatar';
 import type { DocItem, DocKind, User } from '@/types';
 
 type Tab = 'recent' | 'shared' | 'starred';

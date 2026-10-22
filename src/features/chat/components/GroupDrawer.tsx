@@ -17,11 +17,11 @@ import { useEffect, useRef, useState } from 'react';
 import { api, fileSrc } from '@/api/client';
 import { CopyableImage } from '@/components/CopyableImage';
 import { compressImage } from '@/lib/image';
-import { mergePhotos } from './media';
+import { mergePhotos } from '../utils/media';
 import { notifyEnabled, requestNotifyPermission, setNotifyEnabled } from '@/lib/notify';
-import { formatBytes } from './attachments';
+import { formatBytes } from '../utils/attachments';
 import { UserPicker } from './UserPicker';
-import { avatarColor, initials } from '@/theme';
+import { avatarColor, initials } from '@/lib/avatar';
 import type { ChatFile, ChatMessage, DirectoryUser, GalleryImage, Room, RoomLink, RoomMember } from '@/types';
 
 type Props = {

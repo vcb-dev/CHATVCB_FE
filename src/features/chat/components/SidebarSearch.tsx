@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Avatar, Spin, message } from 'antd';
 import { api, fileSrc } from '@/api/client';
 import { roomFromHit } from '../utils/rooms';
-import { avatarColor, initials } from '@/theme';
+import { avatarColor, initials } from '@/lib/avatar';
 import type { DirectoryUser, MessageHit, Room, RoomHit, RoomSearch } from '@/types';
 
 export function SidebarSearch(props: {

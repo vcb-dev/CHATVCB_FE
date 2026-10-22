@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Avatar, Checkbox, Input, Spin } from 'antd';
 import { api, fileSrc } from '@/api/client';
-import { avatarColor, initials } from '@/theme';
+import { avatarColor, initials } from '@/lib/avatar';
 import type { DirectoryUser } from '@/types';
 
 export function UserPicker(props: {

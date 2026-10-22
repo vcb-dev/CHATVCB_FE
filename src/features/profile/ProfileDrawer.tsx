@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, fileSrc } from '@/api/client';
 import { compressImage } from '@/lib/image';
 import { notifyEnabled, requestNotifyPermission, setNotifyEnabled } from '@/lib/notify';
-import { avatarColor, initials } from '@/theme';
+import { avatarColor, initials } from '@/lib/avatar';
 import type { User } from '@/types';
 
 type Props = {

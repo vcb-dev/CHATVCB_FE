@@ -17,10 +17,11 @@ import {
 import { Avatar, Button, Input, message } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/api/client';
-import { draftContent, draftTitle } from './DocsEditor';
-import { EMPTY_SHEET, parseWorkbook, serializeWorkbook, SheetEditor, type SheetHandle } from './SheetEditor';
+import { draftContent, draftTitle } from './utils/drafts';
+import { EMPTY_SHEET, parseWorkbook, serializeWorkbook } from './utils/workbook';
+import { SheetEditor, type SheetHandle } from './SheetEditor';
 import { draftKey, parseSheetHash, sheetTabUrl } from './sheet';
-import { avatarColor, initials } from '@/theme';
+import { avatarColor, initials } from '@/lib/avatar';
 import type { DocItem, User } from '@/types';
 
 type Props = { user: User };

@@ -3,7 +3,7 @@ import { Avatar, Checkbox, Input, Modal, message as antMessage } from 'antd';
 import { fileSrc } from '@/api/client';
 import { forwardMessage, MAX_FORWARD_TARGETS } from '../utils/forward';
 import { previewOf } from '../utils/rooms';
-import { avatarColor, initials } from '@/theme';
+import { avatarColor, initials } from '@/lib/avatar';
 import type { ChatMessage, Room } from '@/types';
 
 export function ForwardModal(props: {

@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, fileSrc } from '@/api/client';
 import { openCamera } from './meet';
 import { connectSocket } from '@/api/socket';
-import { avatarColor, initials } from '@/theme';
+import { avatarColor, initials } from '@/lib/avatar';
 import type { Meeting, User } from '@/types';
 
 type PeerInfo = { socketId: string; userId: string; name: string };

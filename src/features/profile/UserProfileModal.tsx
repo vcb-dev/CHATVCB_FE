@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { MailOutlined, MessageOutlined, TeamOutlined } from '@ant-design/icons';
 import { Avatar, Button, Modal, Spin, Typography, message as antMessage } from 'antd';
 import { api, fileSrc } from '@/api/client';
-import { avatarColor, initials } from '@/theme';
+import { avatarColor, initials } from '@/lib/avatar';
 import type { DirectoryUser, Room } from '@/types';
 
 export function UserProfileModal(props: {

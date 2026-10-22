@@ -1,6 +1,6 @@
 import { Avatar, Badge } from 'antd';
 import { fileSrc } from '@/api/client';
-import { avatarColor, initials } from '@/theme';
+import { avatarColor, initials } from '@/lib/avatar';
 import type { Room } from '@/types';
 
 export function RoomListItem(props: {

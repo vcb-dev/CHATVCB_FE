@@ -19,26 +19,28 @@ import { api, fileSrc } from '@/api/client';
 import {
   addGalleryPick,
   addPendingFiles,
-  ComposerActions,
   filesFromClipboard,
-  GalleryModal,
   mergePhotos,
-  PendingPreviews,
   photosFromMessages,
   revokePending,
-} from './components/media';
+} from './utils/media';
+import { ComposerActions } from './components/ComposerActions';
+import { GalleryModal } from './components/GalleryModal';
+import { PendingPreviews } from './components/PendingPreviews';
 import { compressImage } from '@/lib/image';
-import { isStickerText, StickerButton } from './components/stickers';
-import { ReactionPicker, ReactionSummary } from './components/reactions';
-import { AttachButton, FileCard, PendingFiles, addPendingDocs } from './components/attachments';
-import {
-  buildMentionOptions,
-  handleFromEmail,
-  MentionText,
-  mentionOpen,
-  mentionsUser,
-} from './components/mentions';
-import { lastSeenOn, SeenAvatars, SeenBubble, viewersOf } from './components/seen';
+import { isStickerText } from './utils/stickers';
+import { StickerButton } from './components/StickerButton';
+import { ReactionPicker } from './components/ReactionPicker';
+import { ReactionSummary } from './components/ReactionSummary';
+import { AttachButton } from './components/AttachButton';
+import { FileCard } from './components/FileCard';
+import { PendingFiles } from './components/PendingFiles';
+import { addPendingDocs } from './utils/attachments';
+import { buildMentionOptions, handleFromEmail, mentionOpen, mentionsUser } from './utils/mentions';
+import { MentionText } from './components/MentionText';
+import { lastSeenOn, viewersOf } from './utils/seen';
+import { SeenAvatars } from './components/SeenAvatars';
+import { SeenBubble } from './components/SeenBubble';
 import { isChatVisible, notifyIncoming, requestNotifyPermission, restoreTitle } from '@/lib/notify';
 import { GroupDrawer } from './components/GroupDrawer';
 import { DocsPage } from '@/features/docs/DocsPage';
@@ -63,7 +65,7 @@ import { isDirectRoom, mergeRooms, previewOf, sortRooms, upsertRoom } from './ut
 import { copyImage, copyText } from '@/lib/clipboard';
 import { CopyableImage } from '@/components/CopyableImage';
 import { connectSocket } from '@/api/socket';
-import { avatarColor, initials } from '@/theme';
+import { avatarColor, initials } from '@/lib/avatar';
 import type {
   AgentPendingEvent,
   ChatMessage,

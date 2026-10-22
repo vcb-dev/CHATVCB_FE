@@ -5,7 +5,7 @@ import { MeetingSession } from '@/features/meetings/MeetingSession';
 import { parseMeetHash } from '@/features/meetings/meet';
 import { parseSheetHash } from '@/features/docs/sheet';
 import { SheetSession } from '@/features/docs/SheetSession';
-import { AppTheme } from '@/theme';
+import { AppTheme } from '@/theme/AppTheme';
 import type { User } from '@/types';
 
 const ChatPage = lazy(async () => {

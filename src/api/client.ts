@@ -291,6 +291,12 @@ export const api = {
       method: 'POST',
     });
   },
+  editMessage(roomId: string, messageId: string, content: string) {
+    return request<ChatMessage>(`/rooms/${roomId}/messages/${messageId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ content }),
+    });
+  },
   deleteMessage(roomId: string, messageId: string) {
     return request<{ ok: boolean; id: string }>(`/rooms/${roomId}/messages/${messageId}`, {
       method: 'DELETE',

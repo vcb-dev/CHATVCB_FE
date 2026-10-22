@@ -65,6 +65,7 @@ export type ChatMessage = {
   replyTo?: MessageReply | null;
   pinned?: boolean;
   recalled?: boolean;
+  editedAt?: string | null;
   reactions: MessageReaction[];
   createdAt: string;
 };

@@ -3563,3 +3563,11 @@ body {
   font-size: 12px;
   color: #8a8d91;
 }
+
+/* Message Edit */
+.edited-mark {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.7;
+}

@@ -4,6 +4,7 @@ import { fileSrc } from '@/api/client';
 import { CopyableImage } from '@/components/CopyableImage';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { ChatMessage, RoomRead } from '@/types';
+import { canEdit } from '../utils/edit';
 import { canForward } from '../utils/forward';
 import { isStickerText } from '../utils/stickers';
 import { FileCard } from './FileCard';
@@ -87,6 +88,7 @@ export function MessageRow(props: {
                 },
                 ...(canForward(message) ? [{ key: 'forward', label: 'Chuyển tiếp' }] : []),
                 ...(hasText ? [{ key: 'copy', label: 'Sao chép tin nhắn' }] : []),
+                ...(canEdit(message, props.userId) ? [{ key: 'edit', label: 'Sửa tin nhắn' }] : []),
                 ...(hasImage ? [{ key: 'copyImage', label: 'Sao chép ảnh' }] : []),
                 {
                   key: 'pin',
@@ -163,6 +165,14 @@ export function MessageRow(props: {
                       ) : null}
                       {hasText ? (
                         <MentionText text={message.content} myHandle={props.myHandle} />
+                      ) : null}
+                      {message.editedAt ? (
+                        <span
+                          className="edited-mark"
+                          title={new Date(message.editedAt).toLocaleString('vi-VN')}
+                        >
+                          đã chỉnh sửa
+                        </span>
                       ) : null}
                     </>
                   )}

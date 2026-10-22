@@ -10,12 +10,14 @@ export function useMessageActions({
   setPins,
   onReply,
   onForward,
+  onEdit,
 }: {
   roomId: string;
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   setPins: Dispatch<SetStateAction<ChatMessage[]>>;
   onReply: (message: ChatMessage) => void;
   onForward: (message: ChatMessage) => void;
+  onEdit: (message: ChatMessage) => void;
 }) {
   async function handleMessageAction(key: string, message: ChatMessage) {
     if (!roomId) {
@@ -27,6 +29,10 @@ export function useMessageActions({
     }
     if (key === 'forward') {
       onForward(message);
+      return;
+    }
+    if (key === 'edit') {
+      onEdit(message);
       return;
     }
     if (key === 'copy' || key === 'copyImage') {

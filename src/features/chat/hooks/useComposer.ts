@@ -1,5 +1,5 @@
 import { message as antMessage } from 'antd';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { api } from '@/api/client';
 import type { ChatMessage, GalleryImage, PendingFile, PendingImage } from '@/types';
 import { addPendingDocs } from '../utils/attachments';
@@ -15,23 +15,28 @@ export function useComposer({
   roomId,
   messages,
   appendMessage,
+  setMessages,
   setError,
 }: {
   roomId: string;
   messages: ChatMessage[];
   appendMessage: (message: ChatMessage) => void;
+  setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   setError: (error: string) => void;
 }) {
   const [draft, setDraft] = useState('');
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [editing, setEditing] = useState<ChatMessage | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
   const lastSentRef = useRef<{ at: number; text: string }>({ at: 0, text: '' });
   const pendingImagesRef = useRef<PendingImage[]>([]);
+  const editingRef = useRef<ChatMessage | null>(null);
   pendingImagesRef.current = pendingImages;
+  editingRef.current = editing;
 
   useEffect(() => {
     if (!roomId) {
@@ -42,11 +47,26 @@ export function useComposer({
     setPendingFiles([]);
     setGalleryOpen(false);
     setReplyTo(null);
+    if (editingRef.current) {
+      setEditing(null);
+      setDraft('');
+    }
   }, [roomId]);
 
   useEffect(() => {
     return () => revokePending(pendingImagesRef.current);
   }, []);
+
+  function startEdit(message: ChatMessage) {
+    setReplyTo(null);
+    setEditing(message);
+    setDraft(message.content);
+  }
+
+  function cancelEdit() {
+    setEditing(null);
+    setDraft('');
+  }
 
   function addImages(files: File[]) {
     setPendingImages((current) => addPendingFiles(current, files));
@@ -141,6 +161,24 @@ export function useComposer({
     if (!roomId) {
       return;
     }
+    if (editing) {
+      const content = raw.trim();
+      if (!content) {
+        return;
+      }
+      const target = editing;
+      setEditing(null);
+      setDraft('');
+      try {
+        const next = await api.editMessage(roomId, target.id, content);
+        setMessages((current) => current.map((item) => (item.id === next.id ? next : item)));
+      } catch (err) {
+        setEditing(target);
+        setDraft(content);
+        antMessage.error(err instanceof Error ? err.message : 'Không sửa được tin nhắn.');
+      }
+      return;
+    }
     const content = raw.trim();
     const attachments = pendingImages;
     const filesToSend = pendingFiles;
@@ -224,6 +262,9 @@ export function useComposer({
     pendingFiles,
     replyTo,
     setReplyTo,
+    editing,
+    startEdit,
+    cancelEdit,
     galleryOpen,
     setGalleryOpen,
     gallery,

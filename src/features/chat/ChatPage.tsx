@@ -70,6 +70,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     roomId,
     messages: chat.messages,
     appendMessage: chat.appendMessage,
+    setMessages: chat.setMessages,
     setError,
   });
   const { handleMessageAction, handleReact } = useMessageActions({
@@ -78,6 +79,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setPins: chat.setPins,
     onReply: composer.setReplyTo,
     onForward: setForwarding,
+    onEdit: composer.startEdit,
   });
   const { onlineUserIds } = useChatSocket({
     user,
@@ -188,10 +190,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             error={error}
             draft={composer.draft}
             replyTo={composer.replyTo}
+            editing={composer.editing}
             pendingImages={composer.pendingImages}
             pendingFiles={composer.pendingFiles}
             onDraftChange={composer.setDraft}
             onCancelReply={() => composer.setReplyTo(null)}
+            onCancelEdit={composer.cancelEdit}
             onAddImages={composer.addImages}
             onRemoveImage={composer.removeImage}
             onAddDocs={composer.addDocs}

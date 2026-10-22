@@ -34,10 +34,12 @@ export function Composer(props: {
   error: string;
   draft: string;
   replyTo: ChatMessage | null;
+  editing: ChatMessage | null;
   pendingImages: PendingImage[];
   pendingFiles: PendingFile[];
   onDraftChange: Dispatch<SetStateAction<string>>;
   onCancelReply: () => void;
+  onCancelEdit: () => void;
   onAddImages: (files: File[]) => void;
   onRemoveImage: (key: string) => void;
   onAddDocs: (files: File[]) => void;
@@ -54,9 +56,9 @@ export function Composer(props: {
     () => buildMentionOptions(members, props.online, props.userId, room),
     [members, props.online, room, props.userId],
   );
-  const canSend = Boolean(
-    !props.disabled && (draft.trim() || pendingImages.length || pendingFiles.length),
-  );
+  const canSend = props.editing
+    ? !props.disabled && Boolean(draft.trim())
+    : Boolean(!props.disabled && (draft.trim() || pendingImages.length || pendingFiles.length));
 
   function shouldSkipSend(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.nativeEvent.isComposing || event.keyCode === 229) {
@@ -82,6 +84,11 @@ export function Composer(props: {
   }
 
   function handleKey(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Escape' && props.editing && !mentionOpen(draft)) {
+      event.preventDefault();
+      props.onCancelEdit();
+      return;
+    }
     if (event.key === 'Enter' && !event.shiftKey) {
       if (shouldSkipSend(event)) {
         return;
@@ -95,6 +102,9 @@ export function Composer(props: {
       className="composer"
       onSubmit={handleSubmit}
       onPaste={(event) => {
+        if (props.editing) {
+          return;
+        }
         const files = filesFromClipboard(event);
         if (!files.length) {
           return;
@@ -105,7 +115,20 @@ export function Composer(props: {
       onMouseDown={() => props.onMarkRead()}
     >
       {props.error ? <Typography.Text type="danger">{props.error}</Typography.Text> : null}
-      {replyTo ? (
+      {props.editing ? (
+        <div className="reply-bar">
+          <div>
+            <strong>Sửa tin nhắn</strong>
+            <span>{props.editing.content}</span>
+          </div>
+          <Button
+            type="text"
+            size="small"
+            icon={<CloseOutlined />}
+            onClick={props.onCancelEdit}
+          />
+        </div>
+      ) : replyTo ? (
         <div className="reply-bar">
           <div>
             <strong>Trả lời {replyTo.authorName}</strong>
@@ -130,24 +153,32 @@ export function Composer(props: {
           Chưa tải được danh sách đồng đội — redeploy BE mới trên Railway rồi tải lại trang.
         </Typography.Text>
       ) : null}
-      <PendingPreviews items={pendingImages} onRemove={props.onRemoveImage} />
-      <PendingFiles items={pendingFiles} onRemove={props.onRemoveDoc} />
+      {props.editing ? null : (
+        <>
+          <PendingPreviews items={pendingImages} onRemove={props.onRemoveImage} />
+          <PendingFiles items={pendingFiles} onRemove={props.onRemoveDoc} />
+        </>
+      )}
       <div className="composer-row">
-        <ComposerActions
-          disabled={props.disabled}
-          onAddFiles={props.onAddImages}
-          onOpenGallery={() => void props.onOpenGallery()}
-        />
-        <AttachButton
-          disabled={props.disabled}
-          onAddFiles={props.onAddDocs}
-        />
-        <StickerButton
-          disabled={props.disabled}
-          onEmoji={(emoji) => props.onDraftChange((current) => `${current}${emoji}`)}
-          onSticker={(emoji) => void props.onSticker(emoji)}
-          onGif={(url) => void props.onGif(url)}
-        />
+        {props.editing ? null : (
+          <>
+            <ComposerActions
+              disabled={props.disabled}
+              onAddFiles={props.onAddImages}
+              onOpenGallery={() => void props.onOpenGallery()}
+            />
+            <AttachButton
+              disabled={props.disabled}
+              onAddFiles={props.onAddDocs}
+            />
+            <StickerButton
+              disabled={props.disabled}
+              onEmoji={(emoji) => props.onDraftChange((current) => `${current}${emoji}`)}
+              onSticker={(emoji) => void props.onSticker(emoji)}
+              onGif={(url) => void props.onGif(url)}
+            />
+          </>
+        )}
         <Mentions
           value={draft}
           onChange={props.onDraftChange}

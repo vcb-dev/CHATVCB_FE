@@ -634,10 +634,14 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     if (!el) {
       return;
     }
+    const startRoom = roomId;
     setLoadingOlder(true);
     const prevScrollHeight = el.scrollHeight;
     try {
-      const page = await api.messages(roomId, pageMeta.nextCursor);
+      const page = await api.messages(startRoom, pageMeta.nextCursor);
+      if (roomIdRef.current !== startRoom) {
+        return;
+      }
       setPageMeta(page.meta);
       pageMetaRef.current = page.meta;
       setMessages((prev) => {
@@ -653,7 +657,9 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     } catch {
       // ignore loading errors
     } finally {
-      setLoadingOlder(false);
+      if (roomIdRef.current === startRoom) {
+        setLoadingOlder(false);
+      }
     }
   }
 

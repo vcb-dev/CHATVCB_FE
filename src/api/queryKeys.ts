@@ -1,0 +1,10 @@
+export const queryKeys = {
+  rooms: ['rooms'] as const,
+  reads: (roomId: string) => ['reads', roomId] as const,
+  members: (roomId: string) => ['members', roomId] as const,
+  pins: (roomId: string) => ['pins', roomId] as const,
+  roomMedia: (roomId: string) => ['room-media', roomId] as const,
+  gallery: (roomId: string) => ['room-media', roomId, 'gallery'] as const,
+  files: (roomId: string) => ['room-media', roomId, 'files'] as const,
+  links: (roomId: string) => ['room-media', roomId, 'links'] as const,
+};

@@ -1,8 +1,13 @@
 import { message as antMessage } from 'antd';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
-import type { PageMeta, Room } from '@/types';
+import { queryKeys } from '@/api/queryKeys';
+import type { PageMeta, Room, RoomsPage } from '@/types';
 import { mergeRooms, sortRooms, upsertRoom } from '../utils/rooms';
+
+const EMPTY_ROOMS: Room[] = [];
+const EMPTY_META: PageMeta = { hasMore: false, nextCursor: null };
 
 export function useRoomList({
   isViewingChat,
@@ -11,13 +16,42 @@ export function useRoomList({
   isViewingChat: () => boolean;
   setError: (error: string) => void;
 }) {
-  const [rooms, setRooms] = useState<Room[]>([]);
   const [roomId, setRoomId] = useState('');
-  const [roomsMeta, setRoomsMeta] = useState<PageMeta>({ hasMore: false, nextCursor: null });
   const [loadingOlderRooms, setLoadingOlderRooms] = useState(false);
-  const roomsMetaRef = useRef<PageMeta>({ hasMore: false, nextCursor: null });
   const hasLoadedMoreRoomsRef = useRef(false);
   const roomIdRef = useRef('');
+
+  useEffect(() => {
+    roomIdRef.current = roomId;
+  }, [roomId]);
+
+  const queryClient = useQueryClient();
+
+  const fetchRoomList = useCallback(async (): Promise<RoomsPage> => {
+    const page = await api.rooms();
+    const prev = queryClient.getQueryData<RoomsPage>(queryKeys.rooms);
+    const merged = mergeRooms(prev?.data ?? [], page.data, roomIdRef.current, page.meta.hasMore, isViewingChat());
+    if (!prev || !roomIdRef.current) {
+      setRoomId((current) => current || merged[0]?.id || '');
+    } else if (!merged.some((r) => r.id === roomIdRef.current)) {
+      setRoomId(merged[0]?.id ?? '');
+    }
+    const keepMeta = Boolean(prev) && hasLoadedMoreRoomsRef.current && page.meta.hasMore;
+    if (!page.meta.hasMore) {
+      hasLoadedMoreRoomsRef.current = false;
+    }
+    return { data: merged, meta: keepMeta && prev ? prev.meta : page.meta };
+  }, [queryClient, isViewingChat]);
+
+  const { data, isError } = useQuery({
+    queryKey: queryKeys.rooms,
+    queryFn: fetchRoomList,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+  });
+  const rooms = data?.data ?? EMPTY_ROOMS;
+  const roomsMeta = data?.meta ?? EMPTY_META;
 
   const room = useMemo(
     () => rooms.find((item) => item.id === roomId) ?? null,
@@ -25,75 +59,19 @@ export function useRoomList({
   );
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function refreshRooms() {
-      try {
-        const page = await api.rooms();
-        if (cancelled) {
-          return;
-        }
-        const viewing = isViewingChat();
-        setRooms((prev) => {
-          const merged = mergeRooms(
-            prev,
-            page.data,
-            roomIdRef.current,
-            page.meta.hasMore,
-            viewing,
-          );
-          if (roomIdRef.current && !merged.some((r) => r.id === roomIdRef.current)) {
-            setRoomId(merged[0]?.id ?? '');
-          }
-          return merged;
-        });
-        if (!hasLoadedMoreRoomsRef.current || !page.meta.hasMore) {
-          if (!page.meta.hasMore) {
-            hasLoadedMoreRoomsRef.current = false;
-          }
-          setRoomsMeta(page.meta);
-          roomsMetaRef.current = page.meta;
-        }
-      } catch {
-        // ignore polling errors
-      }
+    if (isError && !data) {
+      setError('Không tải được danh sách phòng.');
     }
+  }, [isError, data, setError]);
 
-    api
-      .rooms()
-      .then((page) => {
-        if (cancelled) {
-          return;
-        }
-        const viewing = isViewingChat();
-        setRooms((prev) =>
-          mergeRooms(prev, page.data, roomIdRef.current, page.meta.hasMore, viewing),
-        );
-        setRoomsMeta(page.meta);
-        roomsMetaRef.current = page.meta;
-        setRoomId((current) => current || page.data[0]?.id || '');
-      })
-      .catch(() => setError('Không tải được danh sách phòng.'));
-
-    const interval = window.setInterval(() => {
-      void refreshRooms();
-    }, 10_000);
-
-    const onFocus = () => void refreshRooms();
-    window.addEventListener('focus', onFocus);
-    document.addEventListener('visibilitychange', onFocus);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-      window.removeEventListener('focus', onFocus);
-      document.removeEventListener('visibilitychange', onFocus);
-    };
-  }, [isViewingChat, setError]);
-
-  useEffect(() => {
-    roomIdRef.current = roomId;
-  }, [roomId]);
+  const setRooms: Dispatch<SetStateAction<Room[]>> = useCallback(
+    (action) => {
+      queryClient.setQueryData<RoomsPage>(queryKeys.rooms, (old) =>
+        old && { data: typeof action === 'function' ? action(old.data) : action, meta: old.meta },
+      );
+    },
+    [queryClient],
+  );
 
   function openRoom(nextRoom: Room) {
     setRooms((prev) => upsertRoom(prev, nextRoom));
@@ -122,20 +100,25 @@ export function useRoomList({
   }
 
   async function loadMoreRooms() {
-    if (loadingOlderRooms || !roomsMetaRef.current.hasMore || !roomsMetaRef.current.nextCursor) {
+    const meta = queryClient.getQueryData<RoomsPage>(queryKeys.rooms)?.meta;
+    if (loadingOlderRooms || !meta?.hasMore || !meta.nextCursor) {
       return;
     }
     setLoadingOlderRooms(true);
     hasLoadedMoreRoomsRef.current = true;
     try {
-      const page = await api.rooms(roomsMetaRef.current.nextCursor);
-      setRooms((prev) => {
-        const existingIds = new Set(prev.map((r) => r.id));
+      const page = await api.rooms(meta.nextCursor);
+      queryClient.setQueryData<RoomsPage>(queryKeys.rooms, (old) => {
+        if (!old) {
+          return old;
+        }
+        const existingIds = new Set(old.data.map((r) => r.id));
         const newRooms = page.data.filter((r) => !existingIds.has(r.id));
-        return sortRooms([...prev, ...newRooms]);
+        return {
+          data: sortRooms([...old.data, ...newRooms]),
+          meta: page.meta,
+        };
       });
-      setRoomsMeta(page.meta);
-      roomsMetaRef.current = page.meta;
     } catch (err) {
       antMessage.error(
         err instanceof Error ? err.message : 'Không tải thêm được danh sách phòng.',
@@ -144,6 +127,11 @@ export function useRoomList({
       setLoadingOlderRooms(false);
     }
   }
+
+  const refreshRooms = useCallback(
+    () => queryClient.fetchQuery({ queryKey: queryKeys.rooms, queryFn: fetchRoomList }).then((page) => page.data),
+    [queryClient, fetchRoomList],
+  );
 
   return {
     rooms,
@@ -159,5 +147,6 @@ export function useRoomList({
     updateRoom,
     removeRoom,
     loadMoreRooms,
+    refreshRooms,
   };
 }

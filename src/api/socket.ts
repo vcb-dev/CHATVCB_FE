@@ -14,6 +14,5 @@ export function connectSocket(token: string): Socket {
     transports: ['websocket'],
     timeout: 8000,
     reconnectionDelay: 400,
-    reconnectionAttempts: 6,
   });
 }

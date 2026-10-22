@@ -47,6 +47,8 @@ import { MeetingsPage } from './MeetingsPage';
 import { ProfileDrawer } from './ProfileDrawer';
 import { UserProfileModal } from './UserProfileModal';
 import { NewChatModal } from './NewChatModal';
+import { ForwardModal } from './ForwardModal';
+import { canForward } from './forward';
 import {
   countOnlineMembers,
   hasOnlineMember,
@@ -129,6 +131,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     );
   });
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [forwarding, setForwarding] = useState<ChatMessage | null>(null);
   const [pins, setPins] = useState<ChatMessage[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
@@ -880,6 +883,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       setReplyTo(message);
       return;
     }
+    if (key === 'forward') {
+      setForwarding(message);
+      return;
+    }
     if (key === 'copy' || key === 'copyImage') {
       try {
         if (key === 'copy') {
@@ -1028,6 +1035,24 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       return upsertRoom(current, updated);
     });
     markMessageRead(message);
+  }
+
+  function handleForwarded(sent: ChatMessage) {
+    if (sent.roomId === roomIdRef.current) {
+      appendMessage(sent);
+      return;
+    }
+    setRooms((current) => {
+      const target = current.find((r) => r.id === sent.roomId);
+      if (!target) {
+        return current;
+      }
+      return upsertRoom(current, {
+        ...target,
+        lastMessagePreview: previewOf(sent, userRef.current.id, isDirectRoom(target)),
+        updatedAt: sent.createdAt,
+      });
+    });
   }
 
   function shouldSkipSend(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -1359,6 +1384,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                             label: 'Trả lời tin nhắn',
                             disabled: message.recalled,
                           },
+                          ...(canForward(message) ? [{ key: 'forward', label: 'Chuyển tiếp' }] : []),
                           ...(hasText ? [{ key: 'copy', label: 'Sao chép tin nhắn' }] : []),
                           ...(hasImage ? [{ key: 'copyImage', label: 'Sao chép ảnh' }] : []),
                           {
@@ -1601,6 +1627,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         <MeetingsPage user={user} />
       )}
 
+      <ForwardModal
+        message={forwarding}
+        rooms={rooms}
+        onClose={() => setForwarding(null)}
+        onForwarded={handleForwarded}
+      />
       {workspace === 'messenger' ? (
       <GroupDrawer
         room={room}

@@ -189,6 +189,13 @@ export const api = {
     }
     return response.json() as Promise<ChatFile>;
   },
+  async download(url: string): Promise<Blob> {
+    const response = await fetch(fileSrc(url));
+    if (!response.ok) {
+      throw new Error('Không tải được tệp.');
+    }
+    return response.blob();
+  },
   files(roomId: string) {
     return request<ChatFile[]>(`/rooms/${roomId}/files`);
   },

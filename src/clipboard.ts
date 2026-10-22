@@ -1,3 +1,5 @@
+import { api } from './api';
+
 async function toPngBlob(blob: Blob): Promise<Blob> {
   if (blob.type === 'image/png') {
     return blob;
@@ -24,11 +26,6 @@ export async function copyText(text: string) {
 }
 
 export async function copyImage(src: string) {
-  const png = fetch(src).then(async (response) => {
-    if (!response.ok) {
-      throw new Error('Không tải được ảnh để sao chép.');
-    }
-    return toPngBlob(await response.blob());
-  });
+  const png = api.download(src).then(toPngBlob);
   await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
 }

@@ -871,7 +871,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   function flashMessage(el: HTMLElement) {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     el.classList.add('flash');
-    window.setTimeout(() => el.classList.remove('flash'), 1400);
+    window.setTimeout(() => el.classList.remove('flash'), 2600);
   }
 
   async function jumpToMessage(id: string, createdAt?: string) {

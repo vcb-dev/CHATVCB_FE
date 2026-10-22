@@ -1949,8 +1949,26 @@ body {
   opacity: 0.85;
 }
 
+.row.flash {
+  border-radius: 12px;
+  animation: flash-row 2.4s ease;
+}
+
 .row.flash .bubble {
-  animation: flash-msg 1.2s ease;
+  animation: flash-msg 2.4s ease;
+}
+
+@keyframes flash-row {
+  0%,
+  100% {
+    background: transparent;
+    box-shadow: none;
+  }
+  15%,
+  65% {
+    background: rgba(0, 132, 255, 0.14);
+    box-shadow: 0 0 0 6px rgba(0, 132, 255, 0.14);
+  }
 }
 
 @keyframes flash-msg {
@@ -1958,7 +1976,8 @@ body {
   100% {
     box-shadow: none;
   }
-  35% {
+  15%,
+  65% {
     box-shadow: 0 0 0 3px #0084ff;
   }
 }

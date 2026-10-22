@@ -33,7 +33,7 @@ type Props = {
   onRoomUpdated: (room: Room) => void;
   onMembersUpdated: (members: RoomMember[]) => void;
   onRoomRemoved: (roomId: string) => void;
-  onJumpMessage: (id: string) => void;
+  onJumpMessage: (id: string, createdAt: string) => void;
   onViewProfile: (userId: string) => void;
 };
 
@@ -560,7 +560,7 @@ export function GroupDrawer({
                       type="button"
                       className="group-member"
                       onClick={() => {
-                        onJumpMessage(item.id);
+                        onJumpMessage(item.id, item.createdAt);
                         onClose?.();
                       }}
                     >

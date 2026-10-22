@@ -9,7 +9,7 @@ export function SidebarSearch(props: {
   query: string;
   onClose: () => void;
   onOpenRoom: (room: Room) => void;
-  onOpenMessage: (roomId: string, messageId: string) => void;
+  onOpenMessage: (roomId: string, messageId: string, createdAt: string) => void;
   rooms: Room[];
 }) {
   const [results, setResults] = useState<RoomSearch | null>(null);
@@ -72,9 +72,9 @@ export function SidebarSearch(props: {
       if (msg.roomKind === 'direct' && msg.peerUserId) {
         const room = await api.createDirectRoom(msg.peerUserId);
         props.onOpenRoom(room);
-        props.onOpenMessage(room.id, msg.id);
+        props.onOpenMessage(room.id, msg.id, msg.createdAt);
       } else {
-        props.onOpenMessage(msg.roomId, msg.id);
+        props.onOpenMessage(msg.roomId, msg.id, msg.createdAt);
       }
       props.onClose();
     } catch (err) {

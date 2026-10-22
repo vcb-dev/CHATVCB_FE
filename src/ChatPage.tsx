@@ -82,6 +82,7 @@ import type {
 type Workspace = 'messenger' | 'email' | 'docs' | 'meetings';
 
 const WORKSPACE_IDS: Workspace[] = ['messenger', 'email', 'docs', 'meetings'];
+const MAX_JUMP_PAGES = 10;
 
 function asWorkspace(value?: string | null): Workspace | null {
   return value && WORKSPACE_IDS.includes(value as Workspace) ? (value as Workspace) : null;
@@ -141,6 +142,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const roomsMetaRef = useRef<PageMeta>({ hasMore: false, nextCursor: null });
   const hasLoadedMoreRoomsRef = useRef(false);
   const [pageMeta, setPageMeta] = useState<PageMeta>({ hasMore: false, nextCursor: null });
+  const pageMetaRef = useRef<PageMeta>({ hasMore: false, nextCursor: null });
   const [loadingOlder, setLoadingOlder] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const myAvatarRef = useRef<HTMLInputElement>(null);
@@ -148,7 +150,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const roomIdRef = useRef('');
   const lastMessageIdRef = useRef<string>('');
   const lastRoomIdRef = useRef<string>('');
-  const pendingJumpRef = useRef<string | null>(null);
+  const pendingJumpRef = useRef<{ id: string; createdAt?: string } | null>(null);
   const mentionMeasuringRef = useRef(false);
   const lastSentRef = useRef<{ at: number; text: string }>({ at: 0, text: '' });
   const lastReadSentRef = useRef('');
@@ -372,6 +374,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setReplyTo(null);
     setPins([]);
     setPageMeta({ hasMore: false, nextCursor: null });
+    pageMetaRef.current = { hasMore: false, nextCursor: null };
     setLoadingOlder(false);
     api
       .pins(roomId)
@@ -391,6 +394,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         if (!cancelled) {
           setMessages(page.data);
           setPageMeta(page.meta);
+          pageMetaRef.current = page.meta;
           const latest = page.data[page.data.length - 1];
           if (!latest) {
             setRooms((current) =>
@@ -400,10 +404,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             markMessageRead(latest, roomId);
           }
           if (pendingJumpRef.current) {
-            const targetId = pendingJumpRef.current;
+            const target = pendingJumpRef.current;
             pendingJumpRef.current = null;
             requestAnimationFrame(() => {
-              jumpToMessage(targetId);
+              void jumpToMessage(target.id, target.createdAt);
             });
           }
         }
@@ -633,6 +637,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     try {
       const page = await api.messages(roomId, pageMeta.nextCursor);
       setPageMeta(page.meta);
+      pageMetaRef.current = page.meta;
       setMessages((prev) => {
         const existingIds = new Set(prev.map((m) => m.id));
         const older = page.data.filter((m) => !existingIds.has(m.id));
@@ -855,23 +860,78 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     }
   }
 
-  function jumpToMessage(id: string) {
-    const el = document.getElementById(`msg-${id}`);
-    if (!el) {
-      antMessage.info('Tin nhắn nằm ở phần cũ hơn.');
-      return;
-    }
+  function flashMessage(el: HTMLElement) {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     el.classList.add('flash');
     window.setTimeout(() => el.classList.remove('flash'), 1400);
   }
 
-  function openMessage(targetRoomId: string, messageId: string) {
+  async function jumpToMessage(id: string, createdAt?: string) {
+    const el = document.getElementById(`msg-${id}`);
+    if (el) {
+      flashMessage(el);
+      return;
+    }
+    if (loadingOlder) {
+      antMessage.info('Đang tải tin cũ, thử lại sau giây lát.');
+      return;
+    }
+    const startRoom = roomIdRef.current;
+    let meta = pageMetaRef.current;
+    const older: ChatMessage[] = [];
+    let found = false;
+    let pages = 0;
+    const hide = antMessage.loading('Đang tìm tin nhắn…', 0);
+    setLoadingOlder(true);
+    try {
+      while (!found && meta.hasMore && meta.nextCursor && pages < MAX_JUMP_PAGES) {
+        if (createdAt && new Date(meta.nextCursor) <= new Date(createdAt)) {
+          break;
+        }
+        const page = await api.messages(startRoom, meta.nextCursor);
+        if (roomIdRef.current !== startRoom) {
+          return;
+        }
+        older.unshift(...page.data);
+        meta = page.meta;
+        pages += 1;
+        found = page.data.some((m) => m.id === id);
+      }
+    } catch {
+      antMessage.error('Không tải được tin nhắn cũ.');
+      return;
+    } finally {
+      hide();
+      setLoadingOlder(false);
+    }
+    if (pages > 0) {
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        return [...older.filter((m) => !existingIds.has(m.id)), ...prev];
+      });
+      setPageMeta(meta);
+      pageMetaRef.current = meta;
+    }
+    if (found) {
+      requestAnimationFrame(() => {
+        const target = document.getElementById(`msg-${id}`);
+        if (target) {
+          flashMessage(target);
+        }
+      });
+    } else if (pages === MAX_JUMP_PAGES) {
+      antMessage.info('Tin nhắn nằm quá xa, hãy cuộn lên để xem thêm.');
+    } else {
+      antMessage.info('Không tìm thấy tin nhắn (có thể đã bị xóa).');
+    }
+  }
+
+  function openMessage(targetRoomId: string, messageId: string, createdAt?: string) {
     if (roomId !== targetRoomId) {
-      pendingJumpRef.current = messageId;
+      pendingJumpRef.current = { id: messageId, createdAt };
       setRoomId(targetRoomId);
     } else {
-      jumpToMessage(messageId);
+      void jumpToMessage(messageId, createdAt);
     }
   }
 
@@ -1277,7 +1337,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         </header>
         {latestPin ? (
           <div className="pin-bar">
-            <button type="button" className="pin-bar-main" onClick={() => jumpToMessage(latestPin.id)}>
+            <button type="button" className="pin-bar-main" onClick={() => void jumpToMessage(latestPin.id, latestPin.createdAt)}>
               <PushpinOutlined />
               <span>
                 <strong>{latestPin.authorName}</strong>
@@ -1292,7 +1352,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                 content={
                   <div className="pin-bar-list">
                     {headerPins.map((item) => (
-                      <button key={item.id} type="button" onClick={() => jumpToMessage(item.id)}>
+                      <button key={item.id} type="button" onClick={() => void jumpToMessage(item.id, item.createdAt)}>
                         <strong>{item.authorName}</strong>
                         <small>{pinPreview(item)}</small>
                       </button>
@@ -1422,7 +1482,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   markMessageRead();
-                                  jumpToMessage(message.replyTo!.id);
+                                  void jumpToMessage(message.replyTo!.id);
                                 }}
                               >
                                 <strong>{message.replyTo.authorName}</strong>

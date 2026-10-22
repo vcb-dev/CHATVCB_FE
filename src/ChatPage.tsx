@@ -144,6 +144,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [pageMeta, setPageMeta] = useState<PageMeta>({ hasMore: false, nextCursor: null });
   const pageMetaRef = useRef<PageMeta>({ hasMore: false, nextCursor: null });
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const loadingOlderRef = useRef(false);
   const listRef = useRef<HTMLDivElement>(null);
   const myAvatarRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -168,6 +169,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   userRef.current = user;
   workspaceRef.current = workspace;
   myHandleRef.current = myHandle;
+  loadingOlderRef.current = loadingOlder;
 
   const room = useMemo(
     () => rooms.find((item) => item.id === roomId) ?? null,
@@ -872,7 +874,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       flashMessage(el);
       return;
     }
-    if (loadingOlder) {
+    if (loadingOlderRef.current) {
       antMessage.info('Đang tải tin cũ, thử lại sau giây lát.');
       return;
     }
@@ -902,7 +904,9 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       return;
     } finally {
       hide();
-      setLoadingOlder(false);
+      if (roomIdRef.current === startRoom) {
+        setLoadingOlder(false);
+      }
     }
     if (pages > 0) {
       setMessages((prev) => {

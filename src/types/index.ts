@@ -64,6 +64,7 @@ export type ChatMessage = {
   systemData?: SystemData | null;
   imageId?: string | null;
   imageUrl?: string | null;
+  images?: { id: string; url: string }[];
   fileId?: string | null;
   fileUrl?: string | null;
   fileName?: string | null;

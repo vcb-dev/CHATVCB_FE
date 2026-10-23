@@ -165,10 +165,11 @@ export const api = {
     imageId?: string,
     replyToId?: string,
     fileId?: string,
+    imageIds?: string[],
   ) {
     return request<ChatMessage>(`/rooms/${roomId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ content, imageId, replyToId, fileId }),
+      body: JSON.stringify({ content, imageId, replyToId, fileId, imageIds }),
     });
   },
   reactMessage(roomId: string, messageId: string, emoji: string) {

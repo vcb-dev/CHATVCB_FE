@@ -4,7 +4,7 @@ import type { ChatMessage, GalleryImage, PendingImage } from '@/types';
 
 export const ACCEPT_IMAGES = 'image/jpeg,image/png,image/gif,image/webp';
 
-const MAX_PENDING = 8;
+export const MAX_ALBUM_IMAGES = 20;
 
 export function filesFromClipboard(event: ClipboardEvent) {
   const files = Array.from(event.clipboardData?.files ?? []).filter((file) =>
@@ -30,7 +30,7 @@ export function splitDropped(files: File[]): { images: File[]; docs: File[] } {
 export function addPendingFiles(current: PendingImage[], files: File[]) {
   const next = [...current];
   for (const file of files) {
-    if (next.length >= MAX_PENDING) {
+    if (next.length >= MAX_ALBUM_IMAGES) {
       break;
     }
     next.push({
@@ -43,7 +43,7 @@ export function addPendingFiles(current: PendingImage[], files: File[]) {
 }
 
 export function addGalleryPick(current: PendingImage[], image: GalleryImage) {
-  if (current.length >= MAX_PENDING || current.some((item) => item.imageId === image.id)) {
+  if (current.length >= MAX_ALBUM_IMAGES || current.some((item) => item.imageId === image.id)) {
     return current;
   }
   return [
@@ -60,21 +60,27 @@ export function photosFromMessages(messages: ChatMessage[]) {
   const seen = new Set<string>();
   const list: GalleryImage[] = [];
   for (const item of messages) {
-    if (item.recalled || !item.imageUrl) {
+    if (item.recalled) {
       continue;
     }
-    const id = item.imageId || item.id;
-    if (seen.has(id) || seen.has(item.imageUrl)) {
-      continue;
+    const images = item.images && item.images.length > 0
+      ? item.images
+      : item.imageUrl
+        ? [{ id: item.imageId || item.id, url: item.imageUrl }]
+        : [];
+    for (const img of images) {
+      if (seen.has(img.id) || seen.has(img.url)) {
+        continue;
+      }
+      seen.add(img.id);
+      seen.add(img.url);
+      list.push({
+        id: img.id,
+        filename: 'Ảnh',
+        url: img.url,
+        createdAt: item.createdAt,
+      });
     }
-    seen.add(id);
-    seen.add(item.imageUrl);
-    list.push({
-      id,
-      filename: 'Ảnh',
-      url: item.imageUrl,
-      createdAt: item.createdAt,
-    });
   }
   return list;
 }

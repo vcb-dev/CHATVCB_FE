@@ -214,15 +214,30 @@ export function useComposer({
           uploadedImages.push({ imageId: image.id, caption });
         }
       }
-      for (const [index, item] of uploadedImages.entries()) {
-        const isLastOverall = filesToSend.length === 0 && index === uploadedImages.length - 1;
+      if (uploadedImages.length >= 2) {
+        const caption = filesToSend.length === 0 ? content : '';
+        const reply = filesToSend.length === 0 ? replyId : undefined;
+        const imageIds = uploadedImages.map((item) => item.imageId as string);
         const message = await api.sendMessage(
           roomId,
-          item.caption,
-          item.imageId,
-          isLastOverall ? replyId : undefined,
+          caption,
+          undefined,
+          reply,
+          undefined,
+          imageIds,
         );
         appendMessage(message);
+      } else if (uploadedImages.length === 1) {
+        for (const [index, item] of uploadedImages.entries()) {
+          const isLastOverall = filesToSend.length === 0 && index === uploadedImages.length - 1;
+          const message = await api.sendMessage(
+            roomId,
+            item.caption,
+            item.imageId,
+            isLastOverall ? replyId : undefined,
+          );
+          appendMessage(message);
+        }
       }
       revokePending(attachments);
 

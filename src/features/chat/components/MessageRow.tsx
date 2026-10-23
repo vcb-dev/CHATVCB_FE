@@ -8,6 +8,7 @@ import { canEdit } from '../utils/edit';
 import { canForward } from '../utils/forward';
 import { isStickerText } from '../utils/stickers';
 import { FileCard } from './FileCard';
+import { ImageAlbum } from './ImageAlbum';
 import { MentionText } from './MentionText';
 import { ReactionPicker } from './ReactionPicker';
 import { ReactionSummary } from './ReactionSummary';
@@ -40,10 +41,11 @@ export function MessageRow(props: {
   ]
     .filter(Boolean)
     .join(' ');
-  const hasImage = Boolean(message.imageUrl && !message.recalled);
+  const album = (message.images ?? []).length > 1 && !message.recalled;
+  const hasImage = Boolean(message.imageUrl && !message.recalled) && !album;
   const hasFile = Boolean(message.fileUrl && !message.recalled);
   const hasText = Boolean(message.content && !message.recalled);
-  const sticker = !hasImage && !hasFile && hasText && isStickerText(message.content);
+  const sticker = !hasImage && !album && !hasFile && hasText && isStickerText(message.content);
   return (
     <div
       id={`msg-${message.id}`}
@@ -108,7 +110,7 @@ export function MessageRow(props: {
                 <div
                   className={[
                     'bubble',
-                    hasImage ? 'has-image' : '',
+                    hasImage || album ? 'has-image' : '',
                     hasFile ? 'has-file' : '',
                     hasText ? 'has-text' : '',
                     sticker ? 'sticker' : '',
@@ -144,7 +146,12 @@ export function MessageRow(props: {
                     <p className="recalled-text">Tin nhắn đã được thu hồi</p>
                   ) : (
                     <>
-                      {hasImage ? (
+                      {album ? (
+                        <ImageAlbum
+                          images={message.images ?? []}
+                          onOpen={props.onMarkRead}
+                        />
+                      ) : hasImage ? (
                         <CopyableImage
                           src={fileSrc(message.imageUrl as string)}
                           alt=""

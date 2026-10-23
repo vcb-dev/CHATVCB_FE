@@ -8,6 +8,15 @@ export function canForward(message: ChatMessage): boolean {
 }
 
 export async function forwardMessage(message: ChatMessage, roomId: string): Promise<ChatMessage> {
+  if ((message.images ?? []).length > 1) {
+    const ids: string[] = [];
+    for (const image of message.images ?? []) {
+      const res = await api.attachRemoteImage(roomId, image.url);
+      ids.push(res.id);
+    }
+    return api.sendMessage(roomId, message.content, undefined, undefined, undefined, ids);
+  }
+
   let imageId: string | undefined;
   if (message.imageUrl) {
     if (message.imageUrl.startsWith('https://')) {

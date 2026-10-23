@@ -23,6 +23,7 @@ import type {
   RoomRead,
   RoomReadsEvent,
   RoomRemovedEvent,
+  RoomClosedEvent,
   TypingEvent,
   User,
 } from '@/types';
@@ -142,6 +143,7 @@ export function useChatSocket(options: Options) {
       }
       const { user, myHandle, rooms, refreshRooms } = latestRef.current;
       const mine = message.userId === user.id;
+      const system = message.role === 'system';
       const tagged =
         !mine &&
         message.role === 'user' &&
@@ -156,7 +158,7 @@ export function useChatSocket(options: Options) {
         void refreshRooms()
           .then((list) => {
             const fresh = list.find((r) => r.id === message.roomId);
-            if (fresh && !mine) {
+            if (fresh && !mine && !system) {
               alertIncoming(message, fresh, tagged);
             }
           })
@@ -165,7 +167,7 @@ export function useChatSocket(options: Options) {
           });
         return;
       }
-      if (!mine) {
+      if (!mine && !system) {
         alertIncoming(message, known, tagged);
       }
       setRooms((current) => {
@@ -177,7 +179,7 @@ export function useChatSocket(options: Options) {
           ...target,
           lastMessagePreview: previewOf(message, latestRef.current.user?.id, isDirectRoom(target)),
           updatedAt: message.createdAt,
-          unreadCount: viewing ? 0 : target.unreadCount + (mine ? 0 : 1),
+          unreadCount: viewing ? 0 : target.unreadCount + (mine || system ? 0 : 1),
         };
         return upsertRoom(current, updated);
       });
@@ -265,6 +267,14 @@ export function useChatSocket(options: Options) {
       removeRoom(payload.roomId);
       if (gone) {
         void antMessage.info(`Bạn đã bị xóa khỏi nhóm ${gone.title || gone.name}.`);
+      }
+    });
+    socket.on('room.closed', (payload: RoomClosedEvent) => {
+      const { rooms, removeRoom } = latestRef.current;
+      const gone = rooms.find((r) => r.id === payload.roomId);
+      removeRoom(payload.roomId);
+      if (gone && payload.reason === 'dissolved') {
+        void antMessage.info(`Nhóm ${gone.title || gone.name} đã bị giải tán.`);
       }
     });
     socket.on('room.updated', (next: Room) => {

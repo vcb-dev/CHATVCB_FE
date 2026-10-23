@@ -3586,3 +3586,26 @@ body {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+/* Tin hệ thống */
+.system-notice {
+  text-align: center;
+  font-size: 12px;
+  color: #65676b;
+  margin: 8px 0;
+}
+
+.system-notice-link {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.system-notice-link:hover {
+  text-decoration: underline;
+}
+

@@ -70,6 +70,9 @@ export function previewOf(
   currentUserId?: string,
   isDirect = false,
 ): string {
+  if (message.role === 'system') {
+    return message.content;
+  }
   let body = '';
   if (message.recalled) {
     body = 'Tin nhắn đã được thu hồi';

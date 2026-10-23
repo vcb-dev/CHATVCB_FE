@@ -5,6 +5,7 @@ import type { ChatMessage, RoomRead } from '@/types';
 import { mentionsUser } from '../utils/mentions';
 import { lastSeenOn, viewersOf } from '../utils/seen';
 import { MessageRow } from './MessageRow';
+import { SystemNotice } from './SystemNotice';
 
 function sameAuthor(a: ChatMessage, b: ChatMessage) {
   return a.role === b.role && a.userId === b.userId && a.authorName === b.authorName;
@@ -40,6 +41,15 @@ export function MessageList(props: {
         <div className="messages-loading">Đang tải tin cũ…</div>
       ) : null}
       {messages.map((message, index) => {
+        if (message.role === 'system') {
+          return (
+            <SystemNotice
+              key={message.id}
+              message={message}
+              onJump={props.onJump}
+            />
+          );
+        }
         const mine = message.userId === userId;
         return (
           <MessageRow

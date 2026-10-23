@@ -46,6 +46,12 @@ export type MessageReaction = {
   users: { id: string; name: string; avatarUrl?: string }[];
 };
 
+export type SystemData = {
+  actorId: string;
+  targetId?: string;
+  messageId?: string;
+};
+
 export type ChatMessage = {
   id: string;
   roomId: string;
@@ -54,6 +60,8 @@ export type ChatMessage = {
   authorAvatarUrl?: string;
   role: 'user' | 'agent' | 'system';
   content: string;
+  systemKind?: string | null;
+  systemData?: SystemData | null;
   imageId?: string | null;
   imageUrl?: string | null;
   fileId?: string | null;
@@ -128,6 +136,11 @@ export type TypingEvent = {
 
 export type RoomRemovedEvent = {
   roomId: string;
+};
+
+export type RoomClosedEvent = {
+  roomId: string;
+  reason: 'left' | 'dissolved';
 };
 
 export type RoomMute = {

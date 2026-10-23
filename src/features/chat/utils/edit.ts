@@ -7,6 +7,7 @@ export function canEdit(message: ChatMessage, userId: string): boolean {
     message.userId === userId &&
     message.role === 'user' &&
     !message.recalled &&
+    !message.poll &&
     Boolean(message.content.trim()) &&
     Date.now() - new Date(message.createdAt).getTime() < EDIT_WINDOW_MS
   );

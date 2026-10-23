@@ -85,6 +85,34 @@ export type SystemData = {
   messageId?: string;
 };
 
+export type ToolKind = 'poll' | 'reminder' | 'note';
+
+export type PollVoter = {
+  id: string;
+  name: string;
+  avatarUrl: string;
+};
+
+export type PollOption = {
+  id: string;
+  text: string;
+  count: number;
+  voterIds: string[];
+  voters: PollVoter[];
+};
+
+export type ChatPoll = {
+  id: string;
+  question: string;
+  multiple: boolean;
+  allowAddOptions: boolean;
+  closesAt: string | null;
+  closed: boolean;
+  creatorId: string;
+  totalVoters: number;
+  options: PollOption[];
+};
+
 export type ChatMessage = {
   id: string;
   roomId: string;
@@ -110,6 +138,7 @@ export type ChatMessage = {
   recalled?: boolean;
   editedAt?: string | null;
   reactions: MessageReaction[];
+  poll?: ChatPoll | null;
   createdAt: string;
 };
 

@@ -7,7 +7,7 @@ import { ProfileDrawer } from '@/features/profile/ProfileDrawer';
 import { UserProfileModal } from '@/features/profile/UserProfileModal';
 import { useMyProfile } from '@/features/profile/hooks/useMyProfile';
 import { api } from '@/api/client';
-import type { ChatMessage, Room, User } from '@/types';
+import type { ChatMessage, Room, ToolKind, User } from '@/types';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatSidebar } from './components/ChatSidebar';
 import { Composer } from './components/Composer';
@@ -20,6 +20,7 @@ import { MessageList } from './components/MessageList';
 import { NavRail } from './components/NavRail';
 import { NewChatModal } from './components/NewChatModal';
 import { PinBar } from './components/PinBar';
+import { PollCreateModal } from './components/PollCreateModal';
 import { TypingIndicator } from './components/TypingIndicator';
 import { parseJoinHash } from './utils/invite';
 import { useChatNotifications } from './hooks/useChatNotifications';
@@ -61,6 +62,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [joinToken, setJoinToken] = useState<string | null>(() => parseJoinHash(window.location.hash));
+  const [toolModal, setToolModal] = useState<ToolKind | null>(null);
   const myHandle = handleFromEmail(user.email);
 
   useEffect(() => {
@@ -241,12 +243,16 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             pending={chat.pending}
             canSaveToCloud={!room?.isCloud}
             canPin={canPin}
+            canManage={room?.canManage ?? false}
             onLoadOlder={chat.loadOlder}
             onMarkRead={markRead}
             onViewProfile={setViewProfileId}
             onAction={handleMessageAction}
             onReact={handleReact}
             onJump={chat.jumpToMessage}
+            onMessageUpdated={(next) =>
+              chat.setMessages((cur) => cur.map((m) => (m.id === next.id ? next : m)))
+            }
           />
           <TypingIndicator typing={typing} roomId={roomId} members={chat.members} />
           <Composer
@@ -276,6 +282,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onSend={composer.sendContent}
             onSendVoice={composer.sendVoice}
             onMarkRead={markRead}
+            onTool={(kind) => setToolModal(kind)}
           />
           <DropOverlay visible={drop.dragging} />
         </main>
@@ -357,6 +364,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           setWorkspace('messenger');
           roomList.openRoom(targetRoom);
         }}
+      />
+      <PollCreateModal
+        open={toolModal === 'poll'}
+        roomId={roomId}
+        onClose={() => setToolModal(null)}
+        onCreated={chat.appendMessage}
       />
     </div>
   );

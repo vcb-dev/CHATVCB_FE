@@ -11,6 +11,7 @@ import { isStickerText } from '../utils/stickers';
 import { FileCard } from './FileCard';
 import { ImageAlbum } from './ImageAlbum';
 import { LinkPreviewCard } from './LinkPreviewCard';
+import { PollCard } from './PollCard';
 import { ReactionPicker } from './ReactionPicker';
 import { ReactionSummary } from './ReactionSummary';
 import { RichText } from './RichText';
@@ -31,11 +32,13 @@ export function MessageRow(props: {
   lastReaders: RoomRead[];
   canSaveToCloud?: boolean;
   canPin?: boolean;
+  canManage?: boolean;
   onMarkRead: () => void;
   onViewProfile: (userId: string) => void;
   onAction: (key: string, message: ChatMessage) => Promise<void>;
   onReact: (message: ChatMessage, emoji: string) => Promise<void>;
   onJump: (id: string, createdAt?: string) => Promise<void>;
+  onMessageUpdated?: (m: ChatMessage) => void;
 }) {
   const { message, mine, first, last } = props;
   const agent = message.role === 'agent';
@@ -50,9 +53,10 @@ export function MessageRow(props: {
   const album = (message.images ?? []).length > 1 && !message.recalled;
   const hasImage = Boolean(message.imageUrl && !message.recalled) && !album;
   const hasFile = Boolean(message.fileUrl && !message.recalled);
-  const hasText = Boolean(message.content && !message.recalled);
+  const isPoll = Boolean(message.poll && !message.recalled);
+  const hasText = Boolean(message.content && !message.recalled) && !isPoll;
   const sticker = !hasImage && !album && !hasFile && hasText && isStickerText(message.content);
-  const link = hasText && !hasImage && !album && !hasFile && !sticker ? firstLink(message.content) : null;
+  const link = !isPoll && hasText && !hasImage && !album && !hasFile && !sticker ? firstLink(message.content) : null;
   return (
     <div
       id={`msg-${message.id}`}
@@ -191,7 +195,14 @@ export function MessageRow(props: {
                           />
                         )
                       ) : null}
-                      {hasText ? (
+                      {isPoll ? (
+                        <PollCard
+                          message={message}
+                          userId={props.userId}
+                          canManage={Boolean(props.canManage)}
+                          onUpdated={(m) => props.onMessageUpdated?.(m)}
+                        />
+                      ) : hasText ? (
                         <RichText text={message.content} myHandle={props.myHandle} />
                       ) : null}
                       {message.editedAt ? (

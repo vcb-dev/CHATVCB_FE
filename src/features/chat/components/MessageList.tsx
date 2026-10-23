@@ -21,12 +21,14 @@ export function MessageList(props: {
   pending: boolean;
   canSaveToCloud?: boolean;
   canPin?: boolean;
+  canManage?: boolean;
   onLoadOlder: () => Promise<void>;
   onMarkRead: () => void;
   onViewProfile: (userId: string) => void;
   onAction: (key: string, message: ChatMessage) => Promise<void>;
   onReact: (message: ChatMessage, emoji: string) => Promise<void>;
   onJump: (id: string, createdAt?: string) => Promise<void>;
+  onMessageUpdated?: (m: ChatMessage) => void;
 }) {
   const { messages, reads, userId, myHandle } = props;
   return (
@@ -67,11 +69,13 @@ export function MessageList(props: {
             lastReaders={lastSeenOn(message, messages, reads, userId)}
             canSaveToCloud={props.canSaveToCloud}
             canPin={props.canPin}
+            canManage={props.canManage}
             onMarkRead={props.onMarkRead}
             onViewProfile={props.onViewProfile}
             onAction={props.onAction}
             onReact={props.onReact}
             onJump={props.onJump}
+            onMessageUpdated={props.onMessageUpdated}
           />
         );
       })}

@@ -15,12 +15,14 @@ import type {
   PresenceUser,
   Room,
   RoomMember,
+  ToolKind,
 } from '@/types';
 import { buildMentionOptions, mentionOpen } from '../utils/mentions';
 import { filesFromClipboard } from '../utils/media';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { AttachButton } from './AttachButton';
 import { ComposerActions } from './ComposerActions';
+import { ComposerToolsMenu } from './ComposerToolsMenu';
 import { PendingFiles } from './PendingFiles';
 import { PendingPreviews } from './PendingPreviews';
 import { StickerButton } from './StickerButton';
@@ -53,6 +55,7 @@ export function Composer(props: {
   onSend: (raw: string) => Promise<void>;
   onSendVoice: (blob: Blob, durationMs: number) => Promise<void>;
   onMarkRead: () => void;
+  onTool?: (kind: ToolKind) => void;
 }) {
   const { room, draft, replyTo, members, pendingImages, pendingFiles } = props;
   const voiceRecorder = useVoiceRecorder({
@@ -196,6 +199,12 @@ export function Composer(props: {
                   onEmoji={(emoji) => props.onDraftChange((current) => `${current}${emoji}`)}
                   onSticker={(emoji) => void props.onSticker(emoji)}
                   onGif={(url) => void props.onGif(url)}
+                />
+                <ComposerToolsMenu
+                  isGroup={Boolean(room && (room.kind === 'group' || room.type === 'group'))}
+                  locked={Boolean(props.locked)}
+                  disabled={props.disabled}
+                  onPick={(kind) => props.onTool?.(kind)}
                 />
                 {voiceRecorder.supported ? (
                   <Tooltip title="Ghi tin nhắn thoại">

@@ -580,4 +580,36 @@ export const api = {
   removeDoc(id: string) {
     return request<{ ok: boolean }>(`/docs/${id}`, { method: 'DELETE' });
   },
+  createPoll(
+    roomId: string,
+    input: {
+      question: string;
+      options: string[];
+      multiple: boolean;
+      allowAddOptions: boolean;
+      closesAt?: string;
+    },
+  ) {
+    return request<ChatMessage>(`/rooms/${roomId}/polls`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  votePoll(roomId: string, pollId: string, optionIds: string[]) {
+    return request<ChatMessage>(`/rooms/${roomId}/polls/${pollId}/votes`, {
+      method: 'PUT',
+      body: JSON.stringify({ optionIds }),
+    });
+  },
+  addPollOption(roomId: string, pollId: string, text: string) {
+    return request<ChatMessage>(`/rooms/${roomId}/polls/${pollId}/options`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    });
+  },
+  closePoll(roomId: string, pollId: string) {
+    return request<ChatMessage>(`/rooms/${roomId}/polls/${pollId}/close`, {
+      method: 'POST',
+    });
+  },
 };

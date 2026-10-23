@@ -139,6 +139,13 @@ export type RoomRead = {
   lastReadAt: string | null;
 };
 
+export type RoomMessageSearch = {
+  q?: string;
+  senderId?: string;
+  from?: string;
+  to?: string;
+};
+
 /** Payload socket `room.reads` (BE emit `{ roomId, reads }`, khác HTTP trả mảng). */
 export type RoomReadsEvent = {
   roomId: string;

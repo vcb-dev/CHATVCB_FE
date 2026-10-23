@@ -11,6 +11,7 @@ import type { ChatMessage, Room, User } from '@/types';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatSidebar } from './components/ChatSidebar';
 import { Composer } from './components/Composer';
+import { ConversationSearch } from './components/ConversationSearch';
 import { ForwardModal } from './components/ForwardModal';
 import { GalleryModal } from './components/GalleryModal';
 import { GroupDrawer } from './components/GroupDrawer';
@@ -52,6 +53,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [error, setError] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
   const [groupOverlay, setGroupOverlay] = useState(false);
+  const [rightPane, setRightPane] = useState<'info' | 'search'>('info');
   const [forwarding, setForwarding] = useState<ChatMessage | null>(null);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
@@ -142,6 +144,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
 
   useEffect(() => {
     setGroupOverlay(false);
+    setRightPane('info');
   }, [roomId]);
 
   const isDirect = Boolean(room && isDirectRoom(room));
@@ -205,7 +208,14 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             isGroupOnline={isGroupOnline}
             membersCount={chat.members.length}
             onlineMembersCount={onlineMembersCount}
-            onToggleInfo={() => setGroupOverlay((current) => !current)}
+            onToggleInfo={() => {
+              setRightPane('info');
+              setGroupOverlay((current) => !current);
+            }}
+            onSearch={() => {
+              setRightPane('search');
+              setGroupOverlay(true);
+            }}
           />
           <PinBar pins={chat.pins} onJump={chat.jumpToMessage} />
           <MessageList
@@ -269,19 +279,32 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         onForwarded={chat.handleForwarded}
       />
       {workspace === 'messenger' ? (
-        <GroupDrawer
-          room={room}
-          members={chat.members}
-          currentUserId={user.id}
-          chatPhotos={chatPhotos}
-          overlay={groupOverlay}
-          onClose={() => setGroupOverlay(false)}
-          onRoomUpdated={roomList.updateRoom}
-          onMembersUpdated={chat.setMembers}
-          onRoomRemoved={roomList.removeRoom}
-          onJumpMessage={chat.jumpToMessage}
-          onViewProfile={(uid) => setViewProfileId(uid)}
-        />
+        rightPane === 'search' && room ? (
+          <ConversationSearch
+            room={room}
+            members={chat.members}
+            overlay={groupOverlay}
+            onClose={() => {
+              setRightPane('info');
+              setGroupOverlay(false);
+            }}
+            onJump={(id, at) => void chat.jumpToMessage(id, at)}
+          />
+        ) : (
+          <GroupDrawer
+            room={room}
+            members={chat.members}
+            currentUserId={user.id}
+            chatPhotos={chatPhotos}
+            overlay={groupOverlay}
+            onClose={() => setGroupOverlay(false)}
+            onRoomUpdated={roomList.updateRoom}
+            onMembersUpdated={chat.setMembers}
+            onRoomRemoved={roomList.removeRoom}
+            onJumpMessage={chat.jumpToMessage}
+            onViewProfile={(uid) => setViewProfileId(uid)}
+          />
+        )
       ) : null}
       <GalleryModal
         open={composer.galleryOpen}

@@ -1,3 +1,5 @@
+import type { RoomMessageSearch } from '@/types';
+
 export const queryKeys = {
   rooms: ['rooms'] as const,
   reads: (roomId: string) => ['reads', roomId] as const,
@@ -8,4 +10,5 @@ export const queryKeys = {
   files: (roomId: string) => ['room-media', roomId, 'files'] as const,
   links: (roomId: string) => ['room-media', roomId, 'links'] as const,
   labels: ['labels'] as const,
+  roomSearch: (roomId: string, params: RoomMessageSearch) => ['room-search', roomId, params] as const,
 };

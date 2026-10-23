@@ -3922,3 +3922,102 @@ body {
   margin: 0;
 }
 
+/* Tìm trong cuộc trò chuyện */
+.conversation-search {
+  background: #fff;
+}
+
+.conversation-search .search-filters {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eef0f3;
+  background: #fff;
+}
+
+.conversation-search .search-results {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.search-hit {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.search-hit:hover {
+  background: #f0f2f5;
+}
+
+.search-hit-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.search-hit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.search-hit-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #1c1e21;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-hit-time {
+  font-size: 11px;
+  color: #8a8d91;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.search-hit-text {
+  font-size: 13px;
+  color: #65676b;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.search-hit mark {
+  background: #fff3a3;
+  padding: 0;
+  color: inherit;
+  border-radius: 2px;
+}
+
+.search-empty {
+  text-align: center;
+  color: #8a8d91;
+  font-size: 13px;
+  padding: 32px 16px;
+}
+
+.search-more {
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px 16px;
+}
+

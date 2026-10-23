@@ -14,6 +14,7 @@ import type {
   RoomsPage,
   RoomLink,
   RoomMember,
+  RoomMessageSearch,
   RoomMute,
   RoomPrefs,
   RoomRead,
@@ -150,6 +151,32 @@ export const api = {
       | ChatMessage[]
       | { data: ChatMessage[]; meta?: { hasMore: boolean; nextCursor: string | null } }
     >(`/rooms/${roomId}/messages${q}`);
+    if (Array.isArray(res)) {
+      return { data: res, meta: { hasMore: false, nextCursor: null } };
+    }
+    return {
+      data: res.data ?? [],
+      meta: {
+        hasMore: Boolean(res.meta?.hasMore),
+        nextCursor: res.meta?.nextCursor ?? null,
+      },
+    };
+  },
+  async searchRoomMessages(
+    roomId: string,
+    params: RoomMessageSearch & { cursor?: string },
+  ): Promise<MessagesPage> {
+    const sp = new URLSearchParams();
+    if (params.q) sp.set('q', params.q);
+    if (params.senderId) sp.set('senderId', params.senderId);
+    if (params.from) sp.set('from', params.from);
+    if (params.to) sp.set('to', params.to);
+    if (params.cursor) sp.set('cursor', params.cursor);
+    const qs = sp.toString();
+    const res = await request<
+      | ChatMessage[]
+      | { data: ChatMessage[]; meta?: { hasMore: boolean; nextCursor: string | null } }
+    >(`/rooms/${roomId}/messages/search${qs ? `?${qs}` : ''}`);
     if (Array.isArray(res)) {
       return { data: res, meta: { hasMore: false, nextCursor: null } };
     }

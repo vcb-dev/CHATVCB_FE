@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { message as antMessage } from 'antd';
 import { DocsPage } from '@/features/docs/DocsPage';
 import { EmailPage } from '@/features/email/EmailPage';
 import { MeetingsPage } from '@/features/meetings/MeetingsPage';
@@ -54,10 +55,21 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const myHandle = handleFromEmail(user.email);
 
   const { changeAvatar } = useMyProfile(user, onUserUpdate);
-  useChatNotifications();
   const { workspace, setWorkspace, isViewingChat } = useWorkspace();
   const roomList = useRoomList({ isViewingChat, setError });
   const { rooms, room, roomId } = roomList;
+
+  const openRoomFromNotice = (id: string) => {
+    setWorkspace('messenger');
+    const target = rooms.find((r) => r.id === id);
+    if (target) {
+      roomList.selectRoom(target);
+    } else {
+      void antMessage.info('Cuộc trò chuyện không còn trong danh sách.');
+    }
+  };
+
+  useChatNotifications({ onOpenRoom: openRoomFromNotice });
   const chat = useChatRoom({
     user,
     roomId,
@@ -91,6 +103,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     rooms,
     refreshRooms: roomList.refreshRooms,
     removeRoom: roomList.removeRoom,
+    openRoom: openRoomFromNotice,
     isViewingChat,
     markMessageRead: chat.markMessageRead,
     setMessages: chat.setMessages,

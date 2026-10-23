@@ -17,7 +17,9 @@ interface Window {
       body: string;
       subtitle?: string;
       mentioned?: boolean;
+      roomId?: string;
     }) => void;
     isWindowFocused?: () => boolean;
+    onOpenRoom?: (handler: (roomId: string) => void) => () => void;
   };
 }

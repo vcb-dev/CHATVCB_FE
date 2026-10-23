@@ -40,6 +40,7 @@ type Options = {
   rooms: Room[];
   refreshRooms: () => Promise<Room[]>;
   removeRoom: (roomId: string) => void;
+  openRoom: (roomId: string) => void;
   isViewingChat: () => boolean;
   markMessageRead: (message?: ChatMessage, targetRoomId?: string) => void;
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
@@ -114,6 +115,8 @@ export function useChatSocket(options: Options) {
           (message.imageUrl ? 'Đã gửi một ảnh' : 'Tin nhắn mới'),
         mentioned: tagged,
         tag: message.id,
+        roomId: room.id,
+        onOpen: () => latestRef.current.openRoom(room.id),
       });
     }
 

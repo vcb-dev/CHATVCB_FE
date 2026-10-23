@@ -31,6 +31,18 @@ function mentionToastHtml(title, subtitle, body) {
   </body></html>`;
 }
 
+function openRoom(win, roomId) {
+  if (!win || win.isDestroyed() || !roomId) {
+    return;
+  }
+  if (win.isMinimized()) {
+    win.restore();
+  }
+  win.show();
+  win.focus();
+  win.webContents.send('chatvcb:open-room', roomId);
+}
+
 function showMentionToast(payload, mainWin) {
   if (mentionWin && !mentionWin.isDestroyed()) {
     mentionWin.close();
@@ -57,13 +69,7 @@ function showMentionToast(payload, mainWin) {
   );
   mentionWin.once('ready-to-show', () => mentionWin.showInactive());
   mentionWin.on('focus', () => {
-    if (mainWin && !mainWin.isDestroyed()) {
-      if (mainWin.isMinimized()) {
-        mainWin.restore();
-      }
-      mainWin.show();
-      mainWin.focus();
-    }
+    openRoom(mainWin, payload?.roomId);
     if (mentionWin && !mentionWin.isDestroyed()) {
       mentionWin.close();
     }
@@ -142,14 +148,7 @@ ipcMain.on('chatvcb:notify', (event, payload) => {
     silent: false,
   });
   toast.on('click', () => {
-    if (!win) {
-      return;
-    }
-    if (win.isMinimized()) {
-      win.restore();
-    }
-    win.show();
-    win.focus();
+    openRoom(win, payload?.roomId);
   });
   toast.show();
 });

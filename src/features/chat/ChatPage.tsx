@@ -90,6 +90,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     roomIdRef: roomList.roomIdRef,
     rooms,
     refreshRooms: roomList.refreshRooms,
+    removeRoom: roomList.removeRoom,
     isViewingChat,
     markMessageRead: chat.markMessageRead,
     setMessages: chat.setMessages,

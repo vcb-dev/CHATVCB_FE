@@ -22,6 +22,7 @@ import type {
   RoomMember,
   RoomRead,
   RoomReadsEvent,
+  RoomRemovedEvent,
   TypingEvent,
   User,
 } from '@/types';
@@ -37,6 +38,7 @@ type Options = {
   roomIdRef: RefObject<string>;
   rooms: Room[];
   refreshRooms: () => Promise<Room[]>;
+  removeRoom: (roomId: string) => void;
   isViewingChat: () => boolean;
   markMessageRead: (message?: ChatMessage, targetRoomId?: string) => void;
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
@@ -255,6 +257,14 @@ export function useChatSocket(options: Options) {
           }
           return current.filter((item) => item.id !== message.id);
         });
+      }
+    });
+    socket.on('room.removed', (payload: RoomRemovedEvent) => {
+      const { rooms, removeRoom } = latestRef.current;
+      const gone = rooms.find((r) => r.id === payload.roomId);
+      removeRoom(payload.roomId);
+      if (gone) {
+        void antMessage.info(`Bạn đã bị xóa khỏi nhóm ${gone.title || gone.name}.`);
       }
     });
     socket.on('room.updated', (next: Room) => {

@@ -130,6 +130,8 @@ export function useChatRoom({
 
   useEffect(() => {
     if (!roomId) {
+      // Phòng cuối cùng vừa bị xóa/rời: không để tin cũ còn trên màn hình
+      setMessages([]);
       return;
     }
     let cancelled = false;

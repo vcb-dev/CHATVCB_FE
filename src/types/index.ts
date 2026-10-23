@@ -126,6 +126,10 @@ export type TypingEvent = {
   typing: boolean;
 };
 
+export type RoomRemovedEvent = {
+  roomId: string;
+};
+
 export type RoomMute = {
   roomId: string;
   muted: boolean;

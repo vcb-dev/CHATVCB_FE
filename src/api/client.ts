@@ -5,6 +5,7 @@ import type {
   DirectoryUser,
   DocItem,
   GalleryImage,
+  GroupSettings,
   LinkPreview,
   MailAccount,
   MailItem,
@@ -280,6 +281,24 @@ export const api = {
   removeRoomMember(roomId: string, userId: string) {
     return request<RoomMember[]>(`/rooms/${roomId}/members/${userId}`, {
       method: 'DELETE',
+    });
+  },
+  setMemberRole(roomId: string, userId: string, role: 'admin' | 'member'): Promise<RoomMember[]> {
+    return request<RoomMember[]>(`/rooms/${roomId}/members/${userId}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    });
+  },
+  transferOwner(roomId: string, userId: string): Promise<RoomMember[]> {
+    return request<RoomMember[]>(`/rooms/${roomId}/owner`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  },
+  updatePermissions(roomId: string, patch: Partial<GroupSettings>): Promise<Room> {
+    return request<Room>(`/rooms/${roomId}/permissions`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
     });
   },
   deleteRoom(roomId: string) {

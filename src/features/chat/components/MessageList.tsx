@@ -20,6 +20,7 @@ export function MessageList(props: {
   loadingOlder: boolean;
   pending: boolean;
   canSaveToCloud?: boolean;
+  canPin?: boolean;
   onLoadOlder: () => Promise<void>;
   onMarkRead: () => void;
   onViewProfile: (userId: string) => void;
@@ -65,6 +66,7 @@ export function MessageList(props: {
             viewers={viewersOf(message, messages, reads)}
             lastReaders={lastSeenOn(message, messages, reads, userId)}
             canSaveToCloud={props.canSaveToCloud}
+            canPin={props.canPin}
             onMarkRead={props.onMarkRead}
             onViewProfile={props.onViewProfile}
             onAction={props.onAction}

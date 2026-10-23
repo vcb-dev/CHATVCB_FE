@@ -33,6 +33,7 @@ export function Composer(props: {
   membersLoaded: boolean;
   online: PresenceUser[];
   disabled: boolean;
+  locked?: boolean;
   error: string;
   draft: string;
   replyTo: ChatMessage | null;
@@ -167,7 +168,11 @@ export function Composer(props: {
         </>
       )}
       <div className="composer-row">
-        {voiceRecorder.state === 'recording' ? (
+        {props.locked ? (
+          <div className="composer-locked">
+            Chỉ trưởng nhóm và phó nhóm được gửi tin trong nhóm này.
+          </div>
+        ) : voiceRecorder.state === 'recording' ? (
           <VoiceRecorderBar
             elapsedMs={voiceRecorder.elapsedMs}
             onCancel={voiceRecorder.cancel}

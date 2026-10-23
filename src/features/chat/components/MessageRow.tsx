@@ -30,6 +30,7 @@ export function MessageRow(props: {
   viewers: RoomRead[];
   lastReaders: RoomRead[];
   canSaveToCloud?: boolean;
+  canPin?: boolean;
   onMarkRead: () => void;
   onViewProfile: (userId: string) => void;
   onAction: (key: string, message: ChatMessage) => Promise<void>;
@@ -101,11 +102,15 @@ export function MessageRow(props: {
                 ...(hasText ? [{ key: 'copy', label: 'Sao chép tin nhắn' }] : []),
                 ...(canEdit(message, props.userId) ? [{ key: 'edit', label: 'Sửa tin nhắn' }] : []),
                 ...(hasImage ? [{ key: 'copyImage', label: 'Sao chép ảnh' }] : []),
-                {
-                  key: 'pin',
-                  label: message.pinned ? 'Bỏ ghim tin nhắn' : 'Ghim tin nhắn',
-                  disabled: message.recalled,
-                },
+                ...(props.canPin !== false
+                  ? [
+                      {
+                        key: 'pin',
+                        label: message.pinned ? 'Bỏ ghim tin nhắn' : 'Ghim tin nhắn',
+                        disabled: message.recalled,
+                      },
+                    ]
+                  : []),
                 { key: 'delete', label: 'Xóa tin nhắn' },
                 ...(mine && !message.recalled
                   ? [{ key: 'recall', label: 'Thu hồi tin nhắn', danger: true }]

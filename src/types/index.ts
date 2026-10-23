@@ -7,6 +7,15 @@ export type User = {
   createdAt?: string;
 };
 
+export type GroupRole = 'owner' | 'admin' | 'member';
+
+export type GroupSettings = {
+  adminOnlySend: boolean;
+  adminOnlyInfo: boolean;
+  adminOnlyPin: boolean;
+  joinApproval: boolean;
+};
+
 export type Room = {
   id: string;
   title: string;
@@ -34,6 +43,9 @@ export type Room = {
   slug?: string;
   team?: string;
   agentName?: string;
+  myRole?: GroupRole;
+  canManage?: boolean;
+  settings?: GroupSettings;
 };
 
 export type ConversationLabel = {
@@ -129,6 +141,7 @@ export type RoomMember = {
   displayName?: string;
   handle: string;
   avatarUrl?: string;
+  role?: GroupRole;
 };
 
 export type RoomRead = {

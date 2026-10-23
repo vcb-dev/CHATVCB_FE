@@ -284,6 +284,7 @@ export function useChatSocket(options: Options) {
     });
     socket.on('room.updated', (next: Room) => {
       setRooms((current) => current.map((item) => (item.id === next.id ? { ...item, ...next } : item)));
+      void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
     });
     socket.on('room.members', () => {
       const targetRoomId = roomIdRef.current;

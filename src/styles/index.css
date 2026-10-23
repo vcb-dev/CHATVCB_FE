@@ -4163,3 +4163,52 @@ body {
   border-radius: 8px;
 }
 
+/* Vai trò nhóm */
+.role-tag {
+  font-size: 11px;
+  margin-left: 6px;
+  line-height: 18px;
+  padding: 0 6px;
+}
+
+.group-member-more {
+  background: none;
+  border: none;
+  color: #8a8d91;
+  padding: 6px;
+  margin-right: 8px;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  font-size: 16px;
+}
+
+.group-member-more:hover {
+  background: #f0f2f5;
+  color: #1c1e21;
+}
+
+.composer-locked {
+  width: 100%;
+  text-align: center;
+  color: #65676b;
+  padding: 12px;
+  background: #f0f2f5;
+  border-radius: 18px;
+  font-size: 13px;
+}
+
+.group-settings-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px 6px;
+}
+
+.group-settings-list {
+  padding-bottom: 6px;
+}
+

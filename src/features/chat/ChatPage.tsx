@@ -148,6 +148,8 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   }, [roomId]);
 
   const isDirect = Boolean(room && isDirectRoom(room));
+  const locked = Boolean(room?.settings?.adminOnlySend && room.myRole === 'member');
+  const canPin = !(room?.settings?.adminOnlyPin && room.myRole === 'member');
   const presence: Presence = { myId: user.id, online: chat.online, onlineUserIds };
   const isPeerOnline = isOtherUserOnline(presence, peerUserIdOf(room, chat.members, user.id));
   const isGroupOnline = hasOnlineMember(presence, chat.members);
@@ -227,6 +229,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             loadingOlder={chat.loadingOlder}
             pending={chat.pending}
             canSaveToCloud={!room?.isCloud}
+            canPin={canPin}
             onLoadOlder={chat.loadOlder}
             onMarkRead={markRead}
             onViewProfile={setViewProfileId}
@@ -242,6 +245,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             membersLoaded={chat.membersLoaded}
             online={chat.online}
             disabled={!roomId}
+            locked={locked}
             error={error}
             draft={composer.draft}
             replyTo={composer.replyTo}

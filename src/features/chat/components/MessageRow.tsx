@@ -4,6 +4,7 @@ import { fileSrc } from '@/api/client';
 import { CopyableImage } from '@/components/CopyableImage';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { ChatMessage, RoomRead } from '@/types';
+import { isVoice } from '../utils/attachments';
 import { canEdit } from '../utils/edit';
 import { canForward } from '../utils/forward';
 import { isStickerText } from '../utils/stickers';
@@ -14,6 +15,7 @@ import { ReactionPicker } from './ReactionPicker';
 import { ReactionSummary } from './ReactionSummary';
 import { SeenAvatars } from './SeenAvatars';
 import { SeenBubble } from './SeenBubble';
+import { VoiceBubble } from './VoiceBubble';
 
 export function MessageRow(props: {
   message: ChatMessage;
@@ -163,12 +165,19 @@ export function MessageRow(props: {
                         />
                       ) : null}
                       {hasFile ? (
-                        <FileCard
-                          name={message.fileName || 'Tệp'}
-                          sizeBytes={message.fileSizeBytes}
-                          url={message.fileUrl as string}
-                          mimeType={message.fileMimeType}
-                        />
+                        isVoice(message) ? (
+                          <VoiceBubble
+                            url={fileSrc(message.fileUrl as string)}
+                            durationMs={message.fileDurationMs ?? 0}
+                          />
+                        ) : (
+                          <FileCard
+                            name={message.fileName || 'Tệp'}
+                            sizeBytes={message.fileSizeBytes}
+                            url={message.fileUrl as string}
+                            mimeType={message.fileMimeType}
+                          />
+                        )
                       ) : null}
                       {hasText ? (
                         <MentionText text={message.content} myHandle={props.myHandle} />

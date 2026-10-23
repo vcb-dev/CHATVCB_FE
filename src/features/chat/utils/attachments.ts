@@ -1,4 +1,4 @@
-import type { PendingFile } from '@/types';
+import type { ChatMessage, PendingFile } from '@/types';
 
 export const ACCEPT_FILES = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip';
 
@@ -65,4 +65,8 @@ export function addPendingDocs(
     });
   }
   return { next, error };
+}
+
+export function isVoice(message: ChatMessage): boolean {
+  return Boolean(message.fileMimeType?.startsWith('audio/'));
 }

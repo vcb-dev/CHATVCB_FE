@@ -270,6 +270,24 @@ export function useComposer({
     }
   }
 
+  async function sendVoice(blob: Blob, durationMs: number) {
+    if (!roomId) return;
+    try {
+      let ext = 'webm';
+      if (blob.type.includes('mp4')) {
+        ext = 'm4a';
+      } else if (blob.type.includes('ogg')) {
+        ext = 'ogg';
+      }
+      const file = await api.uploadVoice(roomId, blob, `voice.${ext}`);
+      const sent = await api.sendMessage(roomId, '', undefined, replyTo?.id, file.id);
+      appendMessage(sent);
+      setReplyTo(null);
+    } catch (err) {
+      antMessage.error(err instanceof Error ? err.message : 'Gửi tin nhắn thoại thất bại.');
+    }
+  }
+
   return {
     draft,
     setDraft,
@@ -294,5 +312,6 @@ export function useComposer({
     sendSticker,
     sendGif,
     sendContent,
+    sendVoice,
   };
 }

@@ -232,6 +232,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onSticker={composer.sendSticker}
             onGif={composer.sendGif}
             onSend={composer.sendContent}
+            onSendVoice={composer.sendVoice}
             onMarkRead={markRead}
           />
           <DropOverlay visible={drop.dragging} />

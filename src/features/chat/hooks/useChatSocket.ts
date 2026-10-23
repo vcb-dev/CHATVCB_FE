@@ -29,6 +29,7 @@ import type {
 } from '@/types';
 import { mentionsUser } from '../utils/mentions';
 import { isDirectRoom, previewOf, upsertRoom } from '../utils/rooms';
+import { isVoice } from '../utils/attachments';
 
 const TYPING_TTL_MS = 6000;
 
@@ -111,6 +112,7 @@ export function useChatSocket(options: Options) {
         subtitle: name,
         body:
           message.content.trim() ||
+          (isVoice(message) ? 'Tin nhắn thoại' : '') ||
           (message.fileName ? `[Tệp] ${message.fileName}` : '') ||
           (message.imageUrl ? 'Đã gửi một ảnh' : 'Tin nhắn mới'),
         mentioned: tagged,

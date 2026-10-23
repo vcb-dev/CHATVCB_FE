@@ -1,5 +1,5 @@
-import { CloseOutlined, SendOutlined } from '@ant-design/icons';
-import { Button, Mentions, Typography } from 'antd';
+import { AudioOutlined, CloseOutlined, SendOutlined } from '@ant-design/icons';
+import { Button, Mentions, Tooltip, Typography } from 'antd';
 import {
   useMemo,
   useRef,
@@ -18,11 +18,13 @@ import type {
 } from '@/types';
 import { buildMentionOptions, mentionOpen } from '../utils/mentions';
 import { filesFromClipboard } from '../utils/media';
+import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { AttachButton } from './AttachButton';
 import { ComposerActions } from './ComposerActions';
 import { PendingFiles } from './PendingFiles';
 import { PendingPreviews } from './PendingPreviews';
 import { StickerButton } from './StickerButton';
+import { VoiceRecorderBar } from './VoiceRecorderBar';
 
 export function Composer(props: {
   room: Room | null;
@@ -48,9 +50,14 @@ export function Composer(props: {
   onSticker: (emoji: string) => Promise<void>;
   onGif: (url: string) => Promise<void>;
   onSend: (raw: string) => Promise<void>;
+  onSendVoice: (blob: Blob, durationMs: number) => Promise<void>;
   onMarkRead: () => void;
 }) {
   const { room, draft, replyTo, members, pendingImages, pendingFiles } = props;
+  const voiceRecorder = useVoiceRecorder({
+    roomId: room?.id ?? '',
+    onDone: (b, ms) => void props.onSendVoice(b, ms),
+  });
   const mentionMeasuringRef = useRef(false);
   const mentionOptions = useMemo(
     () => buildMentionOptions(members, props.online, props.userId, room),
@@ -160,65 +167,87 @@ export function Composer(props: {
         </>
       )}
       <div className="composer-row">
-        {props.editing ? null : (
+        {voiceRecorder.state === 'recording' ? (
+          <VoiceRecorderBar
+            elapsedMs={voiceRecorder.elapsedMs}
+            onCancel={voiceRecorder.cancel}
+            onSend={voiceRecorder.stop}
+          />
+        ) : (
           <>
-            <ComposerActions
+            {props.editing ? null : (
+              <>
+                <ComposerActions
+                  disabled={props.disabled}
+                  onAddFiles={props.onAddImages}
+                  onOpenGallery={() => void props.onOpenGallery()}
+                />
+                <AttachButton
+                  disabled={props.disabled}
+                  onAddFiles={props.onAddDocs}
+                />
+                <StickerButton
+                  disabled={props.disabled}
+                  onEmoji={(emoji) => props.onDraftChange((current) => `${current}${emoji}`)}
+                  onSticker={(emoji) => void props.onSticker(emoji)}
+                  onGif={(url) => void props.onGif(url)}
+                />
+                {voiceRecorder.supported ? (
+                  <Tooltip title="Ghi tin nhắn thoại">
+                    <Button
+                      type="text"
+                      shape="circle"
+                      icon={<AudioOutlined />}
+                      className="composer-icon"
+                      disabled={props.disabled}
+                      onClick={() => void voiceRecorder.start()}
+                    />
+                  </Tooltip>
+                ) : null}
+              </>
+            )}
+            <Mentions
+              value={draft}
+              onChange={props.onDraftChange}
+              onFocus={() => props.onMarkRead()}
+              onClick={() => props.onMarkRead()}
+              onSearch={() => {
+                mentionMeasuringRef.current = true;
+              }}
+              onSelect={() => {
+                mentionMeasuringRef.current = false;
+              }}
+              onBlur={() => {
+                mentionMeasuringRef.current = false;
+              }}
+              onPressEnter={handlePressEnter}
+              onKeyDown={handleKey}
+              autoSize={{ minRows: 1, maxRows: 5 }}
+              options={mentionOptions}
+              prefix="@"
+              placement="top"
+              getPopupContainer={() => document.body}
+              styles={{ popup: { zIndex: 2000 } }}
+              placeholder={
+                room
+                  ? `Nhắn ${room.title || room.name} · Ctrl+V ảnh · @agent`
+                  : 'Chọn phòng'
+              }
               disabled={props.disabled}
-              onAddFiles={props.onAddImages}
-              onOpenGallery={() => void props.onOpenGallery()}
+              notFoundContent="Không có người khớp"
             />
-            <AttachButton
-              disabled={props.disabled}
-              onAddFiles={props.onAddDocs}
-            />
-            <StickerButton
-              disabled={props.disabled}
-              onEmoji={(emoji) => props.onDraftChange((current) => `${current}${emoji}`)}
-              onSticker={(emoji) => void props.onSticker(emoji)}
-              onGif={(url) => void props.onGif(url)}
+            <Button
+              type="primary"
+              shape="circle"
+              size="large"
+              className="composer-send"
+              htmlType="button"
+              icon={<SendOutlined />}
+              disabled={!canSend}
+              onClick={() => void props.onSend(draft)}
             />
           </>
         )}
-        <Mentions
-          value={draft}
-          onChange={props.onDraftChange}
-          onFocus={() => props.onMarkRead()}
-          onClick={() => props.onMarkRead()}
-          onSearch={() => {
-            mentionMeasuringRef.current = true;
-          }}
-          onSelect={() => {
-            mentionMeasuringRef.current = false;
-          }}
-          onBlur={() => {
-            mentionMeasuringRef.current = false;
-          }}
-          onPressEnter={handlePressEnter}
-          onKeyDown={handleKey}
-          autoSize={{ minRows: 1, maxRows: 5 }}
-          options={mentionOptions}
-          prefix="@"
-          placement="top"
-          getPopupContainer={() => document.body}
-          styles={{ popup: { zIndex: 2000 } }}
-          placeholder={
-            room
-              ? `Nhắn ${room.title || room.name} · Ctrl+V ảnh · @agent`
-              : 'Chọn phòng'
-          }
-          disabled={props.disabled}
-          notFoundContent="Không có người khớp"
-        />
-        <Button
-          type="primary"
-          shape="circle"
-          size="large"
-          className="composer-send"
-          htmlType="button"
-          icon={<SendOutlined />}
-          disabled={!canSend}
-          onClick={() => void props.onSend(draft)}
-        />
       </div>
     </form>
   );

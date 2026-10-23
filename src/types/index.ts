@@ -70,6 +70,7 @@ export type ChatMessage = {
   fileName?: string | null;
   fileMimeType?: string | null;
   fileSizeBytes?: number | null;
+  fileDurationMs?: number | null;
   replyToId?: string | null;
   replyTo?: MessageReply | null;
   pinned?: boolean;
@@ -161,6 +162,7 @@ export type ChatFile = {
   filename: string;
   mimeType: string;
   sizeBytes: number;
+  durationMs?: number | null;
   url: string;
   createdAt: string;
 };

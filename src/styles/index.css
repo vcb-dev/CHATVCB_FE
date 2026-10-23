@@ -3667,3 +3667,90 @@ body {
   display: block;
 }
 
+/* Tin nhắn thoại */
+.voice-recorder-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f0f2f5;
+  border-radius: 20px;
+  padding: 4px 12px;
+  width: 100%;
+  min-height: 40px;
+}
+
+.voice-recorder-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rec-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e53935;
+  animation: rec-blink 1s infinite alternate;
+}
+
+@keyframes rec-blink {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.2;
+  }
+}
+
+.rec-time {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1c1e21;
+}
+
+.voice-recorder-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.voice-bubble {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  min-width: 180px;
+  max-width: 260px;
+}
+
+.voice-play-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-track {
+  flex: 1;
+  height: 6px;
+  background: #e4e6eb;
+  border-radius: 3px;
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.voice-fill {
+  height: 100%;
+  background: #0084ff;
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+.voice-time {
+  font-size: 11px;
+  color: #65676b;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+

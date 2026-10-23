@@ -191,6 +191,19 @@ export const api = {
     }
     return response.json() as Promise<ChatFile>;
   },
+  async uploadVoice(roomId: string, blob: Blob, filename: string): Promise<ChatFile> {
+    const body = new FormData();
+    body.append('file', blob, filename);
+    const response = await fetch(`${API_URL}/rooms/${roomId}/voice`, {
+      method: 'POST',
+      headers: authHeader(),
+      body,
+    });
+    if (!response.ok) {
+      throw new Error(await errorMessage(response));
+    }
+    return response.json() as Promise<ChatFile>;
+  },
   async download(url: string): Promise<Blob> {
     const response = await fetch(fileSrc(url));
     if (!response.ok) {

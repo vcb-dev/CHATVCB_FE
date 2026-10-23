@@ -1,4 +1,5 @@
 import type { ChatMessage, Room, RoomHit } from '@/types';
+import { isVoice } from './attachments';
 
 export function roomFromHit(hit: RoomHit): Room {
   return {
@@ -79,7 +80,11 @@ export function previewOf(
   } else if (message.imageId || message.imageUrl) {
     body = 'Hình ảnh';
   } else if (message.fileId || message.fileUrl) {
-    body = message.fileName ? `[Tệp] ${message.fileName}` : 'Tệp đính kèm';
+    body = isVoice(message)
+      ? 'Tin nhắn thoại'
+      : message.fileName
+        ? `[Tệp] ${message.fileName}`
+        : 'Tệp đính kèm';
   } else {
     const text = message.content.trim();
     body = text.length <= 120 ? text : `${text.slice(0, 120)}…`;

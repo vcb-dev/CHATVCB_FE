@@ -1,10 +1,15 @@
 import { api } from '@/api/client';
 import type { ChatMessage } from '@/types';
+import { isVoice } from './attachments';
 
 export const MAX_FORWARD_TARGETS = 10;
 
 export function canForward(message: ChatMessage): boolean {
-  return !message.recalled && Boolean(message.content.trim() || message.imageUrl || message.fileUrl);
+  return (
+    !message.recalled &&
+    Boolean(message.content.trim() || message.imageUrl || message.fileUrl) &&
+    !isVoice(message)
+  );
 }
 
 export async function forwardMessage(message: ChatMessage, roomId: string): Promise<ChatMessage> {

@@ -146,6 +146,17 @@ export type RoomMessageSearch = {
   to?: string;
 };
 
+export type RichInline =
+  | { type: 'text'; text: string }
+  | { type: 'bold' | 'italic' | 'strike'; children: RichInline[] }
+  | { type: 'code'; text: string }
+  | { type: 'link'; url: string };
+
+export type RichBlock =
+  | { type: 'paragraph'; lines: RichInline[][] }
+  | { type: 'code'; text: string }
+  | { type: 'list'; ordered: boolean; items: RichInline[][] };
+
 /** Payload socket `room.reads` (BE emit `{ roomId, reads }`, khác HTTP trả mảng). */
 export type RoomReadsEvent = {
   roomId: string;

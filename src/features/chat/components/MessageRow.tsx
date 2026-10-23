@@ -10,9 +10,9 @@ import { canForward } from '../utils/forward';
 import { isStickerText } from '../utils/stickers';
 import { FileCard } from './FileCard';
 import { ImageAlbum } from './ImageAlbum';
-import { MentionText } from './MentionText';
 import { ReactionPicker } from './ReactionPicker';
 import { ReactionSummary } from './ReactionSummary';
+import { RichText } from './RichText';
 import { SeenAvatars } from './SeenAvatars';
 import { SeenBubble } from './SeenBubble';
 import { VoiceBubble } from './VoiceBubble';
@@ -184,7 +184,7 @@ export function MessageRow(props: {
                         )
                       ) : null}
                       {hasText ? (
-                        <MentionText text={message.content} myHandle={props.myHandle} />
+                        <RichText text={message.content} myHandle={props.myHandle} />
                       ) : null}
                       {message.editedAt ? (
                         <span

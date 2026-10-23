@@ -4021,3 +4021,49 @@ body {
   padding: 8px 16px 16px;
 }
 
+/* Định dạng chữ */
+.rich-text p + p {
+  margin-top: 6px;
+}
+
+.rt-code {
+  background: #f0f2f5;
+  color: #1f1f1f;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  max-width: 100%;
+  border-radius: 6px;
+  padding: 8px;
+  white-space: pre;
+  margin: 4px 0;
+}
+
+.rt-code code {
+  font-family: inherit;
+}
+
+.rt-inline-code {
+  background: #f0f2f5;
+  color: #1f1f1f;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+.rt-list {
+  padding-left: 20px;
+  margin: 4px 0;
+}
+
+.rich-text a {
+  color: #0084ff;
+  word-break: break-all;
+}
+
+.row.mine .rich-text a {
+  color: inherit;
+  text-decoration: underline;
+}
+

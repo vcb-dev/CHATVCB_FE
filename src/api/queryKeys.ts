@@ -7,4 +7,5 @@ export const queryKeys = {
   gallery: (roomId: string) => ['room-media', roomId, 'gallery'] as const,
   files: (roomId: string) => ['room-media', roomId, 'files'] as const,
   links: (roomId: string) => ['room-media', roomId, 'links'] as const,
+  labels: ['labels'] as const,
 };

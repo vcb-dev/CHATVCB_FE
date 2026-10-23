@@ -1,10 +1,14 @@
 import { CameraOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { Avatar, Button, Input, Spin } from 'antd';
-import { useRef, type UIEvent } from 'react';
-import { fileSrc } from '@/api/client';
+import { useEffect, useMemo, useRef, useState, type UIEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api, fileSrc } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { PageMeta, Room, User } from '@/types';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
+import { LabelManagerModal } from './LabelManagerModal';
+import { RoomFilterBar, filterRooms, type RoomFilter } from './RoomFilterBar';
 import { RoomListItem } from './RoomListItem';
 import { SidebarSearch } from './SidebarSearch';
 
@@ -29,6 +33,26 @@ export function ChatSidebar(props: {
 }) {
   const { user, team, rooms, roomsMeta, searchText } = props;
   const myAvatarRef = useRef<HTMLInputElement>(null);
+
+  const [filter, setFilter] = useState<RoomFilter>({ kind: 'all' });
+  const [managerOpen, setManagerOpen] = useState(false);
+
+  const { data: labels = [] } = useQuery({
+    queryKey: queryKeys.labels,
+    queryFn: api.labels,
+  });
+
+  useEffect(() => {
+    if (filter.kind === 'label') {
+      const exists = labels.some((l) => l.id === filter.labelId);
+      if (!exists) {
+        setFilter({ kind: 'all' });
+      }
+    }
+  }, [labels, filter]);
+
+  const labelMap = useMemo(() => new Map(labels.map((l) => [l.id, l])), [labels]);
+  const visibleRooms = useMemo(() => filterRooms(rooms, filter), [rooms, filter]);
 
   function handleRoomsScroll(e: UIEvent<HTMLDivElement>) {
     if (searchText.trim() || props.loadingOlderRooms || !roomsMeta.hasMore || !roomsMeta.nextCursor) {
@@ -75,23 +99,38 @@ export function ChatSidebar(props: {
           rooms={rooms}
         />
       ) : (
-        <div className="room-list" onScroll={handleRoomsScroll}>
-          {rooms.map((item) => (
-            <RoomListItem
-              key={item.id}
-              room={item}
-              active={item.id === props.roomId}
-              online={props.isRoomOnline(item)}
-              onSelect={props.onSelectRoom}
-              actions={props.prefs}
-            />
-          ))}
-          {props.loadingOlderRooms ? (
-            <div className="room-list-loading">
-              <Spin size="small" /> <span>Đang tải thêm…</span>
-            </div>
-          ) : null}
-        </div>
+        <>
+          <RoomFilterBar
+            filter={filter}
+            labels={labels}
+            onChange={setFilter}
+            onManage={() => setManagerOpen(true)}
+          />
+          <div className="room-list" onScroll={handleRoomsScroll}>
+            {visibleRooms.length === 0 ? (
+              <p className="room-list-empty">Không có cuộc trò chuyện nào.</p>
+            ) : (
+              visibleRooms.map((item) => (
+                <RoomListItem
+                  key={item.id}
+                  room={item}
+                  active={item.id === props.roomId}
+                  online={props.isRoomOnline(item)}
+                  onSelect={props.onSelectRoom}
+                  actions={props.prefs}
+                  label={item.labelId ? labelMap.get(item.labelId) : undefined}
+                  labels={labels}
+                  onManageLabels={() => setManagerOpen(true)}
+                />
+              ))
+            )}
+            {props.loadingOlderRooms ? (
+              <div className="room-list-loading">
+                <Spin size="small" /> <span>Đang tải thêm…</span>
+              </div>
+            ) : null}
+          </div>
+        </>
       )}
       <div className="sidebar-foot">
         <button
@@ -128,6 +167,11 @@ export function ChatSidebar(props: {
           <small>Team {team}</small>
         </button>
       </div>
+
+      <LabelManagerModal
+        open={managerOpen}
+        onClose={() => setManagerOpen(false)}
+      />
     </aside>
   );
 }

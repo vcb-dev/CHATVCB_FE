@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
+import { CheckOutlined } from '@ant-design/icons';
 import { Dropdown, type MenuProps } from 'antd';
-import type { Room } from '@/types';
+import type { ConversationLabel, Room } from '@/types';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
 import { isRoomMuted, MUTE_OPTIONS } from '../utils/rooms';
 
@@ -9,14 +10,47 @@ export function RoomMenu({
   actions,
   children,
   trigger,
+  labels = [],
+  onManageLabels,
 }: {
   room: Room;
   actions: ReturnType<typeof useRoomPrefs>;
   children: ReactNode;
   trigger: ('click' | 'contextMenu')[];
+  labels?: ConversationLabel[];
+  onManageLabels?: () => void;
 }) {
   const muted = isRoomMuted(room);
   const hasUnread = (room.unreadCount ?? 0) > 0 || (room.markedUnread ?? false);
+
+  const labelMenuItems: MenuProps['items'] = [
+    ...labels.map((l) => ({
+      key: `label-${l.id}`,
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }}>
+          <span className="room-label-dot" style={{ background: l.color }} />
+          <span style={{ flex: 1 }}>{l.name}</span>
+          {room.labelId === l.id ? <CheckOutlined style={{ color: '#0084ff', fontSize: 12 }} /> : null}
+        </span>
+      ),
+      onClick: () => actions.setLabel(room, l.id),
+    })),
+    ...(room.labelId
+      ? [
+          {
+            key: 'unlabel',
+            label: 'Bỏ phân loại',
+            onClick: () => actions.setLabel(room, null),
+          },
+        ]
+      : []),
+    ...(labels.length > 0 || room.labelId ? [{ type: 'divider' as const }] : []),
+    {
+      key: 'manage-labels',
+      label: 'Quản lý nhãn…',
+      onClick: () => onManageLabels?.(),
+    },
+  ];
 
   const items: MenuProps['items'] = [
     {
@@ -28,6 +62,11 @@ export function RoomMenu({
       key: 'unread',
       label: hasUnread ? 'Đánh dấu đã đọc' : 'Đánh dấu chưa đọc',
       onClick: () => actions.toggleUnread(room),
+    },
+    {
+      key: 'classify',
+      label: 'Phân loại',
+      children: labelMenuItems,
     },
     muted
       ? {

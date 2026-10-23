@@ -28,10 +28,17 @@ export type Room = {
   hidden?: boolean;
   markedUnread?: boolean;
   lastMessageId?: string | null;
+  labelId?: string | null;
   canLeave?: boolean;
   slug?: string;
   team?: string;
   agentName?: string;
+};
+
+export type ConversationLabel = {
+  id: string;
+  name: string;
+  color: string;
 };
 
 export type RoomPrefs = {

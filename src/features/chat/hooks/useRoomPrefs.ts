@@ -162,11 +162,32 @@ export function useRoomPrefs({
     [queryClient, setRooms],
   );
 
+  const setLabel = useCallback(
+    async (room: Room, labelId: string | null) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.rooms });
+      setRooms((prev) =>
+        prev.map((r) => (r.id === room.id ? { ...r, labelId } : r)),
+      );
+      try {
+        await api.updateRoomPrefs(room.id, { labelId });
+      } catch (err) {
+        setRooms((prev) =>
+          prev.map((r) => (r.id === room.id ? { ...r, labelId: room.labelId ?? null } : r)),
+        );
+        antMessage.error(err instanceof Error ? err.message : 'Không thực hiện được.');
+      } finally {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
+      }
+    },
+    [queryClient, setRooms],
+  );
+
   return {
     togglePin,
     toggleUnread,
     hide,
     mute,
     unmute,
+    setLabel,
   };
 }

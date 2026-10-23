@@ -3793,3 +3793,132 @@ body {
   margin-left: 4px;
 }
 
+/* Nhãn hội thoại */
+.room-filter-bar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 12px;
+  align-items: center;
+  border-bottom: 1px solid #f0f2f5;
+  overflow-x: auto;
+}
+
+.room-filter-chip {
+  background: #f0f2f5;
+  border: none;
+  border-radius: 14px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #65676b;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.room-filter-chip:hover {
+  background: #e4e6eb;
+  color: #050505;
+}
+
+.room-filter-chip.active {
+  background: #e7f3ff;
+  color: #0084ff;
+  font-weight: 600;
+}
+
+.room-label-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.label-dropdown-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.label-dropdown-item .room-label-dot {
+  margin-left: 0;
+}
+
+.label-manager-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.label-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.label-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.label-palette {
+  display: grid;
+  grid-template-columns: repeat(4, 28px);
+  gap: 8px;
+  padding: 4px;
+}
+
+.label-palette-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s;
+}
+
+.label-palette-btn:hover {
+  transform: scale(1.1);
+}
+
+.label-palette-btn.selected {
+  border-color: #0084ff;
+}
+
+.label-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f2f5;
+}
+
+.room-list-empty {
+  text-align: center;
+  color: #8a8d91;
+  font-size: 13px;
+  padding: 24px 12px;
+  margin: 0;
+}
+

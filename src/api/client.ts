@@ -1,6 +1,7 @@
 import type {
   ChatFile,
   ChatMessage,
+  ConversationLabel,
   DirectoryUser,
   DocItem,
   GalleryImage,
@@ -293,6 +294,26 @@ export const api = {
     return request<RoomPrefs>(`/rooms/${roomId}/prefs`, {
       method: 'PATCH',
       body: JSON.stringify(patch),
+    });
+  },
+  labels(): Promise<ConversationLabel[]> {
+    return request<ConversationLabel[]>('/labels');
+  },
+  createLabel(input: { name: string; color: string }): Promise<ConversationLabel> {
+    return request<ConversationLabel>('/labels', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  updateLabel(id: string, input: Partial<{ name: string; color: string }>): Promise<ConversationLabel> {
+    return request<ConversationLabel>(`/labels/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+  deleteLabel(id: string): Promise<void> {
+    return request<void>(`/labels/${id}`, {
+      method: 'DELETE',
     });
   },
   links(roomId: string) {

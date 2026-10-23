@@ -24,6 +24,7 @@ import type {
   RoomReadsEvent,
   RoomRemovedEvent,
   RoomClosedEvent,
+  RoomRequestsEvent,
   TypingEvent,
   User,
 } from '@/types';
@@ -285,6 +286,14 @@ export function useChatSocket(options: Options) {
     socket.on('room.updated', (next: Room) => {
       setRooms((current) => current.map((item) => (item.id === next.id ? { ...item, ...next } : item)));
       void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
+    });
+    socket.on('room.requests', (payload: RoomRequestsEvent) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.joinRequests(payload.roomId) });
+      if (payload.created) {
+        const target = latestRef.current.rooms.find((r) => r.id === payload.roomId);
+        const name = target?.title || target?.name || 'nhóm';
+        void antMessage.info(`Có yêu cầu tham gia nhóm ${name}.`);
+      }
     });
     socket.on('room.members', () => {
       const targetRoomId = roomIdRef.current;

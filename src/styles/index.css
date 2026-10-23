@@ -4212,3 +4212,36 @@ body {
   padding-bottom: 6px;
 }
 
+/* Link mời */
+.invite-link-row {
+  display: flex;
+  gap: 6px;
+}
+.join-request-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-top: 1px solid #f0f2f5;
+}
+.join-request-info {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+.join-request-info strong {
+  font-size: 13px;
+  color: #1c1e21;
+}
+.join-request-info small {
+  font-size: 11px;
+  color: #65676b;
+}
+.join-request-actions {
+  display: flex;
+  gap: 6px;
+}
+.join-group-modal {
+  text-align: center;
+}
+

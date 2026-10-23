@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode, useMemo } from 'react';
 import { parseRichText } from '../utils/format';
 import { MENTION } from '../utils/mentions';
+import { inviteTokenOf } from '../utils/invite';
 import type { RichInline } from '@/types';
 
 function renderInline(node: RichInline, myHandle: string, key: string | number): ReactNode {
@@ -47,18 +48,28 @@ function renderInline(node: RichInline, myHandle: string, key: string | number):
           {node.text}
         </code>
       );
-    case 'link':
+    case 'link': {
+      const token = inviteTokenOf(node.url);
       return (
         <a
           key={key}
           href={node.url}
           target="_blank"
           rel="noreferrer"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            if (token) {
+              e.preventDefault();
+              e.stopPropagation();
+              window.location.hash = `#/join?token=${token}`;
+            } else {
+              e.stopPropagation();
+            }
+          }}
         >
           {node.url}
         </a>
       );
+    }
   }
 }
 

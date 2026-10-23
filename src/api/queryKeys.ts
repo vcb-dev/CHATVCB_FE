@@ -12,4 +12,7 @@ export const queryKeys = {
   labels: ['labels'] as const,
   roomSearch: (roomId: string, params: RoomMessageSearch) => ['room-search', roomId, params] as const,
   linkPreview: (url: string) => ['link-preview', url] as const,
+  invite: (roomId: string) => ['invite', roomId] as const,
+  joinRequests: (roomId: string) => ['join-requests', roomId] as const,
+  inviteInfo: (token: string) => ['invite-info', token] as const,
 };

@@ -144,6 +144,28 @@ export type RoomMember = {
   role?: GroupRole;
 };
 
+export type JoinRequest = {
+  userId: string;
+  name: string;
+  avatarUrl: string;
+  invitedById: string | null;
+  invitedByName: string | null;
+  createdAt: string;
+};
+
+export type InviteInfo = {
+  roomId: string;
+  name: string;
+  avatarUrl: string;
+  memberCount: number;
+  joinApproval: boolean;
+  status: 'member' | 'requested' | 'none';
+};
+
+export type JoinResult =
+  | { status: 'joined'; room: Room }
+  | { status: 'requested' };
+
 export type RoomRead = {
   userId: string;
   name: string;
@@ -203,6 +225,12 @@ export type RoomRemovedEvent = {
 export type RoomClosedEvent = {
   roomId: string;
   reason: 'left' | 'dissolved';
+};
+
+export type RoomRequestsEvent = {
+  roomId: string;
+  pending: number;
+  created: boolean;
 };
 
 export type RoomMute = {

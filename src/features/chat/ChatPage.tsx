@@ -15,11 +15,13 @@ import { ConversationSearch } from './components/ConversationSearch';
 import { ForwardModal } from './components/ForwardModal';
 import { GalleryModal } from './components/GalleryModal';
 import { GroupDrawer } from './components/GroupDrawer';
+import { JoinGroupModal } from './components/JoinGroupModal';
 import { MessageList } from './components/MessageList';
 import { NavRail } from './components/NavRail';
 import { NewChatModal } from './components/NewChatModal';
 import { PinBar } from './components/PinBar';
 import { TypingIndicator } from './components/TypingIndicator';
+import { parseJoinHash } from './utils/invite';
 import { useChatNotifications } from './hooks/useChatNotifications';
 import { useChatRoom } from './hooks/useChatRoom';
 import { useChatSocket } from './hooks/useChatSocket';
@@ -58,7 +60,16 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [joinToken, setJoinToken] = useState<string | null>(() => parseJoinHash(window.location.hash));
   const myHandle = handleFromEmail(user.email);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      setJoinToken(parseJoinHash(window.location.hash));
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   const { changeAvatar } = useMyProfile(user, onUserUpdate);
   const { workspace, setWorkspace, isViewingChat } = useWorkspace();
@@ -335,6 +346,17 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         currentUserId={user.id}
         onClose={() => setViewProfileId(null)}
         onOpenRoom={roomList.openRoom}
+      />
+      <JoinGroupModal
+        token={joinToken}
+        onClose={() => {
+          setJoinToken(null);
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+        }}
+        onOpenRoom={(targetRoom) => {
+          setWorkspace('messenger');
+          roomList.openRoom(targetRoom);
+        }}
       />
     </div>
   );

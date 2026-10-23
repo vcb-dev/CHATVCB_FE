@@ -28,7 +28,9 @@ import { UserPicker } from './UserPicker';
 import { avatarColor, initials } from '@/lib/avatar';
 import { isRoomMuted, muteLabel } from '../utils/rooms';
 import { MuteDurationModal } from './MuteDurationModal';
+import { GroupInviteCard } from './GroupInviteCard';
 import { GroupSettingsCard } from './GroupSettingsCard';
+import { JoinRequestsCard } from './JoinRequestsCard';
 import { MemberActions } from './MemberActions';
 import { RoleTag } from './RoleTag';
 import type { ChatFile, ChatMessage, DirectoryUser, GalleryImage, Room, RoomLink, RoomMember } from '@/types';
@@ -143,10 +145,17 @@ export function GroupDrawer({
   const isCloud = room?.isCloud ?? false;
   const isGroup = !isCloud && (room?.type === 'group' || room?.kind === 'group');
   const isOwner = Boolean(isGroup && room?.createdById === currentUserId);
+  const isSuggestMember = Boolean(
+    isGroup &&
+      room &&
+      room.canLeave &&
+      room.settings?.joinApproval &&
+      !room.canManage,
+  );
   const canAddMember = Boolean(
     isGroup &&
       room &&
-      (room.canManage || (room.canLeave && !(room.settings?.joinApproval ?? false))),
+      (room.canManage || room.canLeave),
   );
   const canEditInfo = Boolean(
     isGroup &&
@@ -221,10 +230,16 @@ export function GroupDrawer({
       return;
     }
     try {
-      const next = await api.addRoomMember(room.id, pickedUser.id);
-      onMembersUpdated(next);
-      setAddMemberOpen(false);
-      message.success(`Đã thêm ${pickedUser.name} vào nhóm.`);
+      if (isSuggestMember) {
+        await api.requestMember(room.id, pickedUser.id);
+        setAddMemberOpen(false);
+        message.success('Đã gửi đề xuất, chờ trưởng hoặc phó nhóm duyệt.');
+      } else {
+        const next = await api.addRoomMember(room.id, pickedUser.id);
+        onMembersUpdated(next);
+        setAddMemberOpen(false);
+        message.success(`Đã thêm ${pickedUser.name} vào nhóm.`);
+      }
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không thêm được thành viên.');
     }
@@ -474,7 +489,7 @@ export function GroupDrawer({
                         <PlusOutlined />
                       </span>
                       <span className="group-member-info">
-                        <strong>Thêm thành viên</strong>
+                        <strong>{isSuggestMember ? 'Đề xuất thành viên' : 'Thêm thành viên'}</strong>
                       </span>
                     </button>
                   ) : null}
@@ -519,7 +534,11 @@ export function GroupDrawer({
           ) : null}
 
           {isGroup && room ? (
-            <GroupSettingsCard room={room} onRoomUpdated={onRoomUpdated} />
+            <>
+              <GroupSettingsCard room={room} onRoomUpdated={onRoomUpdated} />
+              <GroupInviteCard room={room} />
+              <JoinRequestsCard room={room} onMembersUpdated={onMembersUpdated} />
+            </>
           ) : null}
 
           <div className="group-card">
@@ -757,7 +776,7 @@ export function GroupDrawer({
       </Modal>
 
       <Modal
-        title="Thêm thành viên"
+        title={isSuggestMember ? 'Đề xuất thành viên' : 'Thêm thành viên'}
         open={addMemberOpen}
         onCancel={() => setAddMemberOpen(false)}
         footer={null}

@@ -6,6 +6,9 @@ import type {
   DocItem,
   GalleryImage,
   GroupSettings,
+  InviteInfo,
+  JoinRequest,
+  JoinResult,
   LinkPreview,
   MailAccount,
   MailItem,
@@ -299,6 +302,46 @@ export const api = {
     return request<Room>(`/rooms/${roomId}/permissions`, {
       method: 'PATCH',
       body: JSON.stringify(patch),
+    });
+  },
+  getInvite(roomId: string): Promise<{ token: string | null }> {
+    return request<{ token: string | null }>(`/rooms/${roomId}/invite`);
+  },
+  resetInvite(roomId: string): Promise<{ token: string }> {
+    return request<{ token: string }>(`/rooms/${roomId}/invite`, {
+      method: 'POST',
+    });
+  },
+  disableInvite(roomId: string): Promise<void> {
+    return request<void>(`/rooms/${roomId}/invite`, {
+      method: 'DELETE',
+    });
+  },
+  inviteInfo(token: string): Promise<InviteInfo> {
+    return request<InviteInfo>(`/invites/${token}`);
+  },
+  joinByInvite(token: string): Promise<JoinResult> {
+    return request<JoinResult>(`/invites/${token}/join`, {
+      method: 'POST',
+    });
+  },
+  requestMember(roomId: string, userId: string): Promise<{ ok: boolean }> {
+    return request<{ ok: boolean }>(`/rooms/${roomId}/join-requests`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  },
+  joinRequests(roomId: string): Promise<JoinRequest[]> {
+    return request<JoinRequest[]>(`/rooms/${roomId}/join-requests`);
+  },
+  approveRequest(roomId: string, userId: string): Promise<RoomMember[]> {
+    return request<RoomMember[]>(`/rooms/${roomId}/join-requests/${userId}/approve`, {
+      method: 'POST',
+    });
+  },
+  rejectRequest(roomId: string, userId: string): Promise<void> {
+    return request<void>(`/rooms/${roomId}/join-requests/${userId}`, {
+      method: 'DELETE',
     });
   },
   deleteRoom(roomId: string) {

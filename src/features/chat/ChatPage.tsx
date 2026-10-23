@@ -26,7 +26,9 @@ import { useMessageActions } from './hooks/useMessageActions';
 import { useRoomList } from './hooks/useRoomList';
 import { useTypingSignal } from './hooks/useTypingSignal';
 import { useWorkspace } from './hooks/useWorkspace';
-import { photosFromMessages } from './utils/media';
+import { DropOverlay } from './components/DropOverlay';
+import { useFileDrop } from './hooks/useFileDrop';
+import { photosFromMessages, splitDropped } from './utils/media';
 import { handleFromEmail } from './utils/mentions';
 import {
   countOnlineMembers,
@@ -86,6 +88,14 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     appendMessage: chat.appendMessage,
     setMessages: chat.setMessages,
     setError,
+  });
+  const drop = useFileDrop({
+    disabled: !roomId || Boolean(composer.editing),
+    onFiles: (files) => {
+      const { images, docs } = splitDropped(files);
+      if (images.length) composer.addImages(images);
+      if (docs.length) composer.addDocs(docs);
+    },
   });
   const { handleMessageAction, handleReact } = useMessageActions({
     roomId,
@@ -171,7 +181,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       ) : null}
 
       {workspace === 'messenger' ? (
-        <main className="chat">
+        <main className="chat" {...drop.dropProps}>
           <ChatHeader
             room={room}
             isDirect={isDirect}
@@ -224,6 +234,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onSend={composer.sendContent}
             onMarkRead={markRead}
           />
+          <DropOverlay visible={drop.dragging} />
         </main>
       ) : workspace === 'email' ? (
         <EmailPage />

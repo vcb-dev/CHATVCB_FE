@@ -1245,6 +1245,7 @@ body {
 }
 
 .chat {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -3607,5 +3608,25 @@ body {
 
 .system-notice-link:hover {
   text-decoration: underline;
+}
+
+/* Kéo thả */
+.drop-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 132, 255, 0.08);
+  border: 2px dashed #0084ff;
+  border-radius: 8px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.drop-overlay span {
+  font-size: 20px;
+  font-weight: 600;
+  color: #0084ff;
 }
 

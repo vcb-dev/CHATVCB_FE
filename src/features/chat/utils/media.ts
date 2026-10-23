@@ -13,6 +13,20 @@ export function filesFromClipboard(event: ClipboardEvent) {
   return files;
 }
 
+export function splitDropped(files: File[]): { images: File[]; docs: File[] } {
+  const imageTypes = new Set(ACCEPT_IMAGES.split(','));
+  const images: File[] = [];
+  const docs: File[] = [];
+  for (const file of files) {
+    if (imageTypes.has(file.type)) {
+      images.push(file);
+    } else {
+      docs.push(file);
+    }
+  }
+  return { images, docs };
+}
+
 export function addPendingFiles(current: PendingImage[], files: File[]) {
   const next = [...current];
   for (const file of files) {

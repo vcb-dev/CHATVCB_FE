@@ -4129,3 +4129,37 @@ body {
   overflow: hidden;
 }
 
+/* Bảng cảm xúc */
+.react-picker {
+  align-items: center;
+}
+
+.react-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50% !important;
+  color: #65676b !important;
+}
+
+.react-expand-btn:hover {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: #050505 !important;
+}
+
+.react-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 6px;
+}
+
+.react-emoji-btn.picked {
+  background: #e7f3ff;
+  border-radius: 8px;
+}
+

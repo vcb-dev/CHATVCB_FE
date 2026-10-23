@@ -210,6 +210,9 @@ export function MessageRow(props: {
           </Dropdown>
           {!message.recalled ? (
             <ReactionPicker
+              mine={message.reactions
+                .filter((r) => r.userIds.includes(props.userId))
+                .map((r) => r.emoji)}
               onPick={(emoji) => void props.onReact(message, emoji)}
             />
           ) : null}

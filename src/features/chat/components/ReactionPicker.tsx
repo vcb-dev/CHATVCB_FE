@@ -1,34 +1,69 @@
-import { SmileOutlined } from '@ant-design/icons';
+import { PlusOutlined, SmileOutlined } from '@ant-design/icons';
 import { Button, Popover } from 'antd';
 import { useState } from 'react';
-
-const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'] as const;
+import { EMOJIS, QUICK_REACTIONS } from '../utils/emojis';
 
 export function ReactionPicker(props: {
   disabled?: boolean;
+  mine: string[];
   onPick: (emoji: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   if (props.disabled) {
     return null;
   }
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setExpanded(false);
+    }
+  };
+
+  const handlePick = (emoji: string) => {
+    props.onPick(emoji);
+    setOpen(false);
+    setExpanded(false);
+  };
+
   const content = (
-    <div className="react-picker" onClick={(e) => e.stopPropagation()}>
-      {REACTION_EMOJIS.map((emoji) => (
-        <button
-          key={emoji}
-          type="button"
-          className="react-emoji-btn"
-          onClick={() => {
-            props.onPick(emoji);
-            setOpen(false);
-          }}
-        >
-          {emoji}
-        </button>
-      ))}
+    <div className="react-picker-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="react-picker">
+        {QUICK_REACTIONS.map((emoji) => (
+          <button
+            key={emoji}
+            type="button"
+            className={`react-emoji-btn${props.mine.includes(emoji) ? ' picked' : ''}`}
+            onClick={() => handlePick(emoji)}
+          >
+            {emoji}
+          </button>
+        ))}
+        <Button
+          type="text"
+          size="small"
+          icon={<PlusOutlined />}
+          className="react-expand-btn"
+          aria-label="Thêm cảm xúc"
+          onClick={() => setExpanded((prev) => !prev)}
+        />
+      </div>
+      {expanded ? (
+        <div className="react-grid">
+          {EMOJIS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              className={`react-emoji-btn${props.mine.includes(emoji) ? ' picked' : ''}`}
+              onClick={() => handlePick(emoji)}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 
@@ -37,7 +72,7 @@ export function ReactionPicker(props: {
       content={content}
       trigger="click"
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={handleOpenChange}
       placement="top"
       overlayClassName="react-popover"
     >

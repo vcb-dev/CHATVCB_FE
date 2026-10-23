@@ -2,18 +2,11 @@ import { CloseOutlined, GifOutlined, SmileOutlined } from '@ant-design/icons';
 import { Button, Input, Tooltip } from 'antd';
 import { useEffect, useState } from 'react';
 import { api } from '@/api/client';
+import { EMOJIS } from '../utils/emojis';
 
 type Tab = 'emoji' | 'sticker' | 'gif';
 
 type GifItem = { id: string; url: string; preview: string };
-
-const EMOJIS = [
-  '😀', '😁', '😂', '🤣', '😊', '😍', '😘', '😜', '🤗', '😎',
-  '🤩', '😇', '🙂', '😉', '😭', '😡', '😱', '😴', '🤔', '🙄',
-  '👍', '👎', '👏', '🙏', '💪', '🔥', '✨', '💯', '❤️', '💔',
-  '🎉', '🥳', '😅', '😢', '😤', '🤭', '🤫', '😐', '😬', '🤯',
-  '👌', '✌️', '🤝', '👋', '🫡', '🌹', '☕', '🍕', '🍺', '✅',
-];
 
 const STICKERS = [
   '👍', '👎', '❤️', '😂', '😭', '😡', '😍', '🔥', '🎉', '🙏',

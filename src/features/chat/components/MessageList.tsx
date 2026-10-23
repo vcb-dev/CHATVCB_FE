@@ -19,6 +19,7 @@ export function MessageList(props: {
   myHandle: string;
   loadingOlder: boolean;
   pending: boolean;
+  canSaveToCloud?: boolean;
   onLoadOlder: () => Promise<void>;
   onMarkRead: () => void;
   onViewProfile: (userId: string) => void;
@@ -63,6 +64,7 @@ export function MessageList(props: {
             tagged={!mine && mentionsUser(message.content, myHandle)}
             viewers={viewersOf(message, messages, reads)}
             lastReaders={lastSeenOn(message, messages, reads, userId)}
+            canSaveToCloud={props.canSaveToCloud}
             onMarkRead={props.onMarkRead}
             onViewProfile={props.onViewProfile}
             onAction={props.onAction}

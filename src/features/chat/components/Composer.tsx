@@ -229,7 +229,9 @@ export function Composer(props: {
               getPopupContainer={() => document.body}
               styles={{ popup: { zIndex: 2000 } }}
               placeholder={
-                room
+                room?.isCloud
+                  ? 'Lưu ghi chú, ảnh, tệp vào Cloud của tôi'
+                  : room
                   ? `Nhắn ${room.title || room.name} · Ctrl+V ảnh · @agent`
                   : 'Chọn phòng'
               }

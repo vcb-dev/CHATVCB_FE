@@ -27,6 +27,7 @@ export function MessageRow(props: {
   tagged: boolean;
   viewers: RoomRead[];
   lastReaders: RoomRead[];
+  canSaveToCloud?: boolean;
   onMarkRead: () => void;
   onViewProfile: (userId: string) => void;
   onAction: (key: string, message: ChatMessage) => Promise<void>;
@@ -91,6 +92,9 @@ export function MessageRow(props: {
                   disabled: message.recalled,
                 },
                 ...(canForward(message) ? [{ key: 'forward', label: 'Chuyển tiếp' }] : []),
+                ...(props.canSaveToCloud && canForward(message)
+                  ? [{ key: 'saveCloud', label: 'Lưu vào Cloud' }]
+                  : []),
                 ...(hasText ? [{ key: 'copy', label: 'Sao chép tin nhắn' }] : []),
                 ...(canEdit(message, props.userId) ? [{ key: 'edit', label: 'Sửa tin nhắn' }] : []),
                 ...(hasImage ? [{ key: 'copyImage', label: 'Sao chép ảnh' }] : []),

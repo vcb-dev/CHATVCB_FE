@@ -1,3 +1,4 @@
+import { CloudOutlined } from '@ant-design/icons';
 import { Avatar, Badge } from 'antd';
 import { fileSrc } from '@/api/client';
 import { avatarColor, initials } from '@/lib/avatar';
@@ -13,6 +14,8 @@ export function ChatHeader(props: {
   onToggleInfo: () => void;
 }) {
   const { room, isDirect, isPeerOnline, membersCount, onlineMembersCount } = props;
+  const isCloud = room?.isCloud ?? false;
+
   return (
     <header className="chat-head">
       <button
@@ -26,19 +29,20 @@ export function ChatHeader(props: {
         }}
       >
         <Badge
-          dot={isDirect ? isPeerOnline : props.isGroupOnline}
+          dot={!isCloud && (isDirect ? isPeerOnline : props.isGroupOnline)}
           color="#31a24c"
           offset={[-2, 4]}
         >
           <Avatar
             size={40}
             className="avatar-initials"
+            icon={isCloud ? <CloudOutlined /> : undefined}
             src={room?.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
             style={{
-              background: room ? avatarColor(room.title || room.name) : '#0084ff',
+              background: isCloud ? '#0084ff' : room ? avatarColor(room.title || room.name) : '#0084ff',
             }}
           >
-            {room ? initials(room.title || room.name) : '?'}
+            {isCloud ? null : room ? initials(room.title || room.name) : '?'}
           </Avatar>
         </Badge>
         <div>
@@ -46,7 +50,9 @@ export function ChatHeader(props: {
             {room ? (room.title || room.name) : 'Chọn phòng'}
           </strong>
           <small>
-            {isDirect ? (
+            {isCloud ? (
+              'Lưu tin nhắn, ảnh, tệp của riêng bạn'
+            ) : isDirect ? (
               isPeerOnline ? 'Đang hoạt động' : 'Không hoạt động'
             ) : (
               <>

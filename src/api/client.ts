@@ -238,6 +238,11 @@ export const api = {
       body: JSON.stringify({ name, memberIds }),
     });
   },
+  cloudRoom(): Promise<Room> {
+    return request<Room>('/rooms/cloud', {
+      method: 'POST',
+    });
+  },
   addRoomMember(roomId: string, userId: string) {
     return request<RoomMember[]>(`/rooms/${roomId}/members`, {
       method: 'POST',

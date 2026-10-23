@@ -29,6 +29,7 @@ export type Room = {
   markedUnread?: boolean;
   lastMessageId?: string | null;
   labelId?: string | null;
+  isCloud?: boolean;
   canLeave?: boolean;
   slug?: string;
   team?: string;

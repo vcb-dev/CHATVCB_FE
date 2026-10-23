@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { api, fileSrc } from '@/api/client';
 import { copyImage, copyText } from '@/lib/clipboard';
 import type { ChatMessage } from '@/types';
+import { forwardMessage } from '../utils/forward';
 
 export function useMessageActions({
   roomId,
@@ -11,6 +12,7 @@ export function useMessageActions({
   onReply,
   onForward,
   onEdit,
+  onSavedToCloud,
 }: {
   roomId: string;
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
@@ -18,6 +20,7 @@ export function useMessageActions({
   onReply: (message: ChatMessage) => void;
   onForward: (message: ChatMessage) => void;
   onEdit: (message: ChatMessage) => void;
+  onSavedToCloud?: (sent: ChatMessage) => void;
 }) {
   async function handleMessageAction(key: string, message: ChatMessage) {
     if (!roomId) {
@@ -53,6 +56,13 @@ export function useMessageActions({
       return;
     }
     try {
+      if (key === 'saveCloud') {
+        const cloud = await api.cloudRoom();
+        const sent = await forwardMessage(message, cloud.id);
+        onSavedToCloud?.(sent);
+        antMessage.success('Đã lưu vào Cloud của tôi.');
+        return;
+      }
       if (key === 'pin') {
         const next = await api.pinMessage(roomId, message.id, !message.pinned);
         setMessages((current) => current.map((item) => (item.id === next.id ? next : item)));

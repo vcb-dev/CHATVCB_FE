@@ -6,6 +6,7 @@ import { MeetingsPage } from '@/features/meetings/MeetingsPage';
 import { ProfileDrawer } from '@/features/profile/ProfileDrawer';
 import { UserProfileModal } from '@/features/profile/UserProfileModal';
 import { useMyProfile } from '@/features/profile/hooks/useMyProfile';
+import { api } from '@/api/client';
 import type { ChatMessage, Room, User } from '@/types';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatSidebar } from './components/ChatSidebar';
@@ -73,6 +74,16 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     }
   };
 
+  const openCloud = async () => {
+    try {
+      const cloud = await api.cloudRoom();
+      await roomList.openRoom(cloud);
+      setWorkspace('messenger');
+    } catch (err) {
+      antMessage.error(err instanceof Error ? err.message : 'Không mở được Cloud của tôi.');
+    }
+  };
+
   useChatNotifications({ onOpenRoom: openRoomFromNotice });
   const chat = useChatRoom({
     user,
@@ -106,6 +117,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     onReply: composer.setReplyTo,
     onForward: setForwarding,
     onEdit: composer.startEdit,
+    onSavedToCloud: chat.handleForwarded,
   });
   const { onlineUserIds, typing, emitTyping } = useChatSocket({
     user,
@@ -177,6 +189,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           onOpenMessage={chat.openMessage}
           onLoadMoreRooms={roomList.loadMoreRooms}
           onNewChat={() => setNewChatOpen(true)}
+          onOpenCloud={openCloud}
           onOpenProfile={() => setProfileOpen(true)}
           onChangeAvatar={changeAvatar}
           prefs={roomPrefs}
@@ -203,6 +216,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             myHandle={myHandle}
             loadingOlder={chat.loadingOlder}
             pending={chat.pending}
+            canSaveToCloud={!room?.isCloud}
             onLoadOlder={chat.loadOlder}
             onMarkRead={markRead}
             onViewProfile={setViewProfileId}

@@ -1,4 +1,4 @@
-import { CameraOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { CameraOutlined, CloudOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { Avatar, Button, Input, Spin } from 'antd';
 import { useEffect, useMemo, useRef, useState, type UIEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -27,6 +27,7 @@ export function ChatSidebar(props: {
   onOpenMessage: (roomId: string, messageId: string, createdAt?: string) => void;
   onLoadMoreRooms: () => Promise<void>;
   onNewChat: () => void;
+  onOpenCloud: () => void;
   onOpenProfile: () => void;
   onChangeAvatar: (file: File) => Promise<void>;
   prefs: ReturnType<typeof useRoomPrefs>;
@@ -72,14 +73,24 @@ export function ChatSidebar(props: {
           <strong>Messenger</strong>
           <small>Team {team}</small>
         </div>
-        <Button
-          type="text"
-          shape="circle"
-          icon={<PlusOutlined />}
-          className="sidebar-new-btn"
-          title="Cuộc trò chuyện mới"
-          onClick={props.onNewChat}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Button
+            type="text"
+            shape="circle"
+            icon={<CloudOutlined />}
+            className="sidebar-new-btn"
+            title="Cloud của tôi"
+            onClick={props.onOpenCloud}
+          />
+          <Button
+            type="text"
+            shape="circle"
+            icon={<PlusOutlined />}
+            className="sidebar-new-btn"
+            title="Cuộc trò chuyện mới"
+            onClick={props.onNewChat}
+          />
+        </div>
       </div>
       <div className="sidebar-search-box">
         <Input

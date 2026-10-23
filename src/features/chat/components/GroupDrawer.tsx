@@ -2,6 +2,7 @@ import {
   BellOutlined,
   CameraOutlined,
   CloseOutlined,
+  CloudOutlined,
   DeleteOutlined,
   EditOutlined,
   FileOutlined,
@@ -136,7 +137,8 @@ export function GroupDrawer({
   );
   const avatarRef = useRef<HTMLInputElement>(null);
 
-  const isGroup = room?.type === 'group' || room?.kind === 'group';
+  const isCloud = room?.isCloud ?? false;
+  const isGroup = !isCloud && (room?.type === 'group' || room?.kind === 'group');
   const isOwner = Boolean(isGroup && room?.createdById === currentUserId);
 
   useEffect(() => {
@@ -298,7 +300,21 @@ export function GroupDrawer({
         <div className="group-scroll">
           <div className="group-card group-hero-card">
             <div className="group-hero">
-              {isGroup ? (
+              {isCloud ? (
+                <>
+                  <div className="group-avatar-btn" style={{ cursor: 'default' }}>
+                    <Avatar
+                      size={72}
+                      className="avatar-initials"
+                      icon={<CloudOutlined />}
+                      src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
+                      style={{ background: '#0084ff' }}
+                    />
+                  </div>
+                  <h2>{room.title || room.name}</h2>
+                  <p className="group-sub">Cloud của tôi</p>
+                </>
+              ) : isGroup ? (
                 <>
                   <button
                     type="button"
@@ -374,33 +390,35 @@ export function GroupDrawer({
             </div>
           </div>
 
-          <div className="group-card">
-            <div className="group-row static">
-              <span className="group-ico">
-                <BellOutlined />
-              </span>
-              <span className="group-row-text">
-                <strong>Thông báo tin nhắn</strong>
-                <small>
-                  {notifyEnabled()
-                    ? muteLabel(room) || 'Chỉ áp dụng cho cuộc trò chuyện này'
-                    : 'Đang tắt mọi thông báo trong Hồ sơ'}
-                </small>
-              </span>
-              <Switch
-                size="small"
-                checked={!isRoomMuted(room)}
-                loading={muteMutation.isPending}
-                onChange={(checked) => {
-                  if (checked) {
-                    muteMutation.mutate({ target: room, muted: false });
-                  } else {
-                    setMuteModalOpen(true);
-                  }
-                }}
-              />
+          {!isCloud ? (
+            <div className="group-card">
+              <div className="group-row static">
+                <span className="group-ico">
+                  <BellOutlined />
+                </span>
+                <span className="group-row-text">
+                  <strong>Thông báo tin nhắn</strong>
+                  <small>
+                    {notifyEnabled()
+                      ? muteLabel(room) || 'Chỉ áp dụng cho cuộc trò chuyện này'
+                      : 'Đang tắt mọi thông báo trong Hồ sơ'}
+                  </small>
+                </span>
+                <Switch
+                  size="small"
+                  checked={!isRoomMuted(room)}
+                  loading={muteMutation.isPending}
+                  onChange={(checked) => {
+                    if (checked) {
+                      muteMutation.mutate({ target: room, muted: false });
+                    } else {
+                      setMuteModalOpen(true);
+                    }
+                  }}
+                />
+              </div>
             </div>
-          </div>
+          ) : null}
 
           {isGroup ? (
             <div className="group-card">
@@ -615,7 +633,7 @@ export function GroupDrawer({
             ) : null}
           </div>
 
-          {room.canLeave ? (
+          {!isCloud && room.canLeave ? (
             <div className="group-card">
               <button
                 type="button"
@@ -633,7 +651,7 @@ export function GroupDrawer({
             </div>
           ) : null}
 
-          {room.canDelete ? (
+          {!isCloud && room.canDelete ? (
             <div className="group-card">
               <button
                 type="button"

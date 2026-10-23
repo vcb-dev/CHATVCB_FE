@@ -157,6 +157,14 @@ export type RichBlock =
   | { type: 'code'; text: string }
   | { type: 'list'; ordered: boolean; items: RichInline[][] };
 
+export type LinkPreview = {
+  url: string;
+  title: string | null;
+  description: string | null;
+  imageUrl: string | null;
+  siteName: string | null;
+};
+
 /** Payload socket `room.reads` (BE emit `{ roomId, reads }`, khác HTTP trả mảng). */
 export type RoomReadsEvent = {
   roomId: string;

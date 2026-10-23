@@ -10,12 +10,14 @@ import { canForward } from '../utils/forward';
 import { isStickerText } from '../utils/stickers';
 import { FileCard } from './FileCard';
 import { ImageAlbum } from './ImageAlbum';
+import { LinkPreviewCard } from './LinkPreviewCard';
 import { ReactionPicker } from './ReactionPicker';
 import { ReactionSummary } from './ReactionSummary';
 import { RichText } from './RichText';
 import { SeenAvatars } from './SeenAvatars';
 import { SeenBubble } from './SeenBubble';
 import { VoiceBubble } from './VoiceBubble';
+import { firstLink } from '../utils/format';
 
 export function MessageRow(props: {
   message: ChatMessage;
@@ -49,6 +51,7 @@ export function MessageRow(props: {
   const hasFile = Boolean(message.fileUrl && !message.recalled);
   const hasText = Boolean(message.content && !message.recalled);
   const sticker = !hasImage && !album && !hasFile && hasText && isStickerText(message.content);
+  const link = hasText && !hasImage && !album && !hasFile && !sticker ? firstLink(message.content) : null;
   return (
     <div
       id={`msg-${message.id}`}
@@ -211,6 +214,7 @@ export function MessageRow(props: {
             />
           ) : null}
         </div>
+        {link ? <LinkPreviewCard url={link} /> : null}
         <ReactionSummary
           reactions={message.reactions}
           myId={props.userId}

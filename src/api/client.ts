@@ -5,6 +5,7 @@ import type {
   DirectoryUser,
   DocItem,
   GalleryImage,
+  LinkPreview,
   MailAccount,
   MailItem,
   MailMessage,
@@ -399,6 +400,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ url }),
     });
+  },
+  linkPreview(url: string): Promise<LinkPreview> {
+    return request<LinkPreview>(`/link-preview?url=${encodeURIComponent(url)}`);
   },
   async uploadImage(roomId: string, file: File) {
     const body = new FormData();

@@ -28,7 +28,7 @@ import type {
   User,
 } from '@/types';
 import { mentionsUser } from '../utils/mentions';
-import { isDirectRoom, previewOf, upsertRoom } from '../utils/rooms';
+import { isDirectRoom, isRoomMuted, previewOf, upsertRoom } from '../utils/rooms';
 import { isVoice } from '../utils/attachments';
 
 const TYPING_TTL_MS = 6000;
@@ -94,7 +94,7 @@ export function useChatSocket(options: Options) {
     }
 
     function alertIncoming(message: ChatMessage, room: Room, tagged: boolean) {
-      if (room.muted && !tagged) {
+      if (isRoomMuted(room) && !tagged) {
         return;
       }
       const name = room.title || room.name;

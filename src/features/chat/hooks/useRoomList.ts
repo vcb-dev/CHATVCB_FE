@@ -73,8 +73,16 @@ export function useRoomList({
     [queryClient],
   );
 
-  function openRoom(nextRoom: Room) {
-    setRooms((prev) => upsertRoom(prev, nextRoom));
+  async function openRoom(nextRoom: Room) {
+    if (nextRoom.hidden) {
+      try {
+        await api.updateRoomPrefs(nextRoom.id, { hidden: false });
+      } catch (err) {
+        antMessage.error(err instanceof Error ? err.message : 'Không mở được phòng.');
+        return;
+      }
+    }
+    setRooms((prev) => upsertRoom(prev, { ...nextRoom, hidden: false }));
     setRoomId(nextRoom.id);
   }
 

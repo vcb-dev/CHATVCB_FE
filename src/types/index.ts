@@ -23,10 +23,23 @@ export type Room = {
   memberIds?: string[];
   /** Có ở GET /rooms; kết quả tìm kiếm và room.updated không có. */
   muted?: boolean;
+  mutedUntil?: string | null;
+  pinned?: boolean;
+  hidden?: boolean;
+  markedUnread?: boolean;
+  lastMessageId?: string | null;
   canLeave?: boolean;
   slug?: string;
   team?: string;
   agentName?: string;
+};
+
+export type RoomPrefs = {
+  roomId: string;
+  pinned: boolean;
+  hidden: boolean;
+  markedUnread: boolean;
+  labelId: string | null;
 };
 
 export type MessageReply = {
@@ -148,6 +161,7 @@ export type RoomClosedEvent = {
 export type RoomMute = {
   roomId: string;
   muted: boolean;
+  mutedUntil: string | null;
 };
 
 export type GalleryImage = {
@@ -206,6 +220,7 @@ export type RoomHit = Pick<
   | 'canDelete'
   | 'unreadCount'
   | 'peerUserId'
+  | 'hidden'
 >;
 
 export type MessageHit = {

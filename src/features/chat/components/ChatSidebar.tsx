@@ -4,6 +4,7 @@ import { useRef, type UIEvent } from 'react';
 import { fileSrc } from '@/api/client';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { PageMeta, Room, User } from '@/types';
+import type { useRoomPrefs } from '../hooks/useRoomPrefs';
 import { RoomListItem } from './RoomListItem';
 import { SidebarSearch } from './SidebarSearch';
 
@@ -24,6 +25,7 @@ export function ChatSidebar(props: {
   onNewChat: () => void;
   onOpenProfile: () => void;
   onChangeAvatar: (file: File) => Promise<void>;
+  prefs: ReturnType<typeof useRoomPrefs>;
 }) {
   const { user, team, rooms, roomsMeta, searchText } = props;
   const myAvatarRef = useRef<HTMLInputElement>(null);
@@ -81,6 +83,7 @@ export function ChatSidebar(props: {
               active={item.id === props.roomId}
               online={props.isRoomOnline(item)}
               onSelect={props.onSelectRoom}
+              actions={props.prefs}
             />
           ))}
           {props.loadingOlderRooms ? (

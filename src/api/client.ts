@@ -14,6 +14,7 @@ import type {
   RoomLink,
   RoomMember,
   RoomMute,
+  RoomPrefs,
   RoomRead,
   RoomSearch,
   User,
@@ -282,10 +283,16 @@ export const api = {
       body: JSON.stringify({ userId, nickname }),
     });
   },
-  muteRoom(roomId: string, muted: boolean) {
+  muteRoom(roomId: string, muted: boolean, minutes?: number) {
     return request<RoomMute>(`/rooms/${roomId}/mute`, {
       method: 'PATCH',
-      body: JSON.stringify({ muted }),
+      body: JSON.stringify({ muted, ...(minutes != null ? { minutes } : {}) }),
+    });
+  },
+  updateRoomPrefs(roomId: string, patch: Partial<Omit<RoomPrefs, 'roomId'>>) {
+    return request<RoomPrefs>(`/rooms/${roomId}/prefs`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
     });
   },
   links(roomId: string) {

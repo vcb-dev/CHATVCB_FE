@@ -24,6 +24,7 @@ import { useChatSocket } from './hooks/useChatSocket';
 import { useComposer } from './hooks/useComposer';
 import { useMessageActions } from './hooks/useMessageActions';
 import { useRoomList } from './hooks/useRoomList';
+import { useRoomPrefs } from './hooks/useRoomPrefs';
 import { useTypingSignal } from './hooks/useTypingSignal';
 import { useWorkspace } from './hooks/useWorkspace';
 import { DropOverlay } from './components/DropOverlay';
@@ -60,6 +61,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const { workspace, setWorkspace, isViewingChat } = useWorkspace();
   const roomList = useRoomList({ isViewingChat, setError });
   const { rooms, room, roomId } = roomList;
+  const roomPrefs = useRoomPrefs({ setRooms: roomList.setRooms, removeRoom: roomList.removeRoom });
 
   const openRoomFromNotice = (id: string) => {
     setWorkspace('messenger');
@@ -177,6 +179,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           onNewChat={() => setNewChatOpen(true)}
           onOpenProfile={() => setProfileOpen(true)}
           onChangeAvatar={changeAvatar}
+          prefs={roomPrefs}
         />
       ) : null}
 

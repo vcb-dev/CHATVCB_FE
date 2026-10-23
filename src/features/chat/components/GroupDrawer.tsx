@@ -25,6 +25,8 @@ import { notifyEnabled, requestNotifyPermission } from '@/lib/notify';
 import { formatBytes } from '../utils/attachments';
 import { UserPicker } from './UserPicker';
 import { avatarColor, initials } from '@/lib/avatar';
+import { isRoomMuted, muteLabel } from '../utils/rooms';
+import { MuteDurationModal } from './MuteDurationModal';
 import type { ChatFile, ChatMessage, DirectoryUser, GalleryImage, Room, RoomLink, RoomMember } from '@/types';
 
 const EMPTY_PHOTOS: GalleryImage[] = [];
@@ -92,12 +94,21 @@ export function GroupDrawer({
   const pins = pinsQuery.data ?? EMPTY_PINS;
   const queryClient = useQueryClient();
   const muteMutation = useMutation({
-    mutationFn: ({ target, muted }: { target: Room; muted: boolean }) =>
-      api.muteRoom(target.id, muted),
-    onMutate: async ({ target, muted }) => {
+    mutationFn: ({
+      target,
+      muted,
+      minutes,
+    }: {
+      target: Room;
+      muted: boolean;
+      minutes?: number | null;
+    }) => api.muteRoom(target.id, muted, minutes ?? undefined),
+    onMutate: async ({ target, muted, minutes }) => {
       // hủy lần poll đang chạy để nó không ghi đè trạng thái vừa bấm
       await queryClient.cancelQueries({ queryKey: queryKeys.rooms });
-      onRoomUpdated({ ...target, muted });
+      const mutedUntil =
+        muted && minutes ? new Date(Date.now() + minutes * 60 * 1000).toISOString() : null;
+      onRoomUpdated({ ...target, muted, mutedUntil });
     },
     onError: (err, { target }) => {
       onRoomUpdated(target);
@@ -115,6 +126,7 @@ export function GroupDrawer({
       void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
     },
   });
+  const [muteModalOpen, setMuteModalOpen] = useState(false);
   const [nickUser, setNickUser] = useState<RoomMember | null>(null);
   const [nickValue, setNickValue] = useState('');
   const [photoOpen, setPhotoOpen] = useState(false);
@@ -371,15 +383,21 @@ export function GroupDrawer({
                 <strong>Thông báo tin nhắn</strong>
                 <small>
                   {notifyEnabled()
-                    ? 'Chỉ áp dụng cho cuộc trò chuyện này'
+                    ? muteLabel(room) || 'Chỉ áp dụng cho cuộc trò chuyện này'
                     : 'Đang tắt mọi thông báo trong Hồ sơ'}
                 </small>
               </span>
               <Switch
                 size="small"
-                checked={!room.muted}
+                checked={!isRoomMuted(room)}
                 loading={muteMutation.isPending}
-                onChange={(checked) => muteMutation.mutate({ target: room, muted: !checked })}
+                onChange={(checked) => {
+                  if (checked) {
+                    muteMutation.mutate({ target: room, muted: false });
+                  } else {
+                    setMuteModalOpen(true);
+                  }
+                }}
               />
             </div>
           </div>
@@ -703,6 +721,17 @@ export function GroupDrawer({
           onPick={(u) => void handleAddMember(u)}
         />
       </Modal>
+
+      <MuteDurationModal
+        open={muteModalOpen}
+        onPick={(minutes) => {
+          setMuteModalOpen(false);
+          if (room) {
+            muteMutation.mutate({ target: room, muted: true, minutes });
+          }
+        }}
+        onCancel={() => setMuteModalOpen(false)}
+      />
     </aside>
   );
 }

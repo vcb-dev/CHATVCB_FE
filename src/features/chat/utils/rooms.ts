@@ -13,8 +13,47 @@ export function isDirectRoom(room: Room): boolean {
   return room.type === 'direct' || room.kind === 'direct';
 }
 
+export const MUTE_OPTIONS: { minutes: number | null; label: string }[] = [
+  { minutes: 60, label: '1 giờ' },
+  { minutes: 240, label: '4 giờ' },
+  { minutes: 480, label: '8 giờ' },
+  { minutes: 1440, label: '24 giờ' },
+  { minutes: null, label: 'Cho đến khi bật lại' },
+];
+
+export function isRoomMuted(room: Room, now: number = Date.now()): boolean {
+  if (room.mutedUntil) {
+    return new Date(room.mutedUntil).getTime() > now;
+  }
+  return Boolean(room.muted);
+}
+
+export function muteLabel(room: Room): string {
+  if (room.mutedUntil) {
+    const d = new Date(room.mutedUntil);
+    if (d.getTime() > Date.now()) {
+      const timeStr = d.toLocaleString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+      });
+      return `Tắt đến ${timeStr}`;
+    }
+  }
+  if (room.muted) {
+    return 'Đã tắt thông báo';
+  }
+  return '';
+}
+
 export function sortRooms(list: Room[]): Room[] {
   return [...list].sort((a, b) => {
+    const pinA = Boolean(a.pinned);
+    const pinB = Boolean(b.pinned);
+    if (pinA !== pinB) {
+      return pinA ? -1 : 1;
+    }
     const timeA = new Date(a.updatedAt).getTime();
     const timeB = new Date(b.updatedAt).getTime();
     return timeB - timeA;

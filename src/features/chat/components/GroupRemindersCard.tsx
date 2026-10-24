@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import type { Reminder, Room } from '@/types';
+import { errorText } from '@/lib/errors';
 import { canEditItem } from '../utils/rooms';
 import { formatShort } from '../utils/datetime';
 import { GroupBoardCard } from './GroupBoardCard';
@@ -11,13 +12,15 @@ import { GroupBoardCard } from './GroupBoardCard';
 type GroupRemindersCardProps = {
   room: Room;
   currentUserId: string;
-  onEdit: (reminder: Reminder | null) => void;
+  onEdit: (reminder: Reminder) => void;
+  onCreate: () => void;
 };
 
 export function GroupRemindersCard({
   room,
   currentUserId,
   onEdit,
+  onCreate,
 }: GroupRemindersCardProps) {
   const queryClient = useQueryClient();
 
@@ -41,8 +44,8 @@ export function GroupRemindersCard({
           await queryClient.invalidateQueries({
             queryKey: queryKeys.reminders(room.id),
           });
-        } catch (err: any) {
-          message.error(err instanceof Error ? err.message : 'Có lỗi xảy ra');
+        } catch (err) {
+          message.error(errorText(err, 'Có lỗi xảy ra'));
         }
       },
     });
@@ -55,7 +58,7 @@ export function GroupRemindersCard({
       countLabel={`${reminders.length} nhắc hẹn`}
       emptyText="Chưa có nhắc hẹn nào"
       hasItems={reminders.length > 0}
-      onCreate={() => onEdit(null)}
+      onCreate={onCreate}
     >
       {reminders.map((r) => {
         const editable = canEditItem(room, r.creatorId, currentUserId);

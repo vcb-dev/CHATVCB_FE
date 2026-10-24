@@ -8,15 +8,13 @@ import {
   Popover,
   Radio,
   Space,
-  Typography,
   message as antMessage,
 } from 'antd';
 import { useState } from 'react';
 import { api } from '@/api/client';
 import type { ChatMessage } from '@/types';
+import { errorText } from '@/lib/errors';
 import { formatTimeDayMonth } from '../utils/datetime';
-
-const { Text } = Typography;
 
 export function PollCard({
   message,
@@ -68,8 +66,8 @@ export function PollCard({
     try {
       const next = await api.votePoll(message.roomId, poll.id, nextIds);
       onUpdated(next);
-    } catch (err: any) {
-      void antMessage.error(err.message || 'Bình chọn thất bại.');
+    } catch (err) {
+      void antMessage.error(errorText(err, 'Bình chọn thất bại.'));
     } finally {
       setVoting(false);
     }
@@ -86,8 +84,8 @@ export function PollCard({
       onUpdated(next);
       setNewOptionText('');
       setShowAddInput(false);
-    } catch (err: any) {
-      void antMessage.error(err.message || 'Thêm phương án thất bại.');
+    } catch (err) {
+      void antMessage.error(errorText(err, 'Thêm phương án thất bại.'));
     } finally {
       setAddingOption(false);
     }
@@ -104,8 +102,8 @@ export function PollCard({
         try {
           const next = await api.closePoll(message.roomId, poll.id);
           onUpdated(next);
-        } catch (err: any) {
-          void antMessage.error(err.message || 'Khóa bình chọn thất bại.');
+        } catch (err) {
+          void antMessage.error(errorText(err, 'Khóa bình chọn thất bại.'));
         }
       },
     });

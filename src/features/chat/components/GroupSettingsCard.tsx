@@ -3,6 +3,7 @@ import { Switch, message } from 'antd';
 import { useState } from 'react';
 import { api } from '@/api/client';
 import type { GroupSettings, Room } from '@/types';
+import { errorText } from '@/lib/errors';
 
 interface GroupSettingsCardProps {
   room: Room;
@@ -17,6 +18,8 @@ const SETTING_ITEMS: { key: keyof GroupSettings; label: string }[] = [
 ];
 
 export function GroupSettingsCard({ room, onRoomUpdated }: GroupSettingsCardProps) {
+  const [loadingKey, setLoadingKey] = useState<keyof GroupSettings | null>(null);
+
   if (!room.canManage) {
     return null;
   }
@@ -27,8 +30,6 @@ export function GroupSettingsCard({ room, onRoomUpdated }: GroupSettingsCardProp
     adminOnlyInfo: room.settings?.adminOnlyInfo ?? false,
     joinApproval: room.settings?.joinApproval ?? false,
   };
-
-  const [loadingKey, setLoadingKey] = useState<keyof GroupSettings | null>(null);
 
   const handleToggle = async (key: keyof GroupSettings, on: boolean) => {
     const prevRoom = room;
@@ -49,9 +50,9 @@ export function GroupSettingsCard({ room, onRoomUpdated }: GroupSettingsCardProp
         ...updated,
         settings: updated.settings ?? nextRoom.settings,
       });
-    } catch (err: any) {
+    } catch (err) {
       onRoomUpdated(prevRoom);
-      message.error(err?.message || 'Không cập nhật được quyền nhóm.');
+      message.error(errorText(err, 'Không cập nhật được quyền nhóm.'));
     } finally {
       setLoadingKey(null);
     }

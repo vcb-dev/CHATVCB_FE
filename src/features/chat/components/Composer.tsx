@@ -54,14 +54,14 @@ export function Composer(props: {
   onSticker: (emoji: string) => Promise<void>;
   onGif: (url: string) => Promise<void>;
   onSend: (raw: string) => Promise<void>;
-  onSendVoice: (blob: Blob, durationMs: number) => Promise<void>;
+  onSendVoice: (blob: Blob) => Promise<void>;
   onMarkRead: () => void;
   onTool?: (kind: ToolKind) => void;
 }) {
   const { room, draft, replyTo, members, pendingImages, pendingFiles } = props;
   const voiceRecorder = useVoiceRecorder({
     roomId: room?.id ?? '',
-    onDone: (b, ms) => void props.onSendVoice(b, ms),
+    onDone: (blob) => void props.onSendVoice(blob),
   });
   const mentionMeasuringRef = useRef(false);
   const mentionOptions = useMemo(

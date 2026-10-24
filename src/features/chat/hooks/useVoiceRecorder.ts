@@ -13,7 +13,7 @@ const FORMATS = [
 
 export interface UseVoiceRecorderOptions {
   roomId: string;
-  onDone: (blob: Blob, durationMs: number) => void;
+  onDone: (blob: Blob) => void;
 }
 
 export function useVoiceRecorder({ roomId, onDone }: UseVoiceRecorderOptions) {
@@ -122,7 +122,7 @@ export function useVoiceRecorder({ roomId, onDone }: UseVoiceRecorderOptions) {
         if (durationMs < VOICE_MIN_MS) {
           void antMessage.info('Tin nhắn thoại quá ngắn.');
         } else {
-          onDoneRef.current(recordedBlob, durationMs);
+          onDoneRef.current(recordedBlob);
         }
       };
 

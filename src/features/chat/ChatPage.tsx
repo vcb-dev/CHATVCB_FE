@@ -6,10 +6,7 @@ import { MeetingsPage } from '@/features/meetings/MeetingsPage';
 import { ProfileDrawer } from '@/features/profile/ProfileDrawer';
 import { UserProfileModal } from '@/features/profile/UserProfileModal';
 import { useMyProfile } from '@/features/profile/hooks/useMyProfile';
-import { useQueryClient } from '@tanstack/react-query';
-import { api } from '@/api/client';
-import { queryKeys } from '@/api/queryKeys';
-import type { ChatMessage, Reminder, Room, RoomNote, ToolKind, User } from '@/types';
+import type { ChatMessage, Room, User } from '@/types';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatSidebar } from './components/ChatSidebar';
 import { Composer } from './components/Composer';
@@ -35,6 +32,7 @@ import { useComposer } from './hooks/useComposer';
 import { useMessageActions } from './hooks/useMessageActions';
 import { useRoomList } from './hooks/useRoomList';
 import { useRoomPrefs } from './hooks/useRoomPrefs';
+import { useRoomTools } from './hooks/useRoomTools';
 import { useTypingSignal } from './hooks/useTypingSignal';
 import { useWorkspace } from './hooks/useWorkspace';
 import { DropOverlay } from './components/DropOverlay';
@@ -67,11 +65,6 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [joinToken, setJoinToken] = useState<string | null>(() => parseJoinHash(window.location.hash));
-  const [toolModal, setToolModal] = useState<ToolKind | null>(null);
-  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
-  const [openNote, setOpenNote] = useState<RoomNote | null>(null);
-  const [noteModalOpen, setNoteModalOpen] = useState(false);
-  const queryClient = useQueryClient();
   const myHandle = handleFromEmail(user.email);
 
   useEffect(() => {
@@ -87,6 +80,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const roomList = useRoomList({ isViewingChat, setError });
   const { rooms, room, roomId } = roomList;
   const roomPrefs = useRoomPrefs({ setRooms: roomList.setRooms, removeRoom: roomList.removeRoom });
+  const tools = useRoomTools({ roomId, setWorkspace, openRoom: roomList.openRoom });
 
   const openRoomFromNotice = (id: string) => {
     setWorkspace('messenger');
@@ -95,34 +89,6 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       roomList.selectRoom(target);
     } else {
       void antMessage.info('Cuộc trò chuyện không còn trong danh sách.');
-    }
-  };
-
-  const handleOpenNote = async (noteId: string) => {
-    try {
-      const list = await queryClient.fetchQuery({
-        queryKey: queryKeys.notes(roomId),
-        queryFn: () => api.notes(roomId),
-      });
-      const found = list.find((n) => n.id === noteId);
-      if (found) {
-        setOpenNote(found);
-        setNoteModalOpen(true);
-      } else {
-        void antMessage.info('Ghi chú đã bị xóa.');
-      }
-    } catch {
-      void antMessage.info('Ghi chú đã bị xóa.');
-    }
-  };
-
-  const openCloud = async () => {
-    try {
-      const cloud = await api.cloudRoom();
-      await roomList.openRoom(cloud);
-      setWorkspace('messenger');
-    } catch (err) {
-      antMessage.error(err instanceof Error ? err.message : 'Không mở được Cloud của tôi.');
     }
   };
 
@@ -234,7 +200,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           onOpenMessage={chat.openMessage}
           onLoadMoreRooms={roomList.loadMoreRooms}
           onNewChat={() => setNewChatOpen(true)}
-          onOpenCloud={openCloud}
+          onOpenCloud={tools.openCloud}
           onOpenProfile={() => setProfileOpen(true)}
           onChangeAvatar={changeAvatar}
           prefs={roomPrefs}
@@ -280,7 +246,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onMessageUpdated={(next) =>
               chat.setMessages((cur) => cur.map((m) => (m.id === next.id ? next : m)))
             }
-            onOpenNote={handleOpenNote}
+            onOpenNote={tools.openNoteById}
           />
           <TypingIndicator typing={typing} roomId={roomId} members={chat.members} />
           <Composer
@@ -310,7 +276,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onSend={composer.sendContent}
             onSendVoice={composer.sendVoice}
             onMarkRead={markRead}
-            onTool={(kind) => setToolModal(kind)}
+            onTool={(kind) => tools.setToolModal(kind)}
           />
           <DropOverlay visible={drop.dragging} />
         </main>
@@ -354,14 +320,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onJumpMessage={chat.jumpToMessage}
             onViewProfile={(uid) => setViewProfileId(uid)}
             prefs={roomPrefs}
-            onEditReminder={(r) => {
-              setEditingReminder(r);
-              if (!r) setToolModal('reminder');
-            }}
-            onOpenNote={(n) => {
-              setOpenNote(n);
-              setNoteModalOpen(true);
-            }}
+            onEditReminder={tools.setEditingReminder}
+            onCreateReminder={() => tools.setToolModal('reminder')}
+            onOpenNote={tools.setOpenNote}
+            onCreateNote={() => tools.setToolModal('note')}
           />
         )
       ) : null}
@@ -403,29 +365,28 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         }}
       />
       <PollCreateModal
-        open={toolModal === 'poll'}
+        open={tools.toolModal === 'poll'}
         roomId={roomId}
-        onClose={() => setToolModal(null)}
+        onClose={() => tools.setToolModal(null)}
         onCreated={chat.appendMessage}
       />
       <ReminderModal
-        open={toolModal === 'reminder' || Boolean(editingReminder)}
+        open={tools.toolModal === 'reminder' || Boolean(tools.editingReminder)}
         roomId={roomId}
-        reminder={editingReminder}
+        reminder={tools.editingReminder}
         onClose={() => {
-          setToolModal(null);
-          setEditingReminder(null);
+          tools.setToolModal(null);
+          tools.setEditingReminder(null);
         }}
       />
       <NoteModal
-        open={toolModal === 'note' || noteModalOpen || Boolean(openNote)}
+        open={tools.toolModal === 'note' || Boolean(tools.openNote)}
         roomId={roomId}
-        note={openNote}
-        canEdit={openNote && room ? canEditItem(room, openNote.creatorId, user.id) : true}
+        note={tools.openNote}
+        canEdit={tools.openNote && room ? canEditItem(room, tools.openNote.creatorId, user.id) : true}
         onClose={() => {
-          setToolModal(null);
-          setNoteModalOpen(false);
-          setOpenNote(null);
+          tools.setToolModal(null);
+          tools.setOpenNote(null);
         }}
       />
     </div>

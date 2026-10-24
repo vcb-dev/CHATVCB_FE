@@ -5,6 +5,7 @@ import { api, fileSrc } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { Room } from '@/types';
+import { errorText } from '@/lib/errors';
 
 interface JoinGroupModalProps {
   token: string | null;
@@ -38,8 +39,8 @@ export function JoinGroupModal({ token, onClose, onOpenRoom }: JoinGroupModalPro
       } else if (res.status === 'requested') {
         setRequested(true);
       }
-    } catch (err: any) {
-      message.error(err?.message || 'Có lỗi xảy ra.');
+    } catch (err) {
+      message.error(errorText(err, 'Có lỗi xảy ra.'));
     } finally {
       setJoining(false);
     }

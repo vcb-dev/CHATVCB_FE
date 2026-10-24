@@ -2,6 +2,7 @@ import { MoreOutlined } from '@ant-design/icons';
 import { Dropdown, Modal, message, type MenuProps } from 'antd';
 import { api } from '@/api/client';
 import type { Room, RoomMember } from '@/types';
+import { errorText } from '@/lib/errors';
 
 interface MemberActionsProps {
   room: Room;
@@ -38,8 +39,8 @@ export function MemberActions({
             const next = await api.setMemberRole(room.id, member.id, 'member');
             onMembersUpdated(next);
             message.success('Đã bãi nhiệm phó nhóm.');
-          } catch (err: any) {
-            message.error(err?.message || 'Có lỗi xảy ra.');
+          } catch (err) {
+            message.error(errorText(err, 'Có lỗi xảy ra.'));
           }
         },
       });
@@ -52,8 +53,8 @@ export function MemberActions({
             const next = await api.setMemberRole(room.id, member.id, 'admin');
             onMembersUpdated(next);
             message.success('Đã bổ nhiệm phó nhóm.');
-          } catch (err: any) {
-            message.error(err?.message || 'Có lỗi xảy ra.');
+          } catch (err) {
+            message.error(errorText(err, 'Có lỗi xảy ra.'));
           }
         },
       });
@@ -73,8 +74,8 @@ export function MemberActions({
               const next = await api.transferOwner(room.id, member.id);
               onMembersUpdated(next);
               message.success('Đã chuyển quyền trưởng nhóm.');
-            } catch (err: any) {
-              message.error(err?.message || 'Có lỗi xảy ra.');
+            } catch (err) {
+              message.error(errorText(err, 'Có lỗi xảy ra.'));
             }
           },
         });

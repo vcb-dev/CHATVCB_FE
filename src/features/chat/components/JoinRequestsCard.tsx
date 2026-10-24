@@ -5,6 +5,7 @@ import { api, fileSrc } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { Room, RoomMember } from '@/types';
+import { errorText } from '@/lib/errors';
 
 interface JoinRequestsCardProps {
   room: Room;
@@ -12,10 +13,6 @@ interface JoinRequestsCardProps {
 }
 
 export function JoinRequestsCard({ room, onMembersUpdated }: JoinRequestsCardProps) {
-  if (!room.canManage) {
-    return null;
-  }
-
   const queryClient = useQueryClient();
 
   const { data: requests = [] } = useQuery({
@@ -24,7 +21,7 @@ export function JoinRequestsCard({ room, onMembersUpdated }: JoinRequestsCardPro
     enabled: Boolean(room.id && room.canManage),
   });
 
-  if (requests.length === 0) {
+  if (!room.canManage || requests.length === 0) {
     return null;
   }
 
@@ -34,8 +31,8 @@ export function JoinRequestsCard({ room, onMembersUpdated }: JoinRequestsCardPro
       onMembersUpdated(next);
       void queryClient.invalidateQueries({ queryKey: queryKeys.joinRequests(room.id) });
       message.success('Đã duyệt thành viên.');
-    } catch (err: any) {
-      message.error(err?.message || 'Không duyệt được yêu cầu.');
+    } catch (err) {
+      message.error(errorText(err, 'Không duyệt được yêu cầu.'));
     }
   };
 
@@ -44,8 +41,8 @@ export function JoinRequestsCard({ room, onMembersUpdated }: JoinRequestsCardPro
       await api.rejectRequest(room.id, userId);
       void queryClient.invalidateQueries({ queryKey: queryKeys.joinRequests(room.id) });
       message.success('Đã từ chối yêu cầu.');
-    } catch (err: any) {
-      message.error(err?.message || 'Không từ chối được yêu cầu.');
+    } catch (err) {
+      message.error(errorText(err, 'Không từ chối được yêu cầu.'));
     }
   };
 

@@ -8,10 +8,11 @@ import { GroupBoardCard } from './GroupBoardCard';
 
 type GroupNotesCardProps = {
   room: Room;
-  onOpen: (note: RoomNote | null) => void;
+  onOpen: (note: RoomNote) => void;
+  onCreate: () => void;
 };
 
-export function GroupNotesCard({ room, onOpen }: GroupNotesCardProps) {
+export function GroupNotesCard({ room, onOpen, onCreate }: GroupNotesCardProps) {
   const { data: notes = [] } = useQuery({
     queryKey: queryKeys.notes(room.id),
     queryFn: () => api.notes(room.id),
@@ -25,7 +26,7 @@ export function GroupNotesCard({ room, onOpen }: GroupNotesCardProps) {
       countLabel={`${notes.length} ghi chú`}
       emptyText="Chưa có ghi chú nào"
       hasItems={notes.length > 0}
-      onCreate={() => onOpen(null)}
+      onCreate={onCreate}
     >
       {notes.map((n) => (
         <div key={n.id} className="board-row cursor-pointer" onClick={() => onOpen(n)}>

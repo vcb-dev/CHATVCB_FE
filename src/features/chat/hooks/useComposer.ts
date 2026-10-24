@@ -201,43 +201,36 @@ export function useComposer({
     setError('');
     const unsentFiles = [...filesToSend];
     try {
-      const uploadedImages: { imageId?: string; caption: string }[] = [];
-      for (const [index, item] of attachments.entries()) {
-        const isLastOverall = filesToSend.length === 0 && index === attachments.length - 1;
-        const caption = isLastOverall ? content : '';
+      const imageIds: string[] = [];
+      for (const item of attachments) {
         if (item.imageId) {
-          uploadedImages.push({ imageId: item.imageId, caption });
+          imageIds.push(item.imageId);
           continue;
         }
         if (item.file) {
           const image = await api.uploadImage(roomId, item.file);
-          uploadedImages.push({ imageId: image.id, caption });
+          imageIds.push(image.id);
         }
       }
-      if (uploadedImages.length >= 2) {
-        const caption = filesToSend.length === 0 ? content : '';
-        const reply = filesToSend.length === 0 ? replyId : undefined;
-        const imageIds = uploadedImages.map((item) => item.imageId as string);
+      const last = filesToSend.length === 0;
+      if (imageIds.length >= 2) {
         const message = await api.sendMessage(
           roomId,
-          caption,
+          last ? content : '',
           undefined,
-          reply,
+          last ? replyId : undefined,
           undefined,
           imageIds,
         );
         appendMessage(message);
-      } else if (uploadedImages.length === 1) {
-        for (const [index, item] of uploadedImages.entries()) {
-          const isLastOverall = filesToSend.length === 0 && index === uploadedImages.length - 1;
-          const message = await api.sendMessage(
-            roomId,
-            item.caption,
-            item.imageId,
-            isLastOverall ? replyId : undefined,
-          );
-          appendMessage(message);
-        }
+      } else if (imageIds.length === 1) {
+        const message = await api.sendMessage(
+          roomId,
+          last ? content : '',
+          imageIds[0],
+          last ? replyId : undefined,
+        );
+        appendMessage(message);
       }
       revokePending(attachments);
 
@@ -270,7 +263,7 @@ export function useComposer({
     }
   }
 
-  async function sendVoice(blob: Blob, durationMs: number) {
+  async function sendVoice(blob: Blob) {
     if (!roomId) return;
     try {
       let ext = 'webm';

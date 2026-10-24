@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import type { RoomNote } from '@/types';
+import { errorText } from '@/lib/errors';
 import { formatShort } from '../utils/datetime';
 
 type NoteModalProps = {
@@ -66,7 +67,7 @@ export function NoteModal({
         queryKey: queryKeys.notes(roomId),
       });
       onClose();
-    } catch (err: any) {
+    } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       message.error(msg);
       if (msg.includes('Không tìm thấy ghi chú')) {
@@ -97,8 +98,8 @@ export function NoteModal({
             queryKey: queryKeys.notes(roomId),
           });
           onClose();
-        } catch (err: any) {
-          message.error(err instanceof Error ? err.message : 'Có lỗi xảy ra');
+        } catch (err) {
+          message.error(errorText(err, 'Có lỗi xảy ra'));
         } finally {
           setDeleting(false);
         }

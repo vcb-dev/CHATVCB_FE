@@ -35,10 +35,6 @@ export function ComposerToolsMenu(props: {
     },
   );
 
-  if (items.length === 0) {
-    return null;
-  }
-
   return (
     <Dropdown
       menu={{

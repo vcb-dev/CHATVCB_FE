@@ -1,8 +1,9 @@
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, Checkbox, Input, Modal, Space, Typography, message as antMessage } from 'antd';
+import { Button, Checkbox, Input, Modal, Typography, message as antMessage } from 'antd';
 import { useState } from 'react';
 import { api } from '@/api/client';
 import type { ChatMessage } from '@/types';
+import { errorText } from '@/lib/errors';
 import { fromLocalInput } from '../utils/datetime';
 
 const { Text } = Typography;
@@ -72,8 +73,8 @@ export function PollCreateModal(props: {
       });
       props.onCreated(msg);
       handleClose();
-    } catch (err: any) {
-      void antMessage.error(err.message || 'Tạo bình chọn thất bại.');
+    } catch (err) {
+      void antMessage.error(errorText(err, 'Tạo bình chọn thất bại.'));
       setSubmitting(false);
     }
   };

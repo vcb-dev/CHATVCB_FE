@@ -82,8 +82,10 @@ type Props = {
   onJumpMessage: (id: string, createdAt: string) => void;
   onViewProfile: (userId: string) => void;
   prefs: ReturnType<typeof useRoomPrefs>;
-  onEditReminder?: (reminder: Reminder | null) => void;
-  onOpenNote?: (note: RoomNote | null) => void;
+  onEditReminder: (reminder: Reminder) => void;
+  onCreateReminder: () => void;
+  onOpenNote: (note: RoomNote) => void;
+  onCreateNote: () => void;
 };
 
 export function GroupDrawer({
@@ -100,7 +102,9 @@ export function GroupDrawer({
   onViewProfile,
   prefs,
   onEditReminder,
+  onCreateReminder,
   onOpenNote,
+  onCreateNote,
 }: Props) {
   const [name, setName] = useState(room?.name ?? '');
   const [editingName, setEditingName] = useState(false);
@@ -160,7 +164,6 @@ export function GroupDrawer({
 
   const isCloud = room?.isCloud ?? false;
   const isGroup = !isCloud && (room?.type === 'group' || room?.kind === 'group');
-  const isOwner = Boolean(isGroup && room?.createdById === currentUserId);
   const isSuggestMember = Boolean(
     isGroup &&
       room &&
@@ -530,20 +533,16 @@ export function GroupDrawer({
             </>
           ) : null}
 
-          {room && onEditReminder ? (
+          {room ? (
             <GroupRemindersCard
               room={room}
               currentUserId={currentUserId}
               onEdit={onEditReminder}
+              onCreate={onCreateReminder}
             />
           ) : null}
 
-          {room && onOpenNote ? (
-            <GroupNotesCard
-              room={room}
-              onOpen={onOpenNote}
-            />
-          ) : null}
+          {room ? <GroupNotesCard room={room} onOpen={onOpenNote} onCreate={onCreateNote} /> : null}
 
           <div className="group-card">
             <button type="button" className="group-row" onClick={() => toggle('photos')}>

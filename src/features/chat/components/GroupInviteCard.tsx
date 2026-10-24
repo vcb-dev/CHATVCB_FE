@@ -6,6 +6,7 @@ import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { copyText } from '@/lib/clipboard';
 import type { Room } from '@/types';
+import { errorText } from '@/lib/errors';
 import { inviteUrl } from '../utils/invite';
 
 interface GroupInviteCardProps {
@@ -13,10 +14,6 @@ interface GroupInviteCardProps {
 }
 
 export function GroupInviteCard({ room }: GroupInviteCardProps) {
-  if (!room.canManage) {
-    return null;
-  }
-
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
 
@@ -25,6 +22,10 @@ export function GroupInviteCard({ room }: GroupInviteCardProps) {
     queryFn: () => api.getInvite(room.id),
     enabled: Boolean(room.id && room.canManage),
   });
+
+  if (!room.canManage) {
+    return null;
+  }
 
   const token = data?.token ?? null;
   const url = token ? inviteUrl(token) : '';
@@ -35,8 +36,8 @@ export function GroupInviteCard({ room }: GroupInviteCardProps) {
       const res = await api.resetInvite(room.id);
       queryClient.setQueryData(queryKeys.invite(room.id), res);
       message.success('Đã tạo link mời.');
-    } catch (err: any) {
-      message.error(err?.message || 'Không tạo được link mời.');
+    } catch (err) {
+      message.error(errorText(err, 'Không tạo được link mời.'));
     } finally {
       setLoading(false);
     }
@@ -46,8 +47,8 @@ export function GroupInviteCard({ room }: GroupInviteCardProps) {
     try {
       await copyText(url);
       message.success('Đã sao chép link mời.');
-    } catch (err: any) {
-      message.error(err?.message || 'Không sao chép được link.');
+    } catch (err) {
+      message.error(errorText(err, 'Không sao chép được link.'));
     }
   };
 
@@ -61,8 +62,8 @@ export function GroupInviteCard({ room }: GroupInviteCardProps) {
           const res = await api.resetInvite(room.id);
           queryClient.setQueryData(queryKeys.invite(room.id), res);
           message.success('Đã đổi link mời.');
-        } catch (err: any) {
-          message.error(err?.message || 'Không đổi được link mời.');
+        } catch (err) {
+          message.error(errorText(err, 'Không đổi được link mời.'));
         }
       },
     });
@@ -79,8 +80,8 @@ export function GroupInviteCard({ room }: GroupInviteCardProps) {
           await api.disableInvite(room.id);
           queryClient.setQueryData(queryKeys.invite(room.id), { token: null });
           message.success('Đã tắt link mời.');
-        } catch (err: any) {
-          message.error(err?.message || 'Không tắt được link mời.');
+        } catch (err) {
+          message.error(errorText(err, 'Không tắt được link mời.'));
         }
       },
     });

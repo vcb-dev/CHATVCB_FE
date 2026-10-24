@@ -16,11 +16,12 @@ import {
 } from '@ant-design/icons';
 import { Avatar, Button, Input, Modal, Switch, Typography, message } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { api, fileSrc } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { CopyableImage } from '@/components/CopyableImage';
 import { compressImage } from '@/lib/image';
+import type { useRoomPrefs } from '../hooks/useRoomPrefs';
 import { mergePhotos } from '../utils/media';
 import { notifyEnabled, requestNotifyPermission } from '@/lib/notify';
 import { formatBytes } from '../utils/attachments';
@@ -54,6 +55,7 @@ type Props = {
   onRoomRemoved: (roomId: string) => void;
   onJumpMessage: (id: string, createdAt: string) => void;
   onViewProfile: (userId: string) => void;
+  prefs: ReturnType<typeof useRoomPrefs>;
   onEditReminder?: (reminder: Reminder | null) => void;
   onOpenNote?: (note: RoomNote | null) => void;
 };
@@ -70,6 +72,7 @@ export function GroupDrawer({
   onRoomRemoved,
   onJumpMessage,
   onViewProfile,
+  prefs,
   onEditReminder,
   onOpenNote,
 }: Props) {
@@ -104,40 +107,21 @@ export function GroupDrawer({
   const files = filesQuery.data ?? EMPTY_FILES;
   const links = linksQuery.data ?? EMPTY_LINKS;
   const pins = pinsQuery.data ?? EMPTY_PINS;
-  const queryClient = useQueryClient();
-  const muteMutation = useMutation({
-    mutationFn: ({
-      target,
-      muted,
-      minutes,
-    }: {
-      target: Room;
-      muted: boolean;
-      minutes?: number | null;
-    }) => api.muteRoom(target.id, muted, minutes ?? undefined),
-    onMutate: async ({ target, muted, minutes }) => {
-      // hủy lần poll đang chạy để nó không ghi đè trạng thái vừa bấm
-      await queryClient.cancelQueries({ queryKey: queryKeys.rooms });
-      const mutedUntil =
-        muted && minutes ? new Date(Date.now() + minutes * 60 * 1000).toISOString() : null;
-      onRoomUpdated({ ...target, muted, mutedUntil });
-    },
-    onError: (err, { target }) => {
-      onRoomUpdated(target);
-      message.error(err instanceof Error ? err.message : 'Không đổi được thông báo.');
-    },
-    onSuccess: (res) => {
-      if (res.muted) {
-        message.success('Đã tắt thông báo cuộc trò chuyện này.');
-      } else {
-        message.success('Đã bật thông báo cuộc trò chuyện này.');
-        void requestNotifyPermission();
-      }
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
-    },
-  });
+  const [muting, setMuting] = useState(false);
+  async function changeMute(request: Promise<boolean>, muted: boolean) {
+    setMuting(true);
+    const done = await request;
+    setMuting(false);
+    if (!done) {
+      return;
+    }
+    if (muted) {
+      message.success('Đã tắt thông báo cuộc trò chuyện này.');
+    } else {
+      message.success('Đã bật thông báo cuộc trò chuyện này.');
+      void requestNotifyPermission();
+    }
+  }
   const [muteModalOpen, setMuteModalOpen] = useState(false);
   const [nickUser, setNickUser] = useState<RoomMember | null>(null);
   const [nickValue, setNickValue] = useState('');
@@ -458,10 +442,10 @@ export function GroupDrawer({
                 <Switch
                   size="small"
                   checked={!isRoomMuted(room)}
-                  loading={muteMutation.isPending}
+                  loading={muting}
                   onChange={(checked) => {
                     if (checked) {
-                      muteMutation.mutate({ target: room, muted: false });
+                      void changeMute(prefs.unmute(room), false);
                     } else {
                       setMuteModalOpen(true);
                     }
@@ -816,7 +800,7 @@ export function GroupDrawer({
         onPick={(minutes) => {
           setMuteModalOpen(false);
           if (room) {
-            muteMutation.mutate({ target: room, muted: true, minutes });
+            void changeMute(prefs.mute(room, minutes), true);
           }
         }}
         onCancel={() => setMuteModalOpen(false)}

@@ -353,6 +353,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onRoomRemoved={roomList.removeRoom}
             onJumpMessage={chat.jumpToMessage}
             onViewProfile={(uid) => setViewProfileId(uid)}
+            prefs={roomPrefs}
             onEditReminder={(r) => {
               setEditingReminder(r);
               if (!r) setToolModal('reminder');

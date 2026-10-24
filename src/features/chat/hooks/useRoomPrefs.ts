@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Modal, message as antMessage } from 'antd';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
-import type { Room } from '@/types';
+import type { Room, RoomMute } from '@/types';
 import { sortRooms } from '../utils/rooms';
 
 export function useRoomPrefs({
@@ -15,20 +15,34 @@ export function useRoomPrefs({
 }) {
   const queryClient = useQueryClient();
 
-  const togglePin = useCallback(
-    async (room: Room) => {
-      const nextPinned = !room.pinned;
+  // Cập nhật tạm `patch` lên phòng, gọi API, lỗi thì hoàn lại đúng các khóa trong `patch`
+  const apply = useCallback(
+    async <T,>(
+      room: Room,
+      patch: Partial<Room>,
+      request: () => Promise<T>,
+      onDone?: (res: T) => void,
+    ): Promise<boolean> => {
+      const update = (values: Partial<Room>) =>
+        setRooms((prev) => {
+          const next = prev.map((r) => (r.id === room.id ? { ...r, ...values } : r));
+          return 'pinned' in values ? sortRooms(next) : next;
+        });
+
       await queryClient.cancelQueries({ queryKey: queryKeys.rooms });
-      setRooms((prev) =>
-        sortRooms(prev.map((r) => (r.id === room.id ? { ...r, pinned: nextPinned } : r))),
-      );
+      update(patch);
       try {
-        await api.updateRoomPrefs(room.id, { pinned: nextPinned });
+        const res = await request();
+        onDone?.(res);
+        return true;
       } catch (err) {
-        setRooms((prev) =>
-          sortRooms(prev.map((r) => (r.id === room.id ? { ...r, pinned: room.pinned } : r))),
+        update(
+          Object.fromEntries(
+            Object.keys(patch).map((key) => [key, room[key as keyof Room]]),
+          ) as Partial<Room>,
         );
         antMessage.error(err instanceof Error ? err.message : 'Không thực hiện được.');
+        return false;
       } finally {
         void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
       }
@@ -36,50 +50,29 @@ export function useRoomPrefs({
     [queryClient, setRooms],
   );
 
-  const toggleUnread = useCallback(
-    async (room: Room) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.rooms });
-      const hasUnread = (room.unreadCount ?? 0) > 0 || (room.markedUnread ?? false);
+  const togglePin = useCallback(
+    (room: Room) =>
+      apply(room, { pinned: !room.pinned }, () =>
+        api.updateRoomPrefs(room.id, { pinned: !room.pinned }),
+      ),
+    [apply],
+  );
 
-      if (hasUnread && room.lastMessageId) {
-        setRooms((prev) =>
-          prev.map((r) =>
-            r.id === room.id ? { ...r, unreadCount: 0, markedUnread: false } : r,
-          ),
+  const toggleUnread = useCallback(
+    (room: Room) => {
+      const hasUnread = (room.unreadCount ?? 0) > 0 || (room.markedUnread ?? false);
+      if (!hasUnread) {
+        return apply(room, { markedUnread: true }, () =>
+          api.updateRoomPrefs(room.id, { markedUnread: true }),
         );
-        try {
-          await api.markRead(room.id, room.lastMessageId);
-        } catch (err) {
-          setRooms((prev) =>
-            prev.map((r) =>
-              r.id === room.id
-                ? { ...r, unreadCount: room.unreadCount, markedUnread: room.markedUnread }
-                : r,
-            ),
-          );
-          antMessage.error(err instanceof Error ? err.message : 'Không thực hiện được.');
-        } finally {
-          void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
-        }
-      } else {
-        setRooms((prev) =>
-          prev.map((r) => (r.id === room.id ? { ...r, markedUnread: true } : r)),
-        );
-        try {
-          await api.updateRoomPrefs(room.id, { markedUnread: true });
-        } catch (err) {
-          setRooms((prev) =>
-            prev.map((r) =>
-              r.id === room.id ? { ...r, markedUnread: room.markedUnread } : r,
-            ),
-          );
-          antMessage.error(err instanceof Error ? err.message : 'Không thực hiện được.');
-        } finally {
-          void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
-        }
       }
+      return apply<unknown>(room, { unreadCount: 0, markedUnread: false }, () =>
+        room.lastMessageId
+          ? api.markRead(room.id, room.lastMessageId)
+          : api.updateRoomPrefs(room.id, { markedUnread: false }),
+      );
     },
-    [queryClient, setRooms],
+    [apply],
   );
 
   const hide = useCallback(
@@ -105,81 +98,45 @@ export function useRoomPrefs({
     [queryClient, removeRoom, setRooms],
   );
 
-  const mute = useCallback(
-    async (room: Room, minutes: number | null) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.rooms });
-      const optimisticUntil = minutes ? new Date(Date.now() + minutes * 60000).toISOString() : null;
+  const writeMute = useCallback(
+    (roomId: string) => (res: RoomMute) =>
       setRooms((prev) =>
         prev.map((r) =>
-          r.id === room.id ? { ...r, muted: true, mutedUntil: optimisticUntil } : r,
+          r.id === roomId ? { ...r, muted: res.muted, mutedUntil: res.mutedUntil } : r,
         ),
-      );
-      try {
-        const res = await api.muteRoom(room.id, true, minutes ?? undefined);
-        setRooms((prev) =>
-          prev.map((r) =>
-            r.id === room.id ? { ...r, muted: res.muted, mutedUntil: res.mutedUntil } : r,
-          ),
-        );
-      } catch (err) {
-        setRooms((prev) =>
-          prev.map((r) =>
-            r.id === room.id ? { ...r, muted: room.muted, mutedUntil: room.mutedUntil } : r,
-          ),
-        );
-        antMessage.error(err instanceof Error ? err.message : 'Không thực hiện được.');
-      } finally {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
-      }
-    },
-    [queryClient, setRooms],
+      ),
+    [setRooms],
+  );
+
+  const mute = useCallback(
+    (room: Room, minutes: number | null) =>
+      apply(
+        room,
+        {
+          muted: true,
+          mutedUntil: minutes ? new Date(Date.now() + minutes * 60000).toISOString() : null,
+        },
+        () => api.muteRoom(room.id, true, minutes ?? undefined),
+        writeMute(room.id),
+      ),
+    [apply, writeMute],
   );
 
   const unmute = useCallback(
-    async (room: Room) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.rooms });
-      setRooms((prev) =>
-        prev.map((r) => (r.id === room.id ? { ...r, muted: false, mutedUntil: null } : r)),
-      );
-      try {
-        const res = await api.muteRoom(room.id, false);
-        setRooms((prev) =>
-          prev.map((r) =>
-            r.id === room.id ? { ...r, muted: res.muted, mutedUntil: res.mutedUntil } : r,
-          ),
-        );
-      } catch (err) {
-        setRooms((prev) =>
-          prev.map((r) =>
-            r.id === room.id ? { ...r, muted: room.muted, mutedUntil: room.mutedUntil } : r,
-          ),
-        );
-        antMessage.error(err instanceof Error ? err.message : 'Không thực hiện được.');
-      } finally {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
-      }
-    },
-    [queryClient, setRooms],
+    (room: Room) =>
+      apply(
+        room,
+        { muted: false, mutedUntil: null },
+        () => api.muteRoom(room.id, false),
+        writeMute(room.id),
+      ),
+    [apply, writeMute],
   );
 
   const setLabel = useCallback(
-    async (room: Room, labelId: string | null) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.rooms });
-      setRooms((prev) =>
-        prev.map((r) => (r.id === room.id ? { ...r, labelId } : r)),
-      );
-      try {
-        await api.updateRoomPrefs(room.id, { labelId });
-      } catch (err) {
-        setRooms((prev) =>
-          prev.map((r) => (r.id === room.id ? { ...r, labelId: room.labelId ?? null } : r)),
-        );
-        antMessage.error(err instanceof Error ? err.message : 'Không thực hiện được.');
-      } finally {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
-      }
-    },
-    [queryClient, setRooms],
+    (room: Room, labelId: string | null) =>
+      apply(room, { labelId }, () => api.updateRoomPrefs(room.id, { labelId })),
+    [apply],
   );
 
   return {

@@ -1,16 +1,7 @@
-export type RichInline =
-  | { type: 'text'; text: string }
-  | { type: 'bold' | 'italic' | 'strike'; children: RichInline[] }
-  | { type: 'code'; text: string }
-  | { type: 'link'; url: string };
-
-export type RichBlock =
-  | { type: 'paragraph'; lines: RichInline[][] }
-  | { type: 'code'; text: string }
-  | { type: 'list'; ordered: boolean; items: RichInline[][] };
+import type { RichBlock, RichInline } from '@/types';
 
 export const LINK = /https?:\/\/[^\s<>"']+/g;
-const TRAILING_PUNCT = /[.,;:!?)]+$/;
+const TRAILING_PUNCT = /[.,;:!?)*~]+$/;
 
 function splitLinkPunct(raw: string): { url: string; punct: string } {
   const m = raw.match(TRAILING_PUNCT);
@@ -111,7 +102,22 @@ export function parseInline(text: string): RichInline[] {
     ]);
   }
 
-  // 2. Link
+  // 2. Bold: **...** and Strike: ~~...~~
+  const boldStrikeMatch = text.match(/(\*\*|~~)(.+?)\1/s);
+  if (boldStrikeMatch && boldStrikeMatch.index !== undefined) {
+    const delim = boldStrikeMatch[1];
+    const content = boldStrikeMatch[2];
+    const before = text.slice(0, boldStrikeMatch.index);
+    const after = text.slice(boldStrikeMatch.index + boldStrikeMatch[0].length);
+    const type = delim === '**' ? 'bold' : 'strike';
+    return flattenText([
+      ...parseInline(before),
+      { type, children: parseInline(content) },
+      ...parseInline(after),
+    ]);
+  }
+
+  // 3. Link
   const linkRegex = new RegExp(LINK.source, LINK.flags);
   const linkMatch = linkRegex.exec(text);
   if (linkMatch && linkMatch.index !== undefined) {
@@ -125,21 +131,6 @@ export function parseInline(text: string): RichInline[] {
         ...parseInline(after),
       ]);
     }
-  }
-
-  // 3. Bold: **...** and Strike: ~~...~~
-  const boldStrikeMatch = text.match(/(\*\*|~~)(.+?)\1/s);
-  if (boldStrikeMatch && boldStrikeMatch.index !== undefined) {
-    const delim = boldStrikeMatch[1];
-    const content = boldStrikeMatch[2];
-    const before = text.slice(0, boldStrikeMatch.index);
-    const after = text.slice(boldStrikeMatch.index + boldStrikeMatch[0].length);
-    const type = delim === '**' ? 'bold' : 'strike';
-    return flattenText([
-      ...parseInline(before),
-      { type, children: parseInline(content) },
-      ...parseInline(after),
-    ]);
   }
 
   // 4. Italic: *...* and _..._

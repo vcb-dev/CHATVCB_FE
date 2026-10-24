@@ -1,11 +1,13 @@
 import { type MouseEvent, useEffect, useRef, useState } from 'react';
-import { Button } from 'antd';
+import { Button, message as antMessage } from 'antd';
 import { CaretRightOutlined, PauseOutlined } from '@ant-design/icons';
 
 export interface VoiceBubbleProps {
   url: string;
   durationMs: number;
 }
+
+let playingAudio: HTMLAudioElement | null = null;
 
 function formatMs(ms: number) {
   const totalSec = Math.floor(ms / 1000);
@@ -29,15 +31,25 @@ export function VoiceBubble({ url, durationMs }: VoiceBubbleProps) {
     };
 
     const handleEnded = () => {
+      if (playingAudio === audio) {
+        playingAudio = null;
+      }
       setPlaying(false);
       setCurrentMs(0);
     };
 
     const handlePause = () => {
+      if (playingAudio === audio) {
+        playingAudio = null;
+      }
       setPlaying(false);
     };
 
     const handlePlay = () => {
+      if (playingAudio && playingAudio !== audio) {
+        playingAudio.pause();
+      }
+      playingAudio = audio;
       setPlaying(true);
     };
 
@@ -47,6 +59,9 @@ export function VoiceBubble({ url, durationMs }: VoiceBubbleProps) {
     audio.addEventListener('play', handlePlay);
 
     return () => {
+      if (playingAudio === audio) {
+        playingAudio = null;
+      }
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('pause', handlePause);
@@ -61,7 +76,7 @@ export function VoiceBubble({ url, durationMs }: VoiceBubbleProps) {
     if (playing) {
       audio.pause();
     } else {
-      void audio.play();
+      void audio.play().catch(() => antMessage.error('Không phát được tin nhắn thoại.'));
     }
   };
 

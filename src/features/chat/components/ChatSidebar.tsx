@@ -12,6 +12,8 @@ import { RoomFilterBar, filterRooms, type RoomFilter } from './RoomFilterBar';
 import { RoomListItem } from './RoomListItem';
 import { SidebarSearch } from './SidebarSearch';
 
+const FILTER_MIN_ROWS = 10;
+
 export function ChatSidebar(props: {
   user: User;
   team: string;
@@ -54,6 +56,27 @@ export function ChatSidebar(props: {
 
   const labelMap = useMemo(() => new Map(labels.map((l) => [l.id, l])), [labels]);
   const visibleRooms = useMemo(() => filterRooms(rooms, filter), [rooms, filter]);
+  const autoLoadKeyRef = useRef('');
+
+  useEffect(() => {
+    if (
+      filter.kind === 'all' ||
+      searchText.trim() ||
+      !roomsMeta.hasMore ||
+      !roomsMeta.nextCursor ||
+      props.loadingOlderRooms ||
+      visibleRooms.length >= FILTER_MIN_ROWS
+    ) {
+      return;
+    }
+    // Mỗi trang chỉ tự tải một lần cho mỗi bộ lọc, để tải lỗi không lặp vô hạn
+    const key = `${filter.kind === 'label' ? filter.labelId : filter.kind}|${roomsMeta.nextCursor}`;
+    if (autoLoadKeyRef.current === key) {
+      return;
+    }
+    autoLoadKeyRef.current = key;
+    void props.onLoadMoreRooms();
+  }, [filter, roomsMeta.hasMore, roomsMeta.nextCursor, props.loadingOlderRooms, visibleRooms.length, searchText]);
 
   function handleRoomsScroll(e: UIEvent<HTMLDivElement>) {
     if (searchText.trim() || props.loadingOlderRooms || !roomsMeta.hasMore || !roomsMeta.nextCursor) {

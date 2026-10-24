@@ -169,8 +169,10 @@ export function PollCard({
                     <Radio
                       checked={isMine}
                       disabled={poll.closed}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={() => void handleVote(opt.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleVote(opt.id);
+                      }}
                     />
                   )}
                   <span className="poll-option-text">{opt.text}</span>

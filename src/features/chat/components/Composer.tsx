@@ -19,6 +19,7 @@ import type {
 } from '@/types';
 import { buildMentionOptions, mentionOpen } from '../utils/mentions';
 import { filesFromClipboard } from '../utils/media';
+import { isDirectRoom } from '../utils/rooms';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { AttachButton } from './AttachButton';
 import { ComposerActions } from './ComposerActions';
@@ -201,7 +202,7 @@ export function Composer(props: {
                   onGif={(url) => void props.onGif(url)}
                 />
                 <ComposerToolsMenu
-                  isGroup={Boolean(room && (room.kind === 'group' || room.type === 'group'))}
+                  isGroup={Boolean(room && !isDirectRoom(room) && !room.isCloud)}
                   locked={Boolean(props.locked)}
                   disabled={props.disabled}
                   onPick={(kind) => props.onTool?.(kind)}

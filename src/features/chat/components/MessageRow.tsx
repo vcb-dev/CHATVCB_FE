@@ -19,6 +19,7 @@ import { SeenAvatars } from './SeenAvatars';
 import { SeenBubble } from './SeenBubble';
 import { VoiceBubble } from './VoiceBubble';
 import { firstLink } from '../utils/format';
+import { inviteTokenOf } from '../utils/invite';
 
 export function MessageRow(props: {
   message: ChatMessage;
@@ -57,6 +58,7 @@ export function MessageRow(props: {
   const hasText = Boolean(message.content && !message.recalled) && !isPoll;
   const sticker = !hasImage && !album && !hasFile && hasText && isStickerText(message.content);
   const link = !isPoll && hasText && !hasImage && !album && !hasFile && !sticker ? firstLink(message.content) : null;
+  const previewLink = link && !inviteTokenOf(link) ? link : null;
   return (
     <div
       id={`msg-${message.id}`}
@@ -233,7 +235,7 @@ export function MessageRow(props: {
             />
           ) : null}
         </div>
-        {link ? <LinkPreviewCard url={link} /> : null}
+        {previewLink ? <LinkPreviewCard url={previewLink} /> : null}
         <ReactionSummary
           reactions={message.reactions}
           myId={props.userId}

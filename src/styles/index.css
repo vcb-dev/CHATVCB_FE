@@ -4443,3 +4443,49 @@ body {
   font-size: 12px;
   color: #65676b;
 }
+
+/* Thẻ bảng tin trong khung nhóm */
+.board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.group-row.board-toggle,
+.group-row.board-toggle:not(.static):hover {
+  padding: 0;
+  flex: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.board-list {
+  border-top: 1px solid #f0f0f0;
+}
+
+.board-empty {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #888;
+  border-top: 1px solid #f0f0f0;
+}
+
+.board-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.board-row-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-row-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}

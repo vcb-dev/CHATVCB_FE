@@ -75,6 +75,25 @@ async function errorMessage(response: Response) {
   return message;
 }
 
+async function uploadChatFile(
+  roomId: string,
+  path: 'files' | 'voice',
+  blob: Blob,
+  filename: string,
+): Promise<ChatFile> {
+  const body = new FormData();
+  body.append('file', blob, filename);
+  const response = await fetch(`${API_URL}/rooms/${roomId}/${path}`, {
+    method: 'POST',
+    headers: authHeader(),
+    body,
+  });
+  if (!response.ok) {
+    throw new Error(await errorMessage(response));
+  }
+  return response.json() as Promise<ChatFile>;
+}
+
 export function fileSrc(url: string) {
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:')) {
     return url;
@@ -214,31 +233,11 @@ export const api = {
       body: JSON.stringify({ emoji }),
     });
   },
-  async uploadFile(roomId: string, file: File): Promise<ChatFile> {
-    const body = new FormData();
-    body.append('file', file);
-    const response = await fetch(`${API_URL}/rooms/${roomId}/files`, {
-      method: 'POST',
-      headers: authHeader(),
-      body,
-    });
-    if (!response.ok) {
-      throw new Error(await errorMessage(response));
-    }
-    return response.json() as Promise<ChatFile>;
+  uploadFile(roomId: string, file: File): Promise<ChatFile> {
+    return uploadChatFile(roomId, 'files', file, file.name);
   },
-  async uploadVoice(roomId: string, blob: Blob, filename: string): Promise<ChatFile> {
-    const body = new FormData();
-    body.append('file', blob, filename);
-    const response = await fetch(`${API_URL}/rooms/${roomId}/voice`, {
-      method: 'POST',
-      headers: authHeader(),
-      body,
-    });
-    if (!response.ok) {
-      throw new Error(await errorMessage(response));
-    }
-    return response.json() as Promise<ChatFile>;
+  uploadVoice(roomId: string, blob: Blob, filename: string): Promise<ChatFile> {
+    return uploadChatFile(roomId, 'voice', blob, filename);
   },
   async download(url: string): Promise<Blob> {
     const response = await fetch(fileSrc(url));

@@ -43,6 +43,32 @@ const EMPTY_FILES: ChatFile[] = [];
 const EMPTY_LINKS: RoomLink[] = [];
 const EMPTY_PINS: ChatMessage[] = [];
 
+function GroupAvatar({ room }: { room: Room }) {
+  const src = room.avatarUrl ? fileSrc(room.avatarUrl) : undefined;
+  if (room.isCloud) {
+    return (
+      <Avatar
+        size={72}
+        className="avatar-initials"
+        icon={<CloudOutlined />}
+        src={src}
+        style={{ background: '#0084ff' }}
+      />
+    );
+  }
+  const label = room.title || room.name;
+  return (
+    <Avatar
+      size={72}
+      className="avatar-initials"
+      src={src}
+      style={{ background: avatarColor(label) }}
+    >
+      {initials(label)}
+    </Avatar>
+  );
+}
+
 type Props = {
   room: Room | null;
   members: RoomMember[];
@@ -321,13 +347,7 @@ export function GroupDrawer({
               {isCloud ? (
                 <>
                   <div className="group-avatar-btn" style={{ cursor: 'default' }}>
-                    <Avatar
-                      size={72}
-                      className="avatar-initials"
-                      icon={<CloudOutlined />}
-                      src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
-                      style={{ background: '#0084ff' }}
-                    />
+                    <GroupAvatar room={room} />
                   </div>
                   <h2>{room.title || room.name}</h2>
                   <p className="group-sub">Cloud của tôi</p>
@@ -340,28 +360,14 @@ export function GroupDrawer({
                       className="group-avatar-btn"
                       onClick={() => avatarRef.current?.click()}
                     >
-                      <Avatar
-                        size={72}
-                        className="avatar-initials"
-                        src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
-                        style={{ background: avatarColor(room.title || room.name) }}
-                      >
-                        {initials(room.title || room.name)}
-                      </Avatar>
+                      <GroupAvatar room={room} />
                       <span className="group-cam">
                         <CameraOutlined />
                       </span>
                     </button>
                   ) : (
                     <div className="group-avatar-btn" style={{ cursor: 'default' }}>
-                      <Avatar
-                        size={72}
-                        className="avatar-initials"
-                        src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
-                        style={{ background: avatarColor(room.title || room.name) }}
-                      >
-                        {initials(room.title || room.name)}
-                      </Avatar>
+                      <GroupAvatar room={room} />
                     </div>
                   )}
                   <input
@@ -409,14 +415,7 @@ export function GroupDrawer({
               ) : (
                 <>
                   <div className="group-avatar-btn" style={{ cursor: 'default' }}>
-                    <Avatar
-                      size={72}
-                      className="avatar-initials"
-                      src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
-                      style={{ background: avatarColor(room.title || room.name) }}
-                    >
-                      {initials(room.title || room.name)}
-                    </Avatar>
+                    <GroupAvatar room={room} />
                   </div>
                   <h2>{room.title || room.name}</h2>
                   <p className="group-sub">Trò chuyện trực tiếp</p>

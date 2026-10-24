@@ -6,19 +6,9 @@ import { api, fileSrc } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { ChatMessage, Room, RoomMember, RoomMessageSearch } from '@/types';
+import { formatShort } from '../utils/datetime';
 
 const { RangePicker } = DatePicker;
-
-function formatSearchDate(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  const hours = pad(d.getHours());
-  const minutes = pad(d.getMinutes());
-  const day = pad(d.getDate());
-  const month = pad(d.getMonth() + 1);
-  const year = d.getFullYear();
-  return `${hours}:${minutes} ${day}/${month}/${year}`;
-}
 
 function snippetText(hit: ChatMessage): string {
   if (hit.content) return hit.content;
@@ -186,7 +176,7 @@ export function ConversationSearch({ room, members, overlay, onClose, onJump }: 
                   <div className="search-hit-body">
                     <div className="search-hit-header">
                       <span className="search-hit-name">{hit.authorName}</span>
-                      <span className="search-hit-time">{formatSearchDate(hit.createdAt)}</span>
+                      <span className="search-hit-time">{formatShort(hit.createdAt)}</span>
                     </div>
                     <div className="search-hit-text">{highlightQuery(snippet, params.q)}</div>
                   </div>

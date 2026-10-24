@@ -1,6 +1,7 @@
 import { type MouseEvent, useEffect, useRef, useState } from 'react';
 import { Button, message as antMessage } from 'antd';
 import { CaretRightOutlined, PauseOutlined } from '@ant-design/icons';
+import { formatDuration } from '../utils/datetime';
 
 export interface VoiceBubbleProps {
   url: string;
@@ -8,13 +9,6 @@ export interface VoiceBubbleProps {
 }
 
 let playingAudio: HTMLAudioElement | null = null;
-
-function formatMs(ms: number) {
-  const totalSec = Math.floor(ms / 1000);
-  const min = Math.floor(totalSec / 60);
-  const sec = totalSec % 60;
-  return `${min}:${sec.toString().padStart(2, '0')}`;
-}
 
 export function VoiceBubble({ url, durationMs }: VoiceBubbleProps) {
   const [playing, setPlaying] = useState(false);
@@ -108,7 +102,7 @@ export function VoiceBubble({ url, durationMs }: VoiceBubbleProps) {
         <div className="voice-fill" style={{ width: `${pct}%` }} />
       </div>
       <span className="voice-time">
-        {formatMs(currentMs)} / {formatMs(durationMs)}
+        {formatDuration(currentMs)} / {formatDuration(durationMs)}
       </span>
     </div>
   );

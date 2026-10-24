@@ -1,9 +1,11 @@
 export function inviteUrl(token: string): string {
-  const base = (
-    (import.meta.env.VITE_APP_URL as string | undefined) ||
-    (typeof window !== 'undefined' ? window.location.origin : '')
-  ).replace(/\/$/, '');
-  return `${base}/#/join?token=${encodeURIComponent(token)}`;
+  const configured = (import.meta.env.VITE_WEB_URL ?? '').replace(/\/$/, '');
+  const base =
+    configured ||
+    (window.location.protocol === 'http:' || window.location.protocol === 'https:'
+      ? window.location.origin
+      : '');
+  return base ? `${base}/#/join?token=${encodeURIComponent(token)}` : '';
 }
 
 export function parseJoinHash(hash: string): string | null {

@@ -4437,3 +4437,9 @@ body {
   color: #333;
 }
 
+
+/* Gợi ý link mời */
+.invite-link-hint {
+  font-size: 12px;
+  color: #65676b;
+}

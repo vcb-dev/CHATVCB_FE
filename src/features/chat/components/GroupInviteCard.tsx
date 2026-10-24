@@ -104,11 +104,19 @@ export function GroupInviteCard({ room }: GroupInviteCardProps) {
         </div>
       ) : (
         <div style={{ padding: '0 14px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Input readOnly value={url} />
+          {url ? (
+            <Input readOnly value={url} />
+          ) : (
+            <div className="invite-link-hint">
+              Chưa cấu hình địa chỉ web (VITE_WEB_URL) nên chưa chia sẻ được link.
+            </div>
+          )}
           <div className="invite-link-row">
-            <Button type="primary" onClick={handleCopy}>
-              Sao chép
-            </Button>
+            {url && (
+              <Button type="primary" onClick={handleCopy}>
+                Sao chép
+              </Button>
+            )}
             <Button onClick={handleReset}>
               Đổi link
             </Button>

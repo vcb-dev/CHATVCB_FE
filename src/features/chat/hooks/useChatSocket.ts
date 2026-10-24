@@ -24,6 +24,7 @@ import type {
   RoomReadsEvent,
   RoomRemovedEvent,
   RoomClosedEvent,
+  RoomRefreshEvent,
   RoomRequestsEvent,
   TypingEvent,
   User,
@@ -94,8 +95,13 @@ export function useChatSocket(options: Options) {
       );
     }
 
-    function alertIncoming(message: ChatMessage, room: Room, tagged: boolean) {
-      if (isRoomMuted(room) && !tagged) {
+    function alertIncoming(
+      message: ChatMessage,
+      room: Room,
+      tagged: boolean,
+      force = false,
+    ) {
+      if (!force && isRoomMuted(room) && !tagged) {
         return;
       }
       const name = room.title || room.name;
@@ -108,14 +114,16 @@ export function useChatSocket(options: Options) {
               : `${message.authorName} đã tag bạn trong ${name}`,
         });
       }
+      const isReminderDue = message.systemKind === 'reminder.due';
       notifyIncoming({
-        title: message.authorName,
+        title: isReminderDue ? 'Nhắc hẹn' : message.authorName,
         subtitle: name,
-        body:
-          message.content.trim() ||
-          (isVoice(message) ? 'Tin nhắn thoại' : '') ||
-          (message.fileName ? `[Tệp] ${message.fileName}` : '') ||
-          (message.imageUrl ? 'Đã gửi một ảnh' : 'Tin nhắn mới'),
+        body: isReminderDue
+          ? message.content
+          : message.content.trim() ||
+            (isVoice(message) ? 'Tin nhắn thoại' : '') ||
+            (message.fileName ? `[Tệp] ${message.fileName}` : '') ||
+            (message.imageUrl ? 'Đã gửi một ảnh' : 'Tin nhắn mới'),
         mentioned: tagged,
         tag: message.id,
         roomId: room.id,
@@ -150,6 +158,8 @@ export function useChatSocket(options: Options) {
       const { user, myHandle, rooms, refreshRooms } = latestRef.current;
       const mine = message.userId === user.id;
       const system = message.role === 'system';
+      const reminder = message.systemKind === 'reminder.due';
+      const shouldAlert = !mine && (!system || reminder);
       const tagged =
         !mine &&
         message.role === 'user' &&
@@ -164,8 +174,8 @@ export function useChatSocket(options: Options) {
         void refreshRooms()
           .then((list) => {
             const fresh = list.find((r) => r.id === message.roomId);
-            if (fresh && !mine && !system) {
-              alertIncoming(message, fresh, tagged);
+            if (fresh && shouldAlert) {
+              alertIncoming(message, fresh, tagged, reminder);
             }
           })
           .catch(() => {
@@ -173,19 +183,20 @@ export function useChatSocket(options: Options) {
           });
         return;
       }
-      if (!mine && !system) {
-        alertIncoming(message, known, tagged);
+      if (shouldAlert) {
+        alertIncoming(message, known, tagged, reminder);
       }
       setRooms((current) => {
         const target = current.find((r) => r.id === message.roomId);
         if (!target) {
           return current;
         }
+        const inc = !(mine || (system && !reminder)) ? 1 : 0;
         const updated: Room = {
           ...target,
           lastMessagePreview: previewOf(message, latestRef.current.user?.id, isDirectRoom(target)),
           updatedAt: message.createdAt,
-          unreadCount: viewing ? 0 : target.unreadCount + (mine || system ? 0 : 1),
+          unreadCount: viewing ? 0 : target.unreadCount + inc,
         };
         return upsertRoom(current, updated);
       });
@@ -294,6 +305,12 @@ export function useChatSocket(options: Options) {
         const name = target?.title || target?.name || 'nhóm';
         void antMessage.info(`Có yêu cầu tham gia nhóm ${name}.`);
       }
+    });
+    socket.on('room.reminders', (payload: RoomRefreshEvent) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reminders(payload.roomId) });
+    });
+    socket.on('room.notes', (payload: RoomRefreshEvent) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(payload.roomId) });
     });
     socket.on('room.members', () => {
       const targetRoomId = roomIdRef.current;

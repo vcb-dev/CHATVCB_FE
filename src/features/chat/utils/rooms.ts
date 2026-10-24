@@ -143,3 +143,7 @@ export function previewOf(
 
   return body;
 }
+
+export function canEditItem(room: Room, creatorId: string, userId: string): boolean {
+  return creatorId === userId || room.canManage === true;
+}

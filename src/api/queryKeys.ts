@@ -15,4 +15,6 @@ export const queryKeys = {
   invite: (roomId: string) => ['invite', roomId] as const,
   joinRequests: (roomId: string) => ['join-requests', roomId] as const,
   inviteInfo: (token: string) => ['invite-info', token] as const,
+  reminders: (roomId: string) => ['reminders', roomId] as const,
+  notes: (roomId: string) => ['notes', roomId] as const,
 };

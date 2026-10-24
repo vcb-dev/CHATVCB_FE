@@ -29,6 +29,7 @@ export function MessageList(props: {
   onReact: (message: ChatMessage, emoji: string) => Promise<void>;
   onJump: (id: string, createdAt?: string) => Promise<void>;
   onMessageUpdated?: (m: ChatMessage) => void;
+  onOpenNote?: (noteId: string) => void;
 }) {
   const { messages, reads, userId, myHandle } = props;
   return (
@@ -51,6 +52,7 @@ export function MessageList(props: {
               key={message.id}
               message={message}
               onJump={props.onJump}
+              onOpenNote={props.onOpenNote}
             />
           );
         }

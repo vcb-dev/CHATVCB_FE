@@ -15,7 +15,9 @@ import type {
   MailMessage,
   Meeting,
   MessagesPage,
+  Reminder,
   Room,
+  RoomNote,
   RoomsPage,
   RoomLink,
   RoomMember,
@@ -610,6 +612,57 @@ export const api = {
   closePoll(roomId: string, pollId: string) {
     return request<ChatMessage>(`/rooms/${roomId}/polls/${pollId}/close`, {
       method: 'POST',
+    });
+  },
+  reminders(roomId: string) {
+    return request<Reminder[]>(`/rooms/${roomId}/reminders`);
+  },
+  createReminder(
+    roomId: string,
+    input: { title: string; remindAt: string; repeat: string },
+  ) {
+    return request<Reminder>(`/rooms/${roomId}/reminders`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  updateReminder(
+    roomId: string,
+    reminderId: string,
+    input: { title?: string; remindAt?: string; repeat?: string },
+  ) {
+    return request<Reminder>(`/rooms/${roomId}/reminders/${reminderId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+  deleteReminder(roomId: string, reminderId: string) {
+    return request<void>(`/rooms/${roomId}/reminders/${reminderId}`, {
+      method: 'DELETE',
+    });
+  },
+  notes(roomId: string) {
+    return request<RoomNote[]>(`/rooms/${roomId}/notes`);
+  },
+  createNote(roomId: string, input: { title: string; content: string }) {
+    return request<RoomNote>(`/rooms/${roomId}/notes`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  updateNote(
+    roomId: string,
+    noteId: string,
+    input: { title?: string; content?: string },
+  ) {
+    return request<RoomNote>(`/rooms/${roomId}/notes/${noteId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+  deleteNote(roomId: string, noteId: string) {
+    return request<void>(`/rooms/${roomId}/notes/${noteId}`, {
+      method: 'DELETE',
     });
   },
 };

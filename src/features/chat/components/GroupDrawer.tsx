@@ -30,10 +30,12 @@ import { isRoomMuted, muteLabel } from '../utils/rooms';
 import { MuteDurationModal } from './MuteDurationModal';
 import { GroupInviteCard } from './GroupInviteCard';
 import { GroupSettingsCard } from './GroupSettingsCard';
+import { GroupRemindersCard } from './GroupRemindersCard';
+import { GroupNotesCard } from './GroupNotesCard';
 import { JoinRequestsCard } from './JoinRequestsCard';
 import { MemberActions } from './MemberActions';
 import { RoleTag } from './RoleTag';
-import type { ChatFile, ChatMessage, DirectoryUser, GalleryImage, Room, RoomLink, RoomMember } from '@/types';
+import type { ChatFile, ChatMessage, DirectoryUser, GalleryImage, Reminder, Room, RoomLink, RoomMember, RoomNote } from '@/types';
 
 const EMPTY_PHOTOS: GalleryImage[] = [];
 const EMPTY_FILES: ChatFile[] = [];
@@ -52,6 +54,8 @@ type Props = {
   onRoomRemoved: (roomId: string) => void;
   onJumpMessage: (id: string, createdAt: string) => void;
   onViewProfile: (userId: string) => void;
+  onEditReminder?: (reminder: Reminder | null) => void;
+  onOpenNote?: (note: RoomNote | null) => void;
 };
 
 export function GroupDrawer({
@@ -66,6 +70,8 @@ export function GroupDrawer({
   onRoomRemoved,
   onJumpMessage,
   onViewProfile,
+  onEditReminder,
+  onOpenNote,
 }: Props) {
   const [name, setName] = useState(room?.name ?? '');
   const [editingName, setEditingName] = useState(false);
@@ -539,6 +545,21 @@ export function GroupDrawer({
               <GroupInviteCard room={room} />
               <JoinRequestsCard room={room} onMembersUpdated={onMembersUpdated} />
             </>
+          ) : null}
+
+          {room && onEditReminder ? (
+            <GroupRemindersCard
+              room={room}
+              currentUserId={currentUserId}
+              onEdit={onEditReminder}
+            />
+          ) : null}
+
+          {room && onOpenNote ? (
+            <GroupNotesCard
+              room={room}
+              onOpen={onOpenNote}
+            />
           ) : null}
 
           <div className="group-card">

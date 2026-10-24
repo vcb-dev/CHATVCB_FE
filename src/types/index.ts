@@ -83,9 +83,38 @@ export type SystemData = {
   actorId: string;
   targetId?: string;
   messageId?: string;
+  reminderId?: string;
+  noteId?: string;
 };
 
 export type ToolKind = 'poll' | 'reminder' | 'note';
+
+export type Reminder = {
+  id: string;
+  roomId: string;
+  title: string;
+  remindAt: string;
+  repeat: 'none' | 'daily' | 'weekly';
+  creatorId: string;
+  creatorName: string;
+};
+
+export type RoomNote = {
+  id: string;
+  roomId: string;
+  title: string;
+  content: string;
+  creatorId: string;
+  creatorName: string;
+  updatedById: string | null;
+  updatedByName: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RoomRefreshEvent = {
+  roomId: string;
+};
 
 export type PollVoter = {
   id: string;

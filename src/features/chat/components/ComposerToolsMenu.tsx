@@ -1,4 +1,9 @@
-import { BarChartOutlined, PlusCircleOutlined } from '@ant-design/icons';
+import {
+  BarChartOutlined,
+  ClockCircleOutlined,
+  FileTextOutlined,
+  PlusCircleOutlined,
+} from '@ant-design/icons';
 import { Button, Dropdown, type MenuProps, Tooltip } from 'antd';
 import type { ToolKind } from '@/types';
 
@@ -16,6 +21,19 @@ export function ComposerToolsMenu(props: {
       label: 'Tạo bình chọn',
     });
   }
+
+  items.push(
+    {
+      key: 'reminder',
+      icon: <ClockCircleOutlined />,
+      label: 'Tạo nhắc hẹn',
+    },
+    {
+      key: 'note',
+      icon: <FileTextOutlined />,
+      label: 'Tạo ghi chú',
+    },
+  );
 
   if (items.length === 0) {
     return null;

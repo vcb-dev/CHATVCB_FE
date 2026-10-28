@@ -52,12 +52,17 @@ export function RoomMenu({
     },
   ];
 
+  // Cloud của tôi luôn ghim đầu, không cho bỏ ghim hay ẩn
   const items: MenuProps['items'] = [
-    {
-      key: 'pin',
-      label: room.pinned ? 'Bỏ ghim hội thoại' : 'Ghim hội thoại',
-      onClick: () => actions.togglePin(room),
-    },
+    ...(room.isCloud
+      ? []
+      : [
+          {
+            key: 'pin',
+            label: room.pinned ? 'Bỏ ghim hội thoại' : 'Ghim hội thoại',
+            onClick: () => actions.togglePin(room),
+          },
+        ]),
     {
       key: 'unread',
       label: hasUnread ? 'Đánh dấu đã đọc' : 'Đánh dấu chưa đọc',
@@ -83,14 +88,16 @@ export function RoomMenu({
             onClick: () => actions.mute(room, opt.minutes),
           })),
         },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'hide',
-      label: 'Ẩn trò chuyện',
-      onClick: () => actions.hide(room),
-    },
+    ...(room.isCloud
+      ? []
+      : [
+          { type: 'divider' as const },
+          {
+            key: 'hide',
+            label: 'Ẩn trò chuyện',
+            onClick: () => actions.hide(room),
+          },
+        ]),
   ];
 
   return (

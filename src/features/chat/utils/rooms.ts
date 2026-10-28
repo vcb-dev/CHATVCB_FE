@@ -50,6 +50,12 @@ export function muteLabel(room: Room): string {
 
 export function sortRooms(list: Room[]): Room[] {
   return [...list].sort((a, b) => {
+    // Cloud của tôi luôn đứng đầu, trên cả phòng đã ghim
+    const cloudA = Boolean(a.isCloud);
+    const cloudB = Boolean(b.isCloud);
+    if (cloudA !== cloudB) {
+      return cloudA ? -1 : 1;
+    }
     const pinA = Boolean(a.pinned);
     const pinB = Boolean(b.pinned);
     if (pinA !== pinB) {

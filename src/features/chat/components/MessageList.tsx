@@ -4,7 +4,7 @@ import { Fragment, type RefObject } from 'react';
 import type { ChatMessage, Room, RoomRead } from '@/types';
 import { isSelectable } from '../hooks/useMessageSelection';
 import { mentionsUser } from '../utils/mentions';
-import { lastSeenOn, viewersOf } from '../utils/seen';
+import { deliveryOf, lastSeenOn, viewersOf } from '../utils/seen';
 import { MessageRow } from './MessageRow';
 import { SystemNotice } from './SystemNotice';
 import { UnreadDivider } from './UnreadDivider';
@@ -26,6 +26,7 @@ export function MessageList(props: {
   canPin?: boolean;
   canManage?: boolean;
   everyoneTag?: boolean;
+  showDelivery?: boolean;
   selecting?: boolean;
   selectedIds?: ReadonlySet<string>;
   onToggleSelect?: (message: ChatMessage) => void;
@@ -81,6 +82,7 @@ export function MessageList(props: {
             tagged={!mine && mentionsUser(message.content, myHandle, props.everyoneTag)}
             viewers={viewersOf(message, messages, reads)}
             lastReaders={lastSeenOn(message, messages, reads, userId)}
+            delivery={props.showDelivery ? deliveryOf(message, messages, reads, userId) : null}
             canSaveToCloud={props.canSaveToCloud}
             canPin={props.canPin}
             canManage={props.canManage}

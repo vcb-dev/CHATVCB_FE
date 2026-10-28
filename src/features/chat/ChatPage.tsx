@@ -253,6 +253,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             canPin={canPin}
             canManage={room?.canManage ?? false}
             everyoneTag={everyoneTagAllowed(room)}
+            showDelivery={!room?.isCloud}
             selecting={selection.selecting}
             selectedIds={selection.selectedIds}
             onToggleSelect={selection.toggle}

@@ -6,8 +6,10 @@ import { avatarColor, initials } from '@/lib/avatar';
 import type { ChatMessage, Room, RoomRead } from '@/types';
 import { isVoice } from '../utils/attachments';
 import { canEdit } from '../utils/edit';
+import type { Delivery } from '../utils/seen';
 import { canForward } from '../utils/forward';
 import { isStickerText } from '../utils/stickers';
+import { DeliveryStatus } from './DeliveryStatus';
 import { FileCard } from './FileCard';
 import { ImageAlbum } from './ImageAlbum';
 import { LinkPreviewCard } from './LinkPreviewCard';
@@ -32,6 +34,7 @@ export function MessageRow(props: {
   tagged: boolean;
   viewers: RoomRead[];
   lastReaders: RoomRead[];
+  delivery?: Delivery | null;
   canSaveToCloud?: boolean;
   canPin?: boolean;
   canManage?: boolean;
@@ -256,6 +259,7 @@ export function MessageRow(props: {
           onToggle={(emoji) => void props.onReact(message, emoji)}
         />
         <SeenAvatars readers={props.lastReaders} />
+        {props.delivery ? <DeliveryStatus status={props.delivery} /> : null}
         {last ? (
           <time>
             {new Date(message.createdAt).toLocaleTimeString('vi-VN', {

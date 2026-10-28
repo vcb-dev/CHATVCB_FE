@@ -239,6 +239,8 @@ export type RoomRead = {
   avatarUrl?: string;
   lastReadMessageId: string | null;
   lastReadAt: string | null;
+  /** Mốc "đã nhận"; BE cũ không có. */
+  lastDeliveredAt?: string | null;
 };
 
 export type RoomMessageSearch = {

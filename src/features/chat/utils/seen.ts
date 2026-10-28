@@ -71,3 +71,34 @@ export function lastSeenOn(
     });
   });
 }
+
+export type Delivery = 'sent' | 'delivered';
+
+/** "Đã gửi"/"Đã nhận" dưới tin cuối của mình khi chưa ai xem; đã có người xem thì dùng avatar "đã xem". */
+export function deliveryOf(
+  message: ChatMessage,
+  messages: ChatMessage[],
+  reads: RoomRead[],
+  myId: string,
+): Delivery | null {
+  if (message.userId !== myId || message.role !== 'user' || message.recalled) {
+    return null;
+  }
+  const lastMine = [...messages]
+    .reverse()
+    .find((item) => item.userId === myId && item.role === 'user' && !item.recalled);
+  if (lastMine?.id !== message.id) {
+    return null;
+  }
+  if (viewersOf(message, messages, reads).length > 0) {
+    return null;
+  }
+  const sentAt = new Date(message.createdAt).getTime();
+  const delivered = reads.some(
+    (read) =>
+      read.userId !== myId &&
+      Boolean(read.lastDeliveredAt) &&
+      new Date(read.lastDeliveredAt as string).getTime() >= sentAt,
+  );
+  return delivered ? 'delivered' : 'sent';
+}

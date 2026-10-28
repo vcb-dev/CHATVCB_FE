@@ -4714,3 +4714,10 @@ body {
   background: #fff;
   border-color: #dadde1;
 }
+
+/* Đã gửi / Đã nhận */
+.delivery-status {
+  padding: 0 8px;
+  color: #65676b;
+  font-size: 11px;
+}

@@ -1,6 +1,7 @@
 import type { ChatMessage, PendingFile } from '@/types';
 
-export const ACCEPT_FILES = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip';
+export const ACCEPT_FILES =
+  '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.json,.zip,.rar,.7z,.mp4,.mov';
 
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
@@ -16,7 +17,12 @@ const ALLOWED_EXTS = new Set([
   'pptx',
   'txt',
   'csv',
+  'json',
   'zip',
+  'rar',
+  '7z',
+  'mp4',
+  'mov',
 ]);
 
 export function validateFile(file: File): string | null {
@@ -25,7 +31,7 @@ export function validateFile(file: File): string | null {
   }
   const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
   if (!ALLOWED_EXTS.has(ext)) {
-    return 'Chỉ nhận PDF, Word, Excel, PowerPoint, TXT, CSV, ZIP.';
+    return 'Chỉ nhận PDF, Word, Excel, PowerPoint, TXT, CSV, JSON, ZIP, RAR, 7Z, MP4, MOV.';
   }
   return null;
 }

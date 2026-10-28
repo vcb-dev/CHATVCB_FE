@@ -70,6 +70,11 @@ export function RoomListItem(props: {
           <span className="room-meta">
             <span className="room-name-row">
               <strong>{name}</strong>
+              {room.mentioned && !props.active ? (
+                <span className="room-mention" title="Có người tag bạn">
+                  @
+                </span>
+              ) : null}
               {label ? (
                 <span
                   className="room-label-dot"

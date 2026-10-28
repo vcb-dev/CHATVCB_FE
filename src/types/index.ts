@@ -36,6 +36,8 @@ export type Room = {
   pinned?: boolean;
   hidden?: boolean;
   markedUnread?: boolean;
+  /** Bị tag (@tên hoặc @all) trong tin chưa đọc; có ở GET /rooms. */
+  mentioned?: boolean;
   lastMessageId?: string | null;
   labelId?: string | null;
   isCloud?: boolean;

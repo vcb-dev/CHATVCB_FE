@@ -118,7 +118,7 @@ export function useChatRoom({
             setReads(readsRes);
           }
           setRooms((current) =>
-            current.map((r) => (r.id === rid ? { ...r, unreadCount: 0 } : r)),
+            current.map((r) => (r.id === rid ? { ...r, unreadCount: 0, mentioned: false } : r)),
           );
         })
         .catch(() => {
@@ -150,7 +150,7 @@ export function useChatRoom({
           const latest = page.data[page.data.length - 1];
           if (!latest) {
             setRooms((current) =>
-              current.map((r) => (r.id === roomId ? { ...r, unreadCount: 0 } : r)),
+              current.map((r) => (r.id === roomId ? { ...r, unreadCount: 0, mentioned: false } : r)),
             );
           } else if (isViewingChat()) {
             markMessageRead(latest, roomId);

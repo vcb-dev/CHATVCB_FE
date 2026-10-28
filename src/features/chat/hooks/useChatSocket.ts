@@ -29,7 +29,7 @@ import type {
   TypingEvent,
   User,
 } from '@/types';
-import { mentionsUser } from '../utils/mentions';
+import { everyoneTagAllowed, mentionsUser } from '../utils/mentions';
 import { isDirectRoom, isRoomMuted, previewOf, upsertRoom } from '../utils/rooms';
 import { isVoice } from '../utils/attachments';
 
@@ -160,15 +160,15 @@ export function useChatSocket(options: Options) {
       const system = message.role === 'system';
       const reminder = message.systemKind === 'reminder.due';
       const shouldAlert = !mine && (!system || reminder);
+      const known = rooms.find((r) => r.id === message.roomId);
       const tagged =
         !mine &&
         message.role === 'user' &&
-        mentionsUser(message.content, myHandle);
+        mentionsUser(message.content, myHandle, everyoneTagAllowed(known));
       const viewing = open && isViewingChat();
       if (!mine && viewing) {
         markMessageRead(message, message.roomId);
       }
-      const known = rooms.find((r) => r.id === message.roomId);
       if (!known) {
         // refreshRooms gộp trang 1 vào cache và dùng lại lần tải đang chạy
         void refreshRooms()
@@ -197,6 +197,7 @@ export function useChatSocket(options: Options) {
           lastMessagePreview: previewOf(message, latestRef.current.user?.id, isDirectRoom(target)),
           updatedAt: message.createdAt,
           unreadCount: viewing ? 0 : target.unreadCount + inc,
+          mentioned: viewing ? false : Boolean(target.mentioned) || tagged,
         };
         return upsertRoom(current, updated);
       });

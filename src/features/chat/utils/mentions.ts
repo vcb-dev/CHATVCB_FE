@@ -41,19 +41,34 @@ export function buildMentionOptions(
     }
   }
   const agentName = room?.agentName?.trim();
+  const everyone = everyoneTagAllowed(room)
+    ? [{ value: ALL_HANDLE, label: '@all (Mọi người)' }]
+    : [];
   const agents = [
     ...(agentName ? [{ value: agentName, label: `${agentName} (AI)` }] : []),
     { value: 'agent', label: '@agent (AI)' },
   ];
-  return [...map.values(), ...agents];
+  return [...everyone, ...map.values(), ...agents];
 }
 
-export function mentionsUser(content: string, handle: string) {
-  if (!handle) {
-    return false;
+// Cùng luật với BE (`extractMentions`): `@x` chỉ tính khi đứng đầu chuỗi hoặc sau ký tự
+// không thuộc [A-Za-z0-9._-], nên địa chỉ email như `a@sale2.vn` không phải là tag.
+const TAG = /(?:^|[^A-Za-z0-9._-])@([A-Za-z0-9._-]+)/g;
+
+export const ALL_HANDLE = 'all';
+
+/** `@all` chỉ có nghĩa ở nhóm thật, không phải DM hay Cloud. */
+export function everyoneTagAllowed(room: Pick<Room, 'kind' | 'isCloud'> | null | undefined) {
+  return Boolean(room && room.kind === 'group' && !room.isCloud);
+}
+
+export function mentionsUser(content: string, handle: string, everyone = false) {
+  const mine = handle.toLowerCase();
+  for (const match of content.matchAll(TAG)) {
+    const tagged = match[1].toLowerCase().replace(/[._-]+$/, '');
+    if ((mine && tagged === mine) || (everyone && tagged === ALL_HANDLE)) {
+      return true;
+    }
   }
-  const token = `@${handle}`.toLowerCase();
-  return content
-    .split(MENTION)
-    .some((part) => part.toLowerCase() === token);
+  return false;
 }

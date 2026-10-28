@@ -22,6 +22,7 @@ export function MessageList(props: {
   canSaveToCloud?: boolean;
   canPin?: boolean;
   canManage?: boolean;
+  everyoneTag?: boolean;
   onLoadOlder: () => Promise<void>;
   onMarkRead: () => void;
   onViewProfile: (userId: string) => void;
@@ -66,7 +67,7 @@ export function MessageList(props: {
             mine={mine}
             first={index === 0 || !sameAuthor(messages[index - 1], message)}
             last={index === messages.length - 1 || !sameAuthor(message, messages[index + 1])}
-            tagged={!mine && mentionsUser(message.content, myHandle)}
+            tagged={!mine && mentionsUser(message.content, myHandle, props.everyoneTag)}
             viewers={viewersOf(message, messages, reads)}
             lastReaders={lastSeenOn(message, messages, reads, userId)}
             canSaveToCloud={props.canSaveToCloud}

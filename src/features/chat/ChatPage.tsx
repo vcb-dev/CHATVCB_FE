@@ -38,7 +38,7 @@ import { useWorkspace } from './hooks/useWorkspace';
 import { DropOverlay } from './components/DropOverlay';
 import { useFileDrop } from './hooks/useFileDrop';
 import { photosFromMessages, splitDropped } from './utils/media';
-import { handleFromEmail } from './utils/mentions';
+import { everyoneTagAllowed, handleFromEmail } from './utils/mentions';
 import {
   countOnlineMembers,
   hasOnlineMember,
@@ -238,6 +238,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             canSaveToCloud={!room?.isCloud}
             canPin={canPin}
             canManage={room?.canManage ?? false}
+            everyoneTag={everyoneTagAllowed(room)}
             onLoadOlder={chat.loadOlder}
             onMarkRead={markRead}
             onViewProfile={setViewProfileId}

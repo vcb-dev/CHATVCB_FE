@@ -52,6 +52,7 @@ export function Composer(props: {
   onRemoveDoc: (key: string) => void;
   onOpenGallery: () => Promise<void>;
   onSticker: (emoji: string) => Promise<void>;
+  onPackSticker: (id: string) => Promise<void>;
   onGif: (url: string) => Promise<void>;
   onSend: (raw: string) => Promise<void>;
   onSendVoice: (blob: Blob) => Promise<void>;
@@ -199,6 +200,7 @@ export function Composer(props: {
                   disabled={props.disabled}
                   onEmoji={(emoji) => props.onDraftChange((current) => `${current}${emoji}`)}
                   onSticker={(emoji) => void props.onSticker(emoji)}
+                  onPackSticker={(id) => void props.onPackSticker(id)}
                   onGif={(url) => void props.onGif(url)}
                 />
                 <ComposerToolsMenu

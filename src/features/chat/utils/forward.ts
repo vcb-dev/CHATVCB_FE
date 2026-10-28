@@ -8,12 +8,15 @@ export function canForward(message: ChatMessage): boolean {
   return (
     !message.recalled &&
     !message.poll &&
-    Boolean(message.content.trim() || message.imageUrl || message.fileUrl) &&
+    Boolean(message.rich || message.content.trim() || message.imageUrl || message.fileUrl) &&
     !isVoice(message)
   );
 }
 
 export async function forwardMessage(message: ChatMessage, roomId: string): Promise<ChatMessage> {
+  if (message.rich) {
+    return api.sendMessage(roomId, '', undefined, undefined, undefined, undefined, message.rich);
+  }
   if ((message.images ?? []).length > 1) {
     const ids: string[] = [];
     for (const image of message.images ?? []) {

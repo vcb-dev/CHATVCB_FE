@@ -303,6 +303,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onRemoveDoc={composer.removeDoc}
             onOpenGallery={composer.openGallery}
             onSticker={composer.sendSticker}
+            onPackSticker={(id) => composer.sendRich({ type: 'sticker', id })}
             onGif={composer.sendGif}
             onSend={composer.sendContent}
             onSendVoice={composer.sendVoice}

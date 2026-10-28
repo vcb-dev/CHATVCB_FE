@@ -3,6 +3,8 @@ import { Button, Input, Tooltip } from 'antd';
 import { useEffect, useState } from 'react';
 import { api } from '@/api/client';
 import { EMOJIS } from '../utils/emojis';
+import { STICKER_PACK } from '../utils/stickerPack';
+import { StickerImage } from './StickerImage';
 
 type Tab = 'emoji' | 'sticker' | 'gif';
 
@@ -18,11 +20,13 @@ export function StickerButton({
   disabled,
   onEmoji,
   onSticker,
+  onPackSticker,
   onGif,
 }: {
   disabled: boolean;
   onEmoji: (emoji: string) => void;
   onSticker: (emoji: string) => void;
+  onPackSticker: (id: string) => void;
   onGif: (url: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -47,6 +51,10 @@ export function StickerButton({
             onSticker(emoji);
             setOpen(false);
           }}
+          onPackSticker={(id) => {
+            onPackSticker(id);
+            setOpen(false);
+          }}
           onGif={(url) => {
             onGif(url);
             setOpen(false);
@@ -61,11 +69,13 @@ function StickerPanel({
   onClose,
   onEmoji,
   onSticker,
+  onPackSticker,
   onGif,
 }: {
   onClose: () => void;
   onEmoji: (emoji: string) => void;
   onSticker: (emoji: string) => void;
+  onPackSticker: (id: string) => void;
   onGif: (url: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>('emoji');
@@ -118,13 +128,23 @@ function StickerPanel({
         </div>
       ) : null}
       {tab === 'sticker' ? (
-        <div className="sticker-grid">
-          {STICKERS.map((item) => (
-            <button key={item} type="button" onClick={() => onSticker(item)}>
-              {item}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="sticker-pack-grid">
+            {STICKER_PACK.map((item) => (
+              <button key={item.id} type="button" title={item.text} onClick={() => onPackSticker(item.id)}>
+                <StickerImage id={item.id} />
+              </button>
+            ))}
+          </div>
+          <div className="sticker-section-title">Emoji lớn</div>
+          <div className="sticker-grid">
+            {STICKERS.map((item) => (
+              <button key={item} type="button" onClick={() => onSticker(item)}>
+                {item}
+              </button>
+            ))}
+          </div>
+        </>
       ) : null}
       {tab === 'gif' ? (
         <div className="gif-box">

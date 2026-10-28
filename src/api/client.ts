@@ -24,6 +24,7 @@ import type {
   RoomMessageSearch,
   RoomMute,
   RoomPrefs,
+  RichPayload,
   RoomRead,
   RoomSearch,
   User,
@@ -208,10 +209,11 @@ export const api = {
     replyToId?: string,
     fileId?: string,
     imageIds?: string[],
+    rich?: RichPayload,
   ) {
     return request<ChatMessage>(`/rooms/${roomId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ content, imageId, replyToId, fileId, imageIds }),
+      body: JSON.stringify({ content, imageId, replyToId, fileId, imageIds, rich }),
     });
   },
   reactMessage(roomId: string, messageId: string, emoji: string) {

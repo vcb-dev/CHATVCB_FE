@@ -12,6 +12,7 @@ import { FileCard } from './FileCard';
 import { ImageAlbum } from './ImageAlbum';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { PollCard } from './PollCard';
+import { RichBubble } from './RichBubble';
 import { ReactionPicker } from './ReactionPicker';
 import { ReactionSummary } from './ReactionSummary';
 import { RichText } from './RichText';
@@ -55,8 +56,11 @@ export function MessageRow(props: {
   const hasImage = Boolean(message.imageUrl && !message.recalled) && !album;
   const hasFile = Boolean(message.fileUrl && !message.recalled);
   const isPoll = Boolean(message.poll && !message.recalled);
-  const hasText = Boolean(message.content && !message.recalled) && !isPoll;
-  const sticker = !hasImage && !album && !hasFile && hasText && isStickerText(message.content);
+  const isRich = Boolean(message.rich && !message.recalled);
+  const hasText = Boolean(message.content && !message.recalled) && !isPoll && !isRich;
+  const sticker =
+    (!hasImage && !album && !hasFile && hasText && isStickerText(message.content)) ||
+    message.rich?.type === 'sticker';
   const link = !isPoll && hasText && !hasImage && !album && !hasFile && !sticker ? firstLink(message.content) : null;
   const previewLink = link && !inviteTokenOf(link) ? link : null;
   return (
@@ -198,6 +202,7 @@ export function MessageRow(props: {
                           />
                         )
                       ) : null}
+                      {isRich ? <RichBubble message={message} /> : null}
                       {isPoll ? (
                         <PollCard
                           message={message}

@@ -1,7 +1,7 @@
 import { message as antMessage } from 'antd';
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { api } from '@/api/client';
-import type { ChatMessage, GalleryImage, PendingFile, PendingImage } from '@/types';
+import type { ChatMessage, GalleryImage, PendingFile, PendingImage, RichPayload } from '@/types';
 import { addPendingDocs } from '../utils/attachments';
 import { loadDrafts, saveDrafts, withDraft, type Drafts } from '../utils/drafts';
 import {
@@ -289,6 +289,19 @@ export function useComposer({
     }
   }
 
+  async function sendRich(rich: RichPayload) {
+    if (!roomId) {
+      return;
+    }
+    try {
+      const sent = await api.sendMessage(roomId, '', undefined, replyTo?.id, undefined, undefined, rich);
+      appendMessage(sent);
+      setReplyTo(null);
+    } catch (err) {
+      antMessage.error(err instanceof Error ? err.message : 'Gửi tin thất bại.');
+    }
+  }
+
   async function sendVoice(blob: Blob) {
     if (!roomId) return;
     try {
@@ -332,6 +345,7 @@ export function useComposer({
     sendSticker,
     sendGif,
     sendContent,
+    sendRich,
     sendVoice,
   };
 }

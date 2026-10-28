@@ -170,8 +170,15 @@ export type ChatMessage = {
   editedAt?: string | null;
   reactions: MessageReaction[];
   poll?: ChatPoll | null;
+  rich?: RichPayload | null;
   createdAt: string;
 };
+
+/** Tin có cấu trúc (BE: Message.rich). `content` của tin luôn có câu dự phòng cho app cũ. */
+export type RichPayload =
+  | { type: 'sticker'; id: string }
+  | { type: 'location'; lat: number; lng: number; label?: string }
+  | { type: 'card'; userId: string };
 
 export type PageMeta = {
   hasMore: boolean;

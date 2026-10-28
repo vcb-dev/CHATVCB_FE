@@ -1,5 +1,6 @@
 import type { ChatMessage, Room, RoomHit } from '@/types';
 import { isVoice } from './attachments';
+import { richLabel } from './rich';
 
 export function roomFromHit(hit: RoomHit): Room {
   return {
@@ -116,6 +117,8 @@ export function previewOf(
   let body = '';
   if (message.recalled) {
     body = 'Tin nhắn đã được thu hồi';
+  } else if (message.rich) {
+    body = richLabel(message.rich);
   } else if (message.imageId || message.imageUrl) {
     body = 'Hình ảnh';
   } else if (message.fileId || message.fileUrl) {

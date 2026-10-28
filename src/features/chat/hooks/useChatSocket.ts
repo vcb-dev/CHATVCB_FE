@@ -32,6 +32,7 @@ import type {
 import { everyoneTagAllowed, mentionsUser } from '../utils/mentions';
 import { isDirectRoom, isRoomMuted, previewOf, upsertRoom } from '../utils/rooms';
 import { isVoice } from '../utils/attachments';
+import { richLabel } from '../utils/rich';
 
 const TYPING_TTL_MS = 6000;
 
@@ -120,7 +121,8 @@ export function useChatSocket(options: Options) {
         subtitle: name,
         body: isReminderDue
           ? message.content
-          : message.content.trim() ||
+          : (message.rich ? richLabel(message.rich) : '') ||
+            message.content.trim() ||
             (isVoice(message) ? 'Tin nhắn thoại' : '') ||
             (message.fileName ? `[Tệp] ${message.fileName}` : '') ||
             (message.imageUrl ? 'Đã gửi một ảnh' : 'Tin nhắn mới'),

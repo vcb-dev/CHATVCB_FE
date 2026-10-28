@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MailOutlined, MessageOutlined, TeamOutlined } from '@ant-design/icons';
+import { MailOutlined, MessageOutlined, StopOutlined, TeamOutlined } from '@ant-design/icons';
 import { Avatar, Button, Modal, Spin, Typography, message as antMessage } from 'antd';
 import { api, fileSrc } from '@/api/client';
 import { avatarColor, initials } from '@/lib/avatar';
@@ -11,6 +11,7 @@ export function UserProfileModal(props: {
   currentUserId: string;
   onClose: () => void;
   onOpenRoom: (room: Room) => void;
+  onSetBlocked: (userId: string, blocked: boolean) => Promise<boolean>;
 }) {
   const [profile, setProfile] = useState<DirectoryUser | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,6 +66,31 @@ export function UserProfileModal(props: {
 
   const isSelf = profile ? profile.id === props.currentUserId : false;
 
+  async function applyBlock(blocked: boolean) {
+    if (!profile || !(await props.onSetBlocked(profile.id, blocked))) {
+      return;
+    }
+    setProfile({ ...profile, blockedByMe: blocked });
+  }
+
+  function handleBlockClick() {
+    if (!profile) {
+      return;
+    }
+    if (profile.blockedByMe) {
+      void applyBlock(false);
+      return;
+    }
+    Modal.confirm({
+      title: `Chặn ${profile.name}?`,
+      content:
+        'Hai bạn sẽ không nhắn tin riêng được cho nhau. Trong nhóm chung vẫn nhắn bình thường.',
+      okText: 'Chặn',
+      okButtonProps: { danger: true },
+      onOk: () => applyBlock(true),
+    });
+  }
+
   return (
     <Modal
       title="Hồ sơ người dùng"
@@ -76,6 +102,16 @@ export function UserProfileModal(props: {
         <Button key="close" onClick={props.onClose}>
           Đóng
         </Button>,
+        profile && !isSelf ? (
+          <Button
+            key="block"
+            danger={!profile.blockedByMe}
+            icon={<StopOutlined />}
+            onClick={handleBlockClick}
+          >
+            {profile.blockedByMe ? 'Bỏ chặn' : 'Chặn người này'}
+          </Button>
+        ) : null,
         profile && !isSelf ? (
           <Button
             key="chat"

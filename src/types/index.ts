@@ -29,6 +29,8 @@ export type Room = {
   createdById: string | null;
   unreadCount: number;
   peerUserId: string | null;
+  /** DM mà người xem đã chặn đối phương; có ở GET /rooms. */
+  blockedByMe?: boolean;
   memberIds?: string[];
   /** Có ở GET /rooms; kết quả tìm kiếm và room.updated không có. */
   muted?: boolean;
@@ -350,6 +352,8 @@ export type DirectoryUser = {
   email: string;
   team: string;
   avatarUrl?: string;
+  /** Có ở GET /users/:id: người xem đã chặn người này. */
+  blockedByMe?: boolean;
 };
 
 export type RoomHit = Pick<

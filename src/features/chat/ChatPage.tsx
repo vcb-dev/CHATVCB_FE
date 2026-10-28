@@ -29,6 +29,7 @@ import { parseJoinHash } from './utils/invite';
 import { canEditItem } from './utils/rooms';
 import { useChatNotifications } from './hooks/useChatNotifications';
 import { useChatRoom } from './hooks/useChatRoom';
+import { useBlockUser } from './hooks/useBlockUser';
 import { useChatSocket } from './hooks/useChatSocket';
 import { useComposer } from './hooks/useComposer';
 import { useMessageActions } from './hooks/useMessageActions';
@@ -84,6 +85,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const { workspace, setWorkspace, isViewingChat } = useWorkspace();
   const roomList = useRoomList({ isViewingChat, setError });
   const { rooms, room, roomId } = roomList;
+  const { setBlocked } = useBlockUser({ setRooms: roomList.setRooms });
   const roomPrefs = useRoomPrefs({ setRooms: roomList.setRooms, removeRoom: roomList.removeRoom });
   const tools = useRoomTools({ roomId, setWorkspace, openRoom: roomList.openRoom });
 
@@ -315,6 +317,8 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onTool={(kind) => tools.setToolModal(kind)}
             onLocation={() => void composer.sendLocation()}
             onCard={() => setCardPickerOpen(true)}
+            blockedByMe={Boolean(room?.blockedByMe)}
+            onUnblock={() => room?.peerUserId && void setBlocked(room.peerUserId, false)}
           />
           <DropOverlay visible={drop.dragging} />
         </main>
@@ -397,6 +401,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         currentUserId={user.id}
         onClose={() => setViewProfileId(null)}
         onOpenRoom={roomList.openRoom}
+        onSetBlocked={setBlocked}
       />
       <JoinGroupModal
         token={joinToken}

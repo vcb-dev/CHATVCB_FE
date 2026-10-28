@@ -60,6 +60,8 @@ export function Composer(props: {
   onTool?: (kind: ToolKind) => void;
   onLocation: () => void;
   onCard: () => void;
+  blockedByMe?: boolean;
+  onUnblock?: () => void;
 }) {
   const { room, draft, replyTo, members, pendingImages, pendingFiles } = props;
   const voiceRecorder = useVoiceRecorder({
@@ -178,6 +180,13 @@ export function Composer(props: {
         {props.locked ? (
           <div className="composer-locked">
             Chỉ trưởng nhóm và phó nhóm được gửi tin trong nhóm này.
+          </div>
+        ) : props.blockedByMe ? (
+          <div className="composer-locked">
+            Bạn đã chặn người này.{' '}
+            <Button type="link" size="small" onClick={props.onUnblock}>
+              Bỏ chặn
+            </Button>
           </div>
         ) : voiceRecorder.state === 'recording' ? (
           <VoiceRecorderBar

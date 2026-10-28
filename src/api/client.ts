@@ -242,6 +242,12 @@ export const api = {
     const query = q?.trim() ? `?q=${encodeURIComponent(q.trim())}` : '';
     return request<DirectoryUser[]>(`/users${query}`);
   },
+  blockUser(id: string) {
+    return request<{ ok: boolean }>(`/users/${id}/block`, { method: 'POST' });
+  },
+  unblockUser(id: string) {
+    return request<{ ok: boolean }>(`/users/${id}/block`, { method: 'DELETE' });
+  },
   user(id: string) {
     return request<DirectoryUser>(`/users/${id}`);
   },

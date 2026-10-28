@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
 import { api } from '@/api/client';
 import type { ChatMessage, GalleryImage, PendingFile, PendingImage } from '@/types';
 import { addPendingDocs } from '../utils/attachments';
+import { loadDrafts, saveDrafts, withDraft, type Drafts } from '../utils/drafts';
 import {
   addGalleryPick,
   addPendingFiles,
@@ -24,7 +25,12 @@ export function useComposer({
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   setError: (error: string) => void;
 }) {
-  const [draft, setDraft] = useState('');
+  const [drafts, setDrafts] = useState<Drafts>(loadDrafts);
+  // Chữ đang gõ thuộc về đúng một phòng; phòng khác thì lấy nháp đã lưu của phòng đó.
+  const [draftState, setDraftState] = useState({ roomId, text: '' });
+  const draftsRef = useRef<Drafts>(drafts);
+  draftsRef.current = drafts;
+  const draft = draftState.roomId === roomId ? draftState.text : (drafts[roomId] ?? '');
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
@@ -35,6 +41,28 @@ export function useComposer({
   const lastSentRef = useRef<{ at: number; text: string }>({ at: 0, text: '' });
   const pendingImagesRef = useRef<PendingImage[]>([]);
   const editingRef = useRef<ChatMessage | null>(null);
+
+  const setDraft: Dispatch<SetStateAction<string>> = (value) => {
+    setDraftState((prev) => {
+      const base = prev.roomId === roomId ? prev.text : (draftsRef.current[roomId] ?? '');
+      return { roomId, text: typeof value === 'function' ? value(base) : value };
+    });
+  };
+
+  // Hết sửa tin thì trả lại nháp của phòng, không để nội dung sửa ghi đè nháp.
+  function restoreDraft() {
+    setDraftState({ roomId, text: draftsRef.current[roomId] ?? '' });
+  }
+
+  useEffect(() => {
+    if (editingRef.current || !draftState.roomId) {
+      return;
+    }
+    const next = withDraft(draftsRef.current, draftState.roomId, draftState.text);
+    draftsRef.current = next;
+    setDrafts(next);
+    saveDrafts(next);
+  }, [draftState]);
   pendingImagesRef.current = pendingImages;
   editingRef.current = editing;
 
@@ -47,10 +75,8 @@ export function useComposer({
     setPendingFiles([]);
     setGalleryOpen(false);
     setReplyTo(null);
-    if (editingRef.current) {
-      setEditing(null);
-      setDraft('');
-    }
+    setEditing(null);
+    setDraftState({ roomId, text: draftsRef.current[roomId] ?? '' });
   }, [roomId]);
 
   useEffect(() => {
@@ -65,7 +91,7 @@ export function useComposer({
 
   function cancelEdit() {
     setEditing(null);
-    setDraft('');
+    restoreDraft();
   }
 
   function addImages(files: File[]) {
@@ -168,7 +194,7 @@ export function useComposer({
       }
       const target = editing;
       setEditing(null);
-      setDraft('');
+      restoreDraft();
       try {
         const next = await api.editMessage(roomId, target.id, content);
         setMessages((current) => current.map((item) => (item.id === next.id ? next : item)));
@@ -284,6 +310,7 @@ export function useComposer({
   return {
     draft,
     setDraft,
+    drafts,
     pendingImages,
     pendingFiles,
     replyTo,

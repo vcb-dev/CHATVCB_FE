@@ -204,6 +204,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           onOpenProfile={() => setProfileOpen(true)}
           onChangeAvatar={changeAvatar}
           prefs={roomPrefs}
+          drafts={composer.drafts}
         />
       ) : null}
 

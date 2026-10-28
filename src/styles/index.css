@@ -4489,3 +4489,9 @@ body {
   gap: 4px;
   margin-left: 8px;
 }
+
+/* Nháp */
+.room-draft {
+  color: #d93025;
+  font-weight: 500;
+}

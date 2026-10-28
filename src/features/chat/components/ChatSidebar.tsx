@@ -7,6 +7,7 @@ import { queryKeys } from '@/api/queryKeys';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { PageMeta, Room, User } from '@/types';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
+import type { Drafts } from '../utils/drafts';
 import { LabelManagerModal } from './LabelManagerModal';
 import { RoomFilterBar, filterRooms, type RoomFilter } from './RoomFilterBar';
 import { RoomListItem } from './RoomListItem';
@@ -33,6 +34,7 @@ export function ChatSidebar(props: {
   onOpenProfile: () => void;
   onChangeAvatar: (file: File) => Promise<void>;
   prefs: ReturnType<typeof useRoomPrefs>;
+  drafts: Drafts;
 }) {
   const { user, team, rooms, roomsMeta, searchText } = props;
   const myAvatarRef = useRef<HTMLInputElement>(null);
@@ -154,6 +156,7 @@ export function ChatSidebar(props: {
                   actions={props.prefs}
                   label={item.labelId ? labelMap.get(item.labelId) : undefined}
                   labels={labels}
+                  draft={props.drafts[item.id]}
                   onManageLabels={() => setManagerOpen(true)}
                 />
               ))

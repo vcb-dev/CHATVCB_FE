@@ -15,6 +15,7 @@ export function RoomListItem(props: {
   actions: ReturnType<typeof useRoomPrefs>;
   label?: ConversationLabel;
   labels?: ConversationLabel[];
+  draft?: string;
   onManageLabels?: () => void;
 }) {
   const { room, actions, label, labels, onManageLabels } = props;
@@ -83,7 +84,13 @@ export function RoomListItem(props: {
                 <MutedOutlined className="room-muted" title="Đã tắt thông báo" />
               ) : null}
             </span>
-            <small>{room.lastMessagePreview || 'Chưa có tin nhắn'}</small>
+            {props.draft && !props.active ? (
+              <small>
+                <span className="room-draft">Nháp:</span> {props.draft}
+              </small>
+            ) : (
+              <small>{room.lastMessagePreview || 'Chưa có tin nhắn'}</small>
+            )}
           </span>
         </button>
       </RoomMenu>

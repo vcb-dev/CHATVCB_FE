@@ -11,6 +11,8 @@ export const queryKeys = {
   links: (roomId: string) => ['room-media', roomId, 'links'] as const,
   labels: ['labels'] as const,
   user: (userId: string) => ['user', userId] as const,
+  contacts: (q: string, team: string) => ['contacts', q, team] as const,
+  userTeams: ['user-teams'] as const,
   roomSearch: (roomId: string, params: RoomMessageSearch) => ['room-search', roomId, params] as const,
   linkPreview: (url: string) => ['link-preview', url] as const,
   invite: (roomId: string) => ['invite', roomId] as const,

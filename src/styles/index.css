@@ -4721,3 +4721,206 @@ body {
   color: #65676b;
   font-size: 11px;
 }
+
+/* Danh bạ */
+.app-shell.module-contacts {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+
+.contacts-page {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: #fff;
+}
+
+.contacts-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 24px 8px;
+}
+
+.contacts-head h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1c1e21;
+}
+
+.contacts-head p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #65676b;
+}
+
+.contacts-search {
+  max-width: 320px;
+}
+
+.contacts-filter {
+  display: flex;
+  gap: 8px;
+  padding: 8px 24px 12px;
+  overflow-x: auto;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.contacts-chip {
+  flex: none;
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 13px;
+  color: #1c1e21;
+  background: #f0f2f5;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.contacts-chip em {
+  margin-left: 4px;
+  font-style: normal;
+  color: #65676b;
+}
+
+.contacts-chip:hover {
+  background: #e4e6eb;
+}
+
+.contacts-chip.active {
+  color: #fff;
+  background: #0084ff;
+}
+
+.contacts-chip.active em {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.contacts-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 24px 24px;
+}
+
+.contacts-state {
+  display: grid;
+  place-items: center;
+  padding: 64px 0;
+}
+
+.contacts-group h2 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 10px 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0084ff;
+  background: #fff;
+}
+
+.contacts-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 10px;
+}
+
+.contacts-row:hover {
+  background: #f5f6f7;
+}
+
+.contacts-person {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px;
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.contacts-avatar {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+}
+
+.contacts-online {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  background: #31a24c;
+  border: 2px solid #fff;
+  border-radius: 50%;
+}
+
+.contacts-info {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.contacts-info strong,
+.contacts-info small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contacts-info strong {
+  font-size: 14px;
+  color: #1c1e21;
+}
+
+.contacts-info small {
+  font-size: 12px;
+  color: #65676b;
+}
+
+.contacts-team {
+  flex: none;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: #0064d1;
+  background: #e7f3ff;
+  border-radius: 999px;
+}
+
+.contacts-row .ant-btn {
+  flex: none;
+  margin-right: 8px;
+}
+
+@media (max-width: 800px) {
+  .contacts-head {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px 16px 8px;
+  }
+
+  .contacts-search {
+    max-width: none;
+  }
+
+  .contacts-filter,
+  .contacts-list {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .contacts-team {
+    display: none;
+  }
+}

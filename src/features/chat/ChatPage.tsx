@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { message as antMessage } from 'antd';
+import { ContactsPage } from '@/features/contacts/ContactsPage';
 import { DocsPage } from '@/features/docs/DocsPage';
 import { EmailPage } from '@/features/email/EmailPage';
 import { MeetingsPage } from '@/features/meetings/MeetingsPage';
@@ -97,6 +98,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     } else {
       void antMessage.info('Cuộc trò chuyện không còn trong danh sách.');
     }
+  };
+
+  // Mở cuộc trò chuyện từ Danh bạ hoặc hồ sơ thì chuyển hẳn về Messenger
+  const openRoomFromContacts = (target: Room) => {
+    setWorkspace('messenger');
+    void roomList.openRoom(target);
   };
 
   useChatNotifications({ onOpenRoom: openRoomFromNotice });
@@ -322,6 +329,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           />
           <DropOverlay visible={drop.dragging} />
         </main>
+      ) : workspace === 'contacts' ? (
+        <ContactsPage
+          onlineUserIds={onlineUserIds}
+          onViewProfile={setViewProfileId}
+          onOpenRoom={openRoomFromContacts}
+        />
       ) : workspace === 'email' ? (
         <EmailPage />
       ) : workspace === 'docs' ? (
@@ -400,7 +413,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         userId={viewProfileId}
         currentUserId={user.id}
         onClose={() => setViewProfileId(null)}
-        onOpenRoom={roomList.openRoom}
+        onOpenRoom={openRoomFromContacts}
         onSetBlocked={setBlocked}
       />
       <JoinGroupModal

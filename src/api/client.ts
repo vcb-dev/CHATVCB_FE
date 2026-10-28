@@ -27,6 +27,7 @@ import type {
   RichPayload,
   RoomRead,
   RoomSearch,
+  TeamCount,
   User,
 } from '@/types';
 
@@ -238,9 +239,19 @@ export const api = {
   files(roomId: string) {
     return request<ChatFile[]>(`/rooms/${roomId}/files`);
   },
-  users(q?: string) {
-    const query = q?.trim() ? `?q=${encodeURIComponent(q.trim())}` : '';
-    return request<DirectoryUser[]>(`/users${query}`);
+  users(q?: string, team?: string) {
+    const params = new URLSearchParams();
+    if (q?.trim()) {
+      params.set('q', q.trim());
+    }
+    if (team) {
+      params.set('team', team);
+    }
+    const query = params.toString();
+    return request<DirectoryUser[]>(`/users${query ? `?${query}` : ''}`);
+  },
+  userTeams() {
+    return request<TeamCount[]>('/users/teams');
   },
   blockUser(id: string) {
     return request<{ ok: boolean }>(`/users/${id}/block`, { method: 'POST' });

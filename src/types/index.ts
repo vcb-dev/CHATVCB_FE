@@ -356,6 +356,12 @@ export type DirectoryUser = {
   blockedByMe?: boolean;
 };
 
+/** GET /users/teams: số người của mỗi team (không tính người xem). */
+export type TeamCount = {
+  team: string;
+  count: number;
+};
+
 export type RoomHit = Pick<
   Room,
   | 'id'

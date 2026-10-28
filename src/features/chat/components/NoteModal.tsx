@@ -149,7 +149,7 @@ export function NoteModal({
           <Button onClick={onClose}>Đóng</Button>
         )
       }
-      destroyOnClose
+      destroyOnHidden
     >
       {editable ? (
         <Form layout="vertical" className="mt-3">

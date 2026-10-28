@@ -7,10 +7,10 @@ import { avatarColor, initials } from '@/lib/avatar';
 import type { Room, RoomMember } from '@/types';
 import { errorText } from '@/lib/errors';
 
-interface JoinRequestsCardProps {
+type JoinRequestsCardProps = {
   room: Room;
   onMembersUpdated: (members: RoomMember[]) => void;
-}
+};
 
 export function JoinRequestsCard({ room, onMembersUpdated }: JoinRequestsCardProps) {
   const queryClient = useQueryClient();

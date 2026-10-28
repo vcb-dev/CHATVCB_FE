@@ -8,8 +8,9 @@ import { avatarColor, initials } from '@/lib/avatar';
 import type { ConversationLabel, PageMeta, Room, User } from '@/types';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
 import type { Drafts } from '../utils/drafts';
+import { filterRooms, type RoomFilter } from '../utils/rooms';
 import { LabelManagerModal } from './LabelManagerModal';
-import { RoomFilterBar, filterRooms, type RoomFilter } from './RoomFilterBar';
+import { RoomFilterBar } from './RoomFilterBar';
 import { RoomListItem } from './RoomListItem';
 import { SidebarSearch } from './SidebarSearch';
 

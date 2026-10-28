@@ -4,13 +4,13 @@ import { api } from '@/api/client';
 import type { Room, RoomMember } from '@/types';
 import { errorText } from '@/lib/errors';
 
-interface MemberActionsProps {
+type MemberActionsProps = {
   room: Room;
   member: RoomMember;
   currentUserId: string;
   onMembersUpdated: (members: RoomMember[]) => void;
   onRemove: (member: RoomMember) => void;
-}
+};
 
 export function MemberActions({
   room,

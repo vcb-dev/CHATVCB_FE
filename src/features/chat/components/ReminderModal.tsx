@@ -113,7 +113,7 @@ export function ReminderModal({
           {reminder ? 'Lưu' : 'Tạo nhắc hẹn'}
         </Button>,
       ]}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form layout="vertical" className="mt-3">
         <Form.Item label="Nội dung nhắc hẹn" required>

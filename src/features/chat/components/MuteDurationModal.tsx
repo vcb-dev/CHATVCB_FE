@@ -21,7 +21,7 @@ export function MuteDurationModal({
       cancelText="Hủy"
       onOk={() => onPick(selected)}
       onCancel={onCancel}
-      destroyOnClose
+      destroyOnHidden
     >
       <Radio.Group
         value={selected}

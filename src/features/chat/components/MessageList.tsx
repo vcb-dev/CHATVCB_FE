@@ -2,7 +2,7 @@ import { RobotOutlined } from '@ant-design/icons';
 import { Avatar, Checkbox, Popover } from 'antd';
 import { Fragment, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { ChatMessage, Room, RoomMember, RoomRead } from '@/types';
-import { isSelectable } from '../hooks/useMessageSelection';
+import { isSelectable } from '../utils/forward';
 import { mentionsUser } from '../utils/mentions';
 import { buildSeen } from '../utils/seen';
 import { MessageRow } from './MessageRow';

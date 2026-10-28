@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { message as antMessage } from 'antd';
 
-export const VOICE_MAX_MS = 5 * 60 * 1000;
-export const VOICE_MIN_MS = 1000;
+const VOICE_MAX_MS = 5 * 60 * 1000;
+const VOICE_MIN_MS = 1000;
 
 const FORMATS = [
   'audio/webm;codecs=opus',
@@ -11,10 +11,10 @@ const FORMATS = [
   'audio/ogg;codecs=opus',
 ];
 
-export interface UseVoiceRecorderOptions {
+export type UseVoiceRecorderOptions = {
   roomId: string;
   onDone: (blob: Blob) => void;
-}
+};
 
 export function useVoiceRecorder({ roomId, onDone }: UseVoiceRecorderOptions) {
   const supported =

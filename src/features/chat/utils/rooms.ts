@@ -14,6 +14,36 @@ export function isDirectRoom(room: Room): boolean {
   return room.type === 'direct' || room.kind === 'direct';
 }
 
+export type RoomFilter =
+  | { kind: 'all' }
+  | { kind: 'unread' }
+  | { kind: 'group' }
+  | { kind: 'direct' }
+  | { kind: 'label'; labelId: string };
+
+function matchesFilter(room: Room, filter: RoomFilter): boolean {
+  switch (filter.kind) {
+    case 'unread':
+      return room.unreadCount > 0 || (room.markedUnread ?? false);
+    case 'group':
+      return !isDirectRoom(room);
+    case 'direct':
+      return isDirectRoom(room);
+    case 'label':
+      return room.labelId === filter.labelId;
+    default:
+      return true;
+  }
+}
+
+// Cloud của tôi luôn hiện ở đầu danh sách, không bộ lọc nào ẩn nó đi
+export function filterRooms(rooms: Room[], filter: RoomFilter): Room[] {
+  if (filter.kind === 'all') {
+    return rooms;
+  }
+  return rooms.filter((r) => r.isCloud || matchesFilter(r, filter));
+}
+
 export const MUTE_OPTIONS: { minutes: number | null; label: string }[] = [
   { minutes: 60, label: '1 giờ' },
   { minutes: 240, label: '4 giờ' },

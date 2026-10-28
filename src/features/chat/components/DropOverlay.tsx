@@ -1,6 +1,6 @@
-export interface DropOverlayProps {
+export type DropOverlayProps = {
   visible: boolean;
-}
+};
 
 export function DropOverlay({ visible }: DropOverlayProps) {
   if (!visible) return null;

@@ -5,10 +5,10 @@ import { api } from '@/api/client';
 import type { GroupSettings, Room } from '@/types';
 import { errorText } from '@/lib/errors';
 
-interface GroupSettingsCardProps {
+type GroupSettingsCardProps = {
   room: Room;
   onRoomUpdated: (room: Room) => void;
-}
+};
 
 const SETTING_ITEMS: { key: keyof GroupSettings; label: string }[] = [
   { key: 'adminOnlySend', label: 'Chỉ trưởng/phó nhóm được gửi tin' },

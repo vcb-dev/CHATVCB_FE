@@ -34,7 +34,7 @@ import { useBlockUser } from './hooks/useBlockUser';
 import { useChatSocket } from './hooks/useChatSocket';
 import { useComposer } from './hooks/useComposer';
 import { useMessageActions } from './hooks/useMessageActions';
-import { isSelectable, useMessageSelection } from './hooks/useMessageSelection';
+import { useMessageSelection } from './hooks/useMessageSelection';
 import { useRoomList } from './hooks/useRoomList';
 import { useRoomPrefs } from './hooks/useRoomPrefs';
 import { useRoomTools } from './hooks/useRoomTools';
@@ -42,7 +42,7 @@ import { useTypingSignal } from './hooks/useTypingSignal';
 import { useWorkspace } from './hooks/useWorkspace';
 import { DropOverlay } from './components/DropOverlay';
 import { useFileDrop } from './hooks/useFileDrop';
-import { canForward } from './utils/forward';
+import { canForward, isSelectable } from './utils/forward';
 import { photosFromMessages, splitDropped } from './utils/media';
 import { handleFromEmail, mentionsAllowed } from './utils/mentions';
 import {

@@ -2,11 +2,11 @@ import { Button } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import { formatDuration } from '../utils/datetime';
 
-export interface VoiceRecorderBarProps {
+export type VoiceRecorderBarProps = {
   elapsedMs: number;
   onCancel: () => void;
   onSend: () => void;
-}
+};
 
 export function VoiceRecorderBar({ elapsedMs, onCancel, onSend }: VoiceRecorderBarProps) {
   return (

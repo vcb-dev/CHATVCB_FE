@@ -1,12 +1,9 @@
 import { message as antMessage } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage } from '@/types';
+import { isSelectable } from '../utils/forward';
 
-export const MAX_SELECT = 20;
-
-export function isSelectable(message: ChatMessage) {
-  return message.role !== 'system' && !message.recalled;
-}
+const MAX_SELECT = 20;
 
 export function useMessageSelection(roomId: string) {
   const [selecting, setSelecting] = useState(false);

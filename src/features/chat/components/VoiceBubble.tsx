@@ -3,10 +3,10 @@ import { Button, message as antMessage } from 'antd';
 import { CaretRightOutlined, PauseOutlined } from '@ant-design/icons';
 import { formatDuration } from '../utils/datetime';
 
-export interface VoiceBubbleProps {
+export type VoiceBubbleProps = {
   url: string;
   durationMs: number;
-}
+};
 
 let playingAudio: HTMLAudioElement | null = null;
 

@@ -9,9 +9,9 @@ import type { Room } from '@/types';
 import { errorText } from '@/lib/errors';
 import { inviteUrl } from '../utils/invite';
 
-interface GroupInviteCardProps {
+type GroupInviteCardProps = {
   room: Room;
-}
+};
 
 export function GroupInviteCard({ room }: GroupInviteCardProps) {
   const queryClient = useQueryClient();

@@ -7,11 +7,11 @@ import { avatarColor, initials } from '@/lib/avatar';
 import type { Room } from '@/types';
 import { errorText } from '@/lib/errors';
 
-interface JoinGroupModalProps {
+type JoinGroupModalProps = {
   token: string | null;
   onClose: () => void;
   onOpenRoom: (room: Room) => void;
-}
+};
 
 export function JoinGroupModal({ token, onClose, onOpenRoom }: JoinGroupModalProps) {
   const [requested, setRequested] = useState(false);
@@ -52,7 +52,7 @@ export function JoinGroupModal({ token, onClose, onOpenRoom }: JoinGroupModalPro
       onCancel={onClose}
       footer={null}
       centered
-      destroyOnClose
+      destroyOnHidden
       width={380}
     >
       <div className="join-group-modal">

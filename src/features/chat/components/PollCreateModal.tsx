@@ -98,7 +98,7 @@ export function PollCreateModal(props: {
           Tạo bình chọn
         </Button>,
       ]}
-      destroyOnClose
+      destroyOnHidden
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 10 }}>
         <div>

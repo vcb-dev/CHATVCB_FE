@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { DocsPage } from '@/features/docs/DocsPage';
 import { EmailPage } from '@/features/email/EmailPage';
+import { DepartmentsPage } from '@/features/departments/DepartmentsPage';
 import { HrPage } from '@/features/hr/HrPage';
 import { MeetingsPage } from '@/features/meetings/MeetingsPage';
 import { ProfileDrawer } from '@/features/profile/ProfileDrawer';
@@ -209,6 +210,8 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         <DocsPage user={user} />
       ) : workspace === 'hr' ? (
         <HrPage />
+      ) : workspace === 'departments' ? (
+        <DepartmentsPage />
       ) : (
         <MeetingsPage user={user} />
       )}

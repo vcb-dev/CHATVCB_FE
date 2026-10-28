@@ -30,6 +30,10 @@ import {
   HrSensitiveBanner,
   HrSubBlock,
 } from "./components/HrUi";
+import {
+  orgDepartmentOptions,
+  orgGroupOptionsForDepartment,
+} from "@/features/departments/mockDepartments";
 import type { EmployeeProfile } from "./types";
 
 interface Props {
@@ -227,6 +231,12 @@ function WorkTab({
   data: EmployeeProfile;
   editing: boolean;
 }) {
+  const form = Form.useFormInstance<EmployeeProfile>();
+  const departmentWatch = Form.useWatch("department", form);
+  const departmentGroupOptions = orgGroupOptionsForDepartment(
+    departmentWatch ?? data.department,
+  );
+
   return (
     <HrSectionCard
       icon={<SolutionOutlined />}
@@ -299,10 +309,27 @@ function WorkTab({
             <Input />
           </Form.Item>
           <Form.Item name="department" label="Phòng ban">
-            <Input />
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              options={orgDepartmentOptions()}
+              onChange={() => form.setFieldValue("departmentGroup", undefined)}
+            />
           </Form.Item>
           <Form.Item name="departmentGroup" label="Nhóm (theo phòng ban)">
-            <Input />
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              disabled={!departmentWatch && !data.department}
+              options={departmentGroupOptions}
+              placeholder={
+                departmentWatch || data.department
+                  ? "Chọn nhóm"
+                  : "Chọn phòng ban trước"
+              }
+            />
           </Form.Item>
           <Form.Item name="managementBlockCode" label="Mã khối theo quản lý">
             <Input />

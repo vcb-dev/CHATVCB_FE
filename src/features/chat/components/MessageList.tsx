@@ -1,11 +1,12 @@
 import { RobotOutlined } from '@ant-design/icons';
 import { Avatar } from 'antd';
-import type { RefObject } from 'react';
+import { Fragment, type RefObject } from 'react';
 import type { ChatMessage, RoomRead } from '@/types';
 import { mentionsUser } from '../utils/mentions';
 import { lastSeenOn, viewersOf } from '../utils/seen';
 import { MessageRow } from './MessageRow';
 import { SystemNotice } from './SystemNotice';
+import { UnreadDivider } from './UnreadDivider';
 
 function sameAuthor(a: ChatMessage, b: ChatMessage) {
   return a.role === b.role && a.userId === b.userId && a.authorName === b.authorName;
@@ -14,6 +15,7 @@ function sameAuthor(a: ChatMessage, b: ChatMessage) {
 export function MessageList(props: {
   listRef: RefObject<HTMLDivElement | null>;
   messages: ChatMessage[];
+  unreadFromId: string | null;
   reads: RoomRead[];
   userId: string;
   myHandle: string;
@@ -47,39 +49,44 @@ export function MessageList(props: {
         <div className="messages-loading">Đang tải tin cũ…</div>
       ) : null}
       {messages.map((message, index) => {
+        const divider = message.id === props.unreadFromId ? <UnreadDivider /> : null;
         if (message.role === 'system') {
           return (
-            <SystemNotice
-              key={message.id}
-              message={message}
-              onJump={props.onJump}
-              onOpenNote={props.onOpenNote}
-            />
+            <Fragment key={message.id}>
+              {divider}
+              <SystemNotice
+                message={message}
+                onJump={props.onJump}
+                onOpenNote={props.onOpenNote}
+              />
+            </Fragment>
           );
         }
         const mine = message.userId === userId;
         return (
-          <MessageRow
-            key={message.id}
-            message={message}
-            userId={userId}
-            myHandle={myHandle}
-            mine={mine}
-            first={index === 0 || !sameAuthor(messages[index - 1], message)}
-            last={index === messages.length - 1 || !sameAuthor(message, messages[index + 1])}
-            tagged={!mine && mentionsUser(message.content, myHandle, props.everyoneTag)}
-            viewers={viewersOf(message, messages, reads)}
-            lastReaders={lastSeenOn(message, messages, reads, userId)}
-            canSaveToCloud={props.canSaveToCloud}
-            canPin={props.canPin}
-            canManage={props.canManage}
-            onMarkRead={props.onMarkRead}
-            onViewProfile={props.onViewProfile}
-            onAction={props.onAction}
-            onReact={props.onReact}
-            onJump={props.onJump}
-            onMessageUpdated={props.onMessageUpdated}
-          />
+          <Fragment key={message.id}>
+            {divider}
+            <MessageRow
+              message={message}
+              userId={userId}
+              myHandle={myHandle}
+              mine={mine}
+              first={index === 0 || !sameAuthor(messages[index - 1], message)}
+              last={index === messages.length - 1 || !sameAuthor(message, messages[index + 1])}
+              tagged={!mine && mentionsUser(message.content, myHandle, props.everyoneTag)}
+              viewers={viewersOf(message, messages, reads)}
+              lastReaders={lastSeenOn(message, messages, reads, userId)}
+              canSaveToCloud={props.canSaveToCloud}
+              canPin={props.canPin}
+              canManage={props.canManage}
+              onMarkRead={props.onMarkRead}
+              onViewProfile={props.onViewProfile}
+              onAction={props.onAction}
+              onReact={props.onReact}
+              onJump={props.onJump}
+              onMessageUpdated={props.onMessageUpdated}
+            />
+          </Fragment>
         );
       })}
       {props.pending ? (

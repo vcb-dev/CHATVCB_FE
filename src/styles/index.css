@@ -4512,3 +4512,22 @@ body {
   font-weight: 700;
   line-height: 1;
 }
+
+/* Vạch tin nhắn chưa đọc */
+.unread-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+  color: #0084ff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.unread-divider::before,
+.unread-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #b8dcff;
+}

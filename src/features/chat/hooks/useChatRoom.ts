@@ -21,6 +21,7 @@ import type {
   User,
 } from '@/types';
 import { isDirectRoom, previewOf, upsertRoom } from '../utils/rooms';
+import { firstUnreadId } from '../utils/unread';
 import { useRoomCacheSetter } from './useRoomCacheSetter';
 import type { Workspace } from './useWorkspace';
 
@@ -39,6 +40,7 @@ export function useChatRoom({
   user,
   roomId,
   roomIdRef,
+  unreadOnOpenRef,
   workspace,
   setRoomId,
   setRooms,
@@ -48,6 +50,7 @@ export function useChatRoom({
   user: User;
   roomId: string;
   roomIdRef: RefObject<string>;
+  unreadOnOpenRef: RefObject<{ roomId: string; count: number } | null>;
   workspace: Workspace;
   setRoomId: Dispatch<SetStateAction<string>>;
   setRooms: Dispatch<SetStateAction<Room[]>>;
@@ -55,6 +58,9 @@ export function useChatRoom({
   setError: (error: string) => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Tin đầu tiên chưa đọc lúc mở phòng; giữ nguyên tới khi đổi phòng
+  const [unreadFromId, setUnreadFromId] = useState<string | null>(null);
+  const unreadScrolledRef = useRef('');
   const readsQuery = useQuery({
     queryKey: queryKeys.reads(roomId),
     queryFn: () => api.reads(roomId),
@@ -135,6 +141,7 @@ export function useChatRoom({
       return;
     }
     let cancelled = false;
+    setUnreadFromId(null);
     setPending(false);
     setOnline([]);
     setPageMeta({ hasMore: false, nextCursor: null });
@@ -144,6 +151,14 @@ export function useChatRoom({
       .messages(roomId)
       .then((page) => {
         if (!cancelled) {
+          const opened = unreadOnOpenRef.current;
+          setUnreadFromId(
+            firstUnreadId(
+              page.data,
+              opened?.roomId === roomId ? opened.count : 0,
+              userRef.current.id,
+            ),
+          );
           setMessages(page.data);
           setPageMeta(page.meta);
           pageMetaRef.current = page.meta;
@@ -180,11 +195,21 @@ export function useChatRoom({
     const latestChanged = lastMessageIdRef.current !== latestId;
 
     if (roomChanged || latestChanged || pending) {
-      el.scrollTop = el.scrollHeight;
+      // Mở phòng có tin chưa đọc: đưa vạch lên đầu khung (một lần), sau đó tin mới vẫn cuộn xuống cuối
+      const divider =
+        unreadFromId && unreadScrolledRef.current !== roomId
+          ? el.querySelector<HTMLElement>('.unread-divider')
+          : null;
+      if (divider) {
+        divider.scrollIntoView({ block: 'start' });
+        unreadScrolledRef.current = roomId;
+      } else {
+        el.scrollTop = el.scrollHeight;
+      }
       lastRoomIdRef.current = roomId;
       lastMessageIdRef.current = latestId;
     }
-  }, [messages, pending, roomId]);
+  }, [messages, pending, roomId, unreadFromId]);
 
   useEffect(() => {
     function markReadWhenViewing() {
@@ -352,6 +377,7 @@ export function useChatRoom({
   return {
     messages,
     setMessages,
+    unreadFromId,
     reads,
     setReads,
     members,

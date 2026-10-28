@@ -97,6 +97,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     user,
     roomId,
     roomIdRef: roomList.roomIdRef,
+    unreadOnOpenRef: roomList.unreadOnOpenRef,
     workspace,
     setRoomId: roomList.setRoomId,
     setRooms: roomList.setRooms,
@@ -230,6 +231,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           <MessageList
             listRef={chat.listRef}
             messages={chat.messages}
+            unreadFromId={chat.unreadFromId}
             reads={chat.reads}
             userId={user.id}
             myHandle={myHandle}

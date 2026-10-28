@@ -20,6 +20,8 @@ export function useRoomList({
   const [loadingOlderRooms, setLoadingOlderRooms] = useState(false);
   const hasLoadedMoreRoomsRef = useRef(false);
   const roomIdRef = useRef('');
+  // Số chưa đọc của phòng ngay lúc mở (selectRoom đặt về 0 ngay), để dựng vạch "Tin nhắn chưa đọc".
+  const unreadOnOpenRef = useRef<{ roomId: string; count: number } | null>(null);
 
   useEffect(() => {
     roomIdRef.current = roomId;
@@ -32,6 +34,9 @@ export function useRoomList({
     const prev = queryClient.getQueryData<RoomsPage>(queryKeys.rooms);
     const merged = mergeRooms(prev?.data ?? [], page.data, roomIdRef.current, page.meta.hasMore, isViewingChat());
     if (!prev || !roomIdRef.current) {
+      if (!roomIdRef.current && merged[0]) {
+        unreadOnOpenRef.current = { roomId: merged[0].id, count: merged[0].unreadCount };
+      }
       setRoomId((current) => current || merged[0]?.id || '');
     } else if (!merged.some((r) => r.id === roomIdRef.current)) {
       setRoomId(merged[0]?.id ?? '');
@@ -82,11 +87,13 @@ export function useRoomList({
         return;
       }
     }
+    unreadOnOpenRef.current = { roomId: nextRoom.id, count: nextRoom.unreadCount ?? 0 };
     setRooms((prev) => upsertRoom(prev, { ...nextRoom, hidden: false }));
     setRoomId(nextRoom.id);
   }
 
   function selectRoom(next: Room) {
+    unreadOnOpenRef.current = { roomId: next.id, count: next.unreadCount };
     setRoomId(next.id);
     setRooms((current) =>
       current.map((r) => (r.id === next.id ? { ...r, unreadCount: 0 } : r)),
@@ -152,6 +159,7 @@ export function useRoomList({
     loadingOlderRooms,
     openRoom,
     selectRoom,
+    unreadOnOpenRef,
     updateRoom,
     removeRoom,
     loadMoreRooms,

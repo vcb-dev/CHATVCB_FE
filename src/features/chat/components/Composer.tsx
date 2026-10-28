@@ -58,6 +58,7 @@ export function Composer(props: {
   onSendVoice: (blob: Blob) => Promise<void>;
   onMarkRead: () => void;
   onTool?: (kind: ToolKind) => void;
+  onLocation: () => void;
 }) {
   const { room, draft, replyTo, members, pendingImages, pendingFiles } = props;
   const voiceRecorder = useVoiceRecorder({
@@ -208,6 +209,7 @@ export function Composer(props: {
                   locked={Boolean(props.locked)}
                   disabled={props.disabled}
                   onPick={(kind) => props.onTool?.(kind)}
+                  onLocation={props.onLocation}
                 />
                 {voiceRecorder.supported ? (
                   <Tooltip title="Ghi tin nhắn thoại">

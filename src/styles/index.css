@@ -4643,3 +4643,31 @@ body {
   margin: 0;
   word-break: break-word;
 }
+
+/* Thẻ vị trí */
+.location-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+}
+
+.location-pin {
+  color: #d93025;
+  font-size: 30px;
+}
+
+.location-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.location-info span {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.location-info a {
+  font-weight: 500;
+}

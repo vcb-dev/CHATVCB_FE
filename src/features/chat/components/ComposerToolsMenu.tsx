@@ -1,6 +1,7 @@
 import {
   BarChartOutlined,
   ClockCircleOutlined,
+  EnvironmentOutlined,
   FileTextOutlined,
   PlusCircleOutlined,
 } from '@ant-design/icons';
@@ -12,6 +13,7 @@ export function ComposerToolsMenu(props: {
   locked: boolean;
   disabled: boolean;
   onPick: (kind: ToolKind) => void;
+  onLocation: () => void;
 }) {
   const items: MenuProps['items'] = [];
   if (props.isGroup && !props.locked) {
@@ -33,13 +35,24 @@ export function ComposerToolsMenu(props: {
       icon: <FileTextOutlined />,
       label: 'Tạo ghi chú',
     },
+    {
+      key: 'location',
+      icon: <EnvironmentOutlined />,
+      label: 'Gửi vị trí',
+    },
   );
 
   return (
     <Dropdown
       menu={{
         items,
-        onClick: ({ key }) => props.onPick(key as ToolKind),
+        onClick: ({ key }) => {
+          if (key === 'location') {
+            props.onLocation();
+          } else {
+            props.onPick(key as ToolKind);
+          }
+        },
       }}
       trigger={['click']}
       placement="topLeft"

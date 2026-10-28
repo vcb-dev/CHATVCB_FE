@@ -309,6 +309,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onSendVoice={composer.sendVoice}
             onMarkRead={markRead}
             onTool={(kind) => tools.setToolModal(kind)}
+            onLocation={() => void composer.sendLocation()}
           />
           <DropOverlay visible={drop.dragging} />
         </main>

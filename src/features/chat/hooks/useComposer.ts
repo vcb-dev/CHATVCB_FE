@@ -1,9 +1,10 @@
-import { message as antMessage } from 'antd';
+import { Modal, message as antMessage } from 'antd';
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { api } from '@/api/client';
 import type { ChatMessage, GalleryImage, PendingFile, PendingImage, RichPayload } from '@/types';
 import { addPendingDocs } from '../utils/attachments';
 import { loadDrafts, saveDrafts, withDraft, type Drafts } from '../utils/drafts';
+import { currentPosition, formatCoords } from '../utils/location';
 import {
   addGalleryPick,
   addPendingFiles,
@@ -302,6 +303,26 @@ export function useComposer({
     }
   }
 
+  async function sendLocation() {
+    const hide = antMessage.loading('Đang lấy vị trí…', 0);
+    let position: { lat: number; lng: number };
+    try {
+      position = await currentPosition();
+    } catch (err) {
+      antMessage.error(err instanceof Error ? err.message : 'Không lấy được vị trí, thử lại sau.');
+      return;
+    } finally {
+      hide();
+    }
+    Modal.confirm({
+      title: 'Gửi vị trí hiện tại của bạn?',
+      content: formatCoords(position.lat, position.lng),
+      okText: 'Gửi',
+      cancelText: 'Hủy',
+      onOk: () => sendRich({ type: 'location', ...position }),
+    });
+  }
+
   async function sendVoice(blob: Blob) {
     if (!roomId) return;
     try {
@@ -346,6 +367,7 @@ export function useComposer({
     sendGif,
     sendContent,
     sendRich,
+    sendLocation,
     sendVoice,
   };
 }

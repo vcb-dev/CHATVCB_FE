@@ -1,10 +1,15 @@
 import { Fragment, type ReactNode, useMemo } from 'react';
 import { parseRichText } from '../utils/format';
-import { MENTION } from '../utils/mentions';
+import { AGENT_HANDLE, MENTION } from '../utils/mentions';
 import { inviteTokenOf } from '../utils/invite';
 import type { RichInline } from '@/types';
 
-function renderInline(node: RichInline, myHandle: string, key: string | number): ReactNode {
+function renderInline(
+  node: RichInline,
+  myHandle: string,
+  mentions: boolean,
+  key: string | number,
+): ReactNode {
   switch (node.type) {
     case 'text': {
       const parts = node.text.split(MENTION);
@@ -14,7 +19,12 @@ function renderInline(node: RichInline, myHandle: string, key: string | number):
             if (!part.startsWith('@')) {
               return part;
             }
-            const mine = part.slice(1).toLowerCase() === myHandle.toLowerCase();
+            const handle = part.slice(1).toLowerCase();
+            // Phòng không cho tag người (1-1, Cloud) thì chỉ còn @agent được tô
+            if (!mentions && handle !== AGENT_HANDLE) {
+              return part;
+            }
+            const mine = handle === myHandle.toLowerCase();
             return (
               <span key={`${part}-${index}`} className={mine ? 'mention mention-me' : 'mention'}>
                 {part}
@@ -27,19 +37,19 @@ function renderInline(node: RichInline, myHandle: string, key: string | number):
     case 'bold':
       return (
         <strong key={key}>
-          {node.children.map((child, idx) => renderInline(child, myHandle, idx))}
+          {node.children.map((child, idx) => renderInline(child, myHandle, mentions, idx))}
         </strong>
       );
     case 'italic':
       return (
         <em key={key}>
-          {node.children.map((child, idx) => renderInline(child, myHandle, idx))}
+          {node.children.map((child, idx) => renderInline(child, myHandle, mentions, idx))}
         </em>
       );
     case 'strike':
       return (
         <s key={key}>
-          {node.children.map((child, idx) => renderInline(child, myHandle, idx))}
+          {node.children.map((child, idx) => renderInline(child, myHandle, mentions, idx))}
         </s>
       );
     case 'code':
@@ -73,7 +83,15 @@ function renderInline(node: RichInline, myHandle: string, key: string | number):
   }
 }
 
-export function RichText({ text, myHandle }: { text: string; myHandle: string }) {
+export function RichText({
+  text,
+  myHandle,
+  mentionsEnabled = true,
+}: {
+  text: string;
+  myHandle: string;
+  mentionsEnabled?: boolean;
+}) {
   const blocks = useMemo(() => parseRichText(text), [text]);
 
   return (
@@ -85,7 +103,7 @@ export function RichText({ text, myHandle }: { text: string; myHandle: string })
               {block.lines.map((line, lineIdx) => (
                 <Fragment key={lineIdx}>
                   {lineIdx > 0 ? <br /> : null}
-                  {line.map((item, itemIdx) => renderInline(item, myHandle, itemIdx))}
+                  {line.map((item, itemIdx) => renderInline(item, myHandle, mentionsEnabled, itemIdx))}
                 </Fragment>
               ))}
             </p>
@@ -104,7 +122,7 @@ export function RichText({ text, myHandle }: { text: string; myHandle: string })
             <ListTag key={idx} className="rt-list">
               {block.items.map((item, itemIdx) => (
                 <li key={itemIdx}>
-                  {item.map((inline, inlineIdx) => renderInline(inline, myHandle, inlineIdx))}
+                  {item.map((inline, inlineIdx) => renderInline(inline, myHandle, mentionsEnabled, inlineIdx))}
                 </li>
               ))}
             </ListTag>

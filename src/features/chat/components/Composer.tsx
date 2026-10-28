@@ -17,7 +17,7 @@ import type {
   RoomMember,
   ToolKind,
 } from '@/types';
-import { buildMentionOptions, mentionOpen } from '../utils/mentions';
+import { buildMentionOptions, mentionOpen, mentionsAllowed } from '../utils/mentions';
 import { filesFromClipboard } from '../utils/media';
 import { isDirectRoom } from '../utils/rooms';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
@@ -165,7 +165,7 @@ export function Composer(props: {
           />
         </div>
       ) : null}
-      {props.membersLoaded && members.length === 0 && mentionOptions.length <= 2 ? (
+      {props.membersLoaded && mentionsAllowed(room) && members.length === 0 && mentionOptions.length <= 2 ? (
         <Typography.Text type="warning" style={{ width: '100%' }}>
           Chưa tải được danh sách đồng đội — redeploy BE mới trên Railway rồi tải lại trang.
         </Typography.Text>

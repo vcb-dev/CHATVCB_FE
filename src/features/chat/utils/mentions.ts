@@ -20,7 +20,9 @@ export function buildMentionOptions(
   room: Room | null,
 ) {
   const map = new Map<string, { value: string; label: string }>();
-  for (const item of members) {
+  // 1-1 và Cloud không tag người, chỉ còn gọi agent
+  const canTag = mentionsAllowed(room);
+  for (const item of canTag ? members : []) {
     if (item.id === userId || !item.handle) {
       continue;
     }
@@ -29,7 +31,7 @@ export function buildMentionOptions(
       label: `${item.displayName || item.name} (@${item.handle})`,
     });
   }
-  for (const item of online) {
+  for (const item of canTag ? online : []) {
     if (item.id === userId || !item.handle) {
       continue;
     }
@@ -41,12 +43,12 @@ export function buildMentionOptions(
     }
   }
   const agentName = room?.agentName?.trim();
-  const everyone = everyoneTagAllowed(room)
+  const everyone = canTag
     ? [{ value: ALL_HANDLE, label: '@all (Mọi người)' }]
     : [];
   const agents = [
     ...(agentName ? [{ value: agentName, label: `${agentName} (AI)` }] : []),
-    { value: 'agent', label: '@agent (AI)' },
+    { value: AGENT_HANDLE, label: '@agent (AI)' },
   ];
   return [...everyone, ...map.values(), ...agents];
 }
@@ -57,8 +59,10 @@ const TAG = /(?:^|[^A-Za-z0-9._-])@([A-Za-z0-9._-]+)/g;
 
 export const ALL_HANDLE = 'all';
 
-/** `@all` chỉ có nghĩa ở nhóm thật, không phải DM hay Cloud. */
-export function everyoneTagAllowed(room: Pick<Room, 'kind' | 'isCloud'> | null | undefined) {
+export const AGENT_HANDLE = 'agent';
+
+/** Tag người (kể cả `@all`) chỉ có ở nhóm thật; 1-1 và Cloud chỉ còn gọi `@agent`. */
+export function mentionsAllowed(room: Pick<Room, 'kind' | 'isCloud'> | null | undefined) {
   return Boolean(room && room.kind === 'group' && !room.isCloud);
 }
 

@@ -32,6 +32,7 @@ export function MessageRow(props: {
   first: boolean;
   last: boolean;
   tagged: boolean;
+  mentionsEnabled?: boolean;
   viewers: RoomRead[];
   lastReaders: RoomRead[];
   delivery?: Delivery | null;
@@ -222,7 +223,11 @@ export function MessageRow(props: {
                           onUpdated={(m) => props.onMessageUpdated?.(m)}
                         />
                       ) : hasText ? (
-                        <RichText text={message.content} myHandle={props.myHandle} />
+                        <RichText
+                          text={message.content}
+                          myHandle={props.myHandle}
+                          mentionsEnabled={props.mentionsEnabled}
+                        />
                       ) : null}
                       {message.editedAt ? (
                         <span

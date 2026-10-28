@@ -29,7 +29,7 @@ import type {
   TypingEvent,
   User,
 } from '@/types';
-import { everyoneTagAllowed, mentionsUser } from '../utils/mentions';
+import { mentionsAllowed, mentionsUser } from '../utils/mentions';
 import { isDirectRoom, isRoomMuted, previewOf, upsertRoom } from '../utils/rooms';
 import { isVoice } from '../utils/attachments';
 import { richLabel } from '../utils/rich';
@@ -163,10 +163,13 @@ export function useChatSocket(options: Options) {
       const reminder = message.systemKind === 'reminder.due';
       const shouldAlert = !mine && (!system || reminder);
       const known = rooms.find((r) => r.id === message.roomId);
-      const tagged =
+      // Chỉ nhóm thật mới có tag; 1-1 và Cloud thì không
+      const isTagged = (target: Room | undefined) =>
         !mine &&
         message.role === 'user' &&
-        mentionsUser(message.content, myHandle, everyoneTagAllowed(known));
+        mentionsAllowed(target) &&
+        mentionsUser(message.content, myHandle, true);
+      const tagged = isTagged(known);
       const viewing = open && isViewingChat();
       if (!mine && viewing) {
         markMessageRead(message, message.roomId);
@@ -177,7 +180,7 @@ export function useChatSocket(options: Options) {
           .then((list) => {
             const fresh = list.find((r) => r.id === message.roomId);
             if (fresh && shouldAlert) {
-              alertIncoming(message, fresh, tagged, reminder);
+              alertIncoming(message, fresh, isTagged(fresh), reminder);
             }
           })
           .catch(() => {

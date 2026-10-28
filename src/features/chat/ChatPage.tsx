@@ -43,7 +43,7 @@ import { DropOverlay } from './components/DropOverlay';
 import { useFileDrop } from './hooks/useFileDrop';
 import { canForward } from './utils/forward';
 import { photosFromMessages, splitDropped } from './utils/media';
-import { everyoneTagAllowed, handleFromEmail } from './utils/mentions';
+import { handleFromEmail, mentionsAllowed } from './utils/mentions';
 import {
   countOnlineMembers,
   hasOnlineMember,
@@ -254,7 +254,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             canSaveToCloud={!room?.isCloud}
             canPin={canPin}
             canManage={room?.canManage ?? false}
-            everyoneTag={everyoneTagAllowed(room)}
+            mentionsEnabled={mentionsAllowed(room)}
             showDelivery={!room?.isCloud}
             selecting={selection.selecting}
             selectedIds={selection.selectedIds}

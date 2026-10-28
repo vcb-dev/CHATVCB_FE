@@ -25,7 +25,7 @@ export function MessageList(props: {
   canSaveToCloud?: boolean;
   canPin?: boolean;
   canManage?: boolean;
-  everyoneTag?: boolean;
+  mentionsEnabled?: boolean;
   showDelivery?: boolean;
   selecting?: boolean;
   selectedIds?: ReadonlySet<string>;
@@ -79,7 +79,8 @@ export function MessageList(props: {
             mine={mine}
             first={index === 0 || !sameAuthor(messages[index - 1], message)}
             last={index === messages.length - 1 || !sameAuthor(message, messages[index + 1])}
-            tagged={!mine && mentionsUser(message.content, myHandle, props.everyoneTag)}
+            tagged={!mine && Boolean(props.mentionsEnabled) && mentionsUser(message.content, myHandle, true)}
+            mentionsEnabled={props.mentionsEnabled}
             viewers={viewersOf(message, messages, reads)}
             lastReaders={lastSeenOn(message, messages, reads, userId)}
             delivery={props.showDelivery ? deliveryOf(message, messages, reads, userId) : null}

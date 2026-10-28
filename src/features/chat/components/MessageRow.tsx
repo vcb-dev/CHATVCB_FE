@@ -1,5 +1,6 @@
 import { PushpinOutlined, RobotOutlined } from '@ant-design/icons';
 import { Avatar, Dropdown } from 'antd';
+import { memo } from 'react';
 import { fileSrc } from '@/api/client';
 import { CopyableImage } from '@/components/CopyableImage';
 import { avatarColor, initials } from '@/lib/avatar';
@@ -17,6 +18,7 @@ import { PollCard } from './PollCard';
 import { RichBubble } from './RichBubble';
 import { ReactionPicker } from './ReactionPicker';
 import { ReactionSummary } from './ReactionSummary';
+import { ReadStatus } from './ReadStatus';
 import { RichText } from './RichText';
 import { SeenAvatars } from './SeenAvatars';
 import { SeenBubble } from './SeenBubble';
@@ -24,7 +26,7 @@ import { VoiceBubble } from './VoiceBubble';
 import { firstLink } from '../utils/format';
 import { inviteTokenOf } from '../utils/invite';
 
-export function MessageRow(props: {
+type MessageRowProps = {
   message: ChatMessage;
   userId: string;
   myHandle: string;
@@ -36,6 +38,10 @@ export function MessageRow(props: {
   viewers: RoomRead[];
   lastReaders: RoomRead[];
   delivery?: Delivery | null;
+  /** Tin của mình trong nhóm: số người đã đọc / tổng số người khác (kiểu Lark). */
+  readCount?: number;
+  readTotal?: number;
+  onOpenReceipt?: (message: ChatMessage, anchor: HTMLElement) => void;
   canSaveToCloud?: boolean;
   canPin?: boolean;
   canManage?: boolean;
@@ -46,8 +52,11 @@ export function MessageRow(props: {
   onReact: (message: ChatMessage, emoji: string) => Promise<void>;
   onJump: (id: string, createdAt?: string) => Promise<void>;
   onMessageUpdated?: (m: ChatMessage) => void;
-}) {
+};
+
+function MessageRowView(props: MessageRowProps) {
   const { message, mine, first, last } = props;
+  const hasReceipt = typeof props.readTotal === 'number' && props.readTotal > 0;
   const agent = message.role === 'agent';
   const cls = [
     'row',
@@ -136,7 +145,7 @@ export function MessageRow(props: {
             }}
           >
             <div className="bubble-hit">
-              <SeenBubble viewers={props.viewers}>
+              <SeenBubble viewers={props.viewers} disabled={hasReceipt}>
                 <div
                   className={[
                     'bubble',
@@ -248,6 +257,13 @@ export function MessageRow(props: {
               </SeenBubble>
             </div>
           </Dropdown>
+          {hasReceipt ? (
+            <ReadStatus
+              read={props.readCount ?? 0}
+              total={props.readTotal as number}
+              onOpen={(anchor) => props.onOpenReceipt?.(message, anchor)}
+            />
+          ) : null}
           {!message.recalled ? (
             <ReactionPicker
               mine={message.reactions
@@ -277,3 +293,22 @@ export function MessageRow(props: {
     </div>
   );
 }
+
+function sameElements(a: unknown[], b: unknown[]) {
+  return a.length === b.length && a.every((item, index) => item === b[index]);
+}
+
+// Vẽ lại một dòng chỉ khi dữ liệu của chính nó đổi; mảng (người đã xem…) so theo từng phần tử
+function sameRow(a: MessageRowProps, b: MessageRowProps) {
+  const keys = Object.keys(a) as (keyof MessageRowProps)[];
+  if (keys.length !== Object.keys(b).length) {
+    return false;
+  }
+  return keys.every((key) => {
+    const x = a[key];
+    const y = b[key];
+    return x === y || (Array.isArray(x) && Array.isArray(y) && sameElements(x, y));
+  });
+}
+
+export const MessageRow = memo(MessageRowView, sameRow);

@@ -1,13 +1,14 @@
 import { CloudOutlined, MoreOutlined, MutedOutlined, PushpinFilled } from '@ant-design/icons';
 import { Avatar, Badge } from 'antd';
+import { memo } from 'react';
 import { fileSrc } from '@/api/client';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { ConversationLabel, Room } from '@/types';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
-import { isRoomMuted } from '../utils/rooms';
+import { isRoomMuted, sameRoom } from '../utils/rooms';
 import { RoomMenu } from './RoomMenu';
 
-export function RoomListItem(props: {
+type RoomListItemProps = {
   room: Room;
   active: boolean;
   online: boolean;
@@ -17,7 +18,9 @@ export function RoomListItem(props: {
   labels?: ConversationLabel[];
   draft?: string;
   onManageLabels?: () => void;
-}) {
+};
+
+function RoomListItemView(props: RoomListItemProps) {
   const { room, actions, label, labels, onManageLabels } = props;
   const name = room.title || room.name;
   const hasUnread = room.unreadCount > 0 || (room.markedUnread ?? false);
@@ -118,3 +121,18 @@ export function RoomListItem(props: {
     </div>
   );
 }
+
+// Mỗi dòng dựng sẵn hai menu chuột phải nên rất tốn khi vẽ: chỉ vẽ lại khi chính phòng đó đổi
+export const RoomListItem = memo(
+  RoomListItemView,
+  (a, b) =>
+    a.active === b.active &&
+    a.online === b.online &&
+    a.onSelect === b.onSelect &&
+    a.actions === b.actions &&
+    a.label === b.label &&
+    a.labels === b.labels &&
+    a.draft === b.draft &&
+    a.onManageLabels === b.onManageLabels &&
+    sameRoom(a.room, b.room),
+);

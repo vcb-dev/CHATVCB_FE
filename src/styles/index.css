@@ -4924,3 +4924,132 @@ body {
     display: none;
   }
 }
+
+/* Đang mở phòng: chỉ hiện chữ nếu tải lâu hơn một chút, tải nhanh thì không chớp */
+.messages-opening {
+  padding: 24px 0;
+  text-align: center;
+  font-size: 13px;
+  color: #8a8d91;
+  animation: messages-opening-in 0.2s ease 0.25s both;
+}
+
+@keyframes messages-opening-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Đã đọc / chưa đọc trong nhóm (kiểu Lark) */
+.read-status {
+  --read-color: #14b8a6;
+  position: relative;
+  flex: none;
+  align-self: flex-end;
+  width: 16px;
+  height: 16px;
+  margin-bottom: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.read-status::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--read-color) calc(var(--p, 0) * 1%), #cfd6de 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+}
+
+.read-status:hover::before {
+  filter: brightness(0.92);
+}
+
+.read-status.all {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 9px;
+}
+
+.read-status.all::before {
+  background: var(--read-color);
+  -webkit-mask: none;
+  mask: none;
+}
+
+.read-status > .anticon {
+  position: relative;
+}
+
+.receipt-anchor {
+  position: fixed;
+  pointer-events: none;
+}
+
+.receipt-pop {
+  display: flex;
+  width: 340px;
+  max-width: calc(100vw - 48px);
+}
+
+.receipt-col {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 12px;
+}
+
+.receipt-col + .receipt-col {
+  border-left: 1px solid #e5e7eb;
+}
+
+.receipt-col h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 400;
+  color: #1c1e21;
+}
+
+.receipt-col h4 b {
+  margin-right: 4px;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.receipt-col ul {
+  display: grid;
+  gap: 10px;
+  max-height: 260px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.receipt-col li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.receipt-col li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.receipt-empty {
+  margin: 0;
+  font-size: 13px;
+  color: #8a8d91;
+}

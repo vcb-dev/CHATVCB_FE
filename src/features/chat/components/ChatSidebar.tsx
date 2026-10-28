@@ -1,11 +1,11 @@
 import { CameraOutlined, CloudOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { Avatar, Button, Input, Spin } from 'antd';
-import { useEffect, useMemo, useRef, useState, type UIEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type UIEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, fileSrc } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { avatarColor, initials } from '@/lib/avatar';
-import type { PageMeta, Room, User } from '@/types';
+import type { ConversationLabel, PageMeta, Room, User } from '@/types';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
 import type { Drafts } from '../utils/drafts';
 import { LabelManagerModal } from './LabelManagerModal';
@@ -14,6 +14,7 @@ import { RoomListItem } from './RoomListItem';
 import { SidebarSearch } from './SidebarSearch';
 
 const FILTER_MIN_ROWS = 10;
+const NO_LABELS: ConversationLabel[] = [];
 
 export function ChatSidebar(props: {
   user: User;
@@ -41,8 +42,9 @@ export function ChatSidebar(props: {
 
   const [filter, setFilter] = useState<RoomFilter>({ kind: 'all' });
   const [managerOpen, setManagerOpen] = useState(false);
+  const openManager = useCallback(() => setManagerOpen(true), []);
 
-  const { data: labels = [] } = useQuery({
+  const { data: labels = NO_LABELS } = useQuery({
     queryKey: queryKeys.labels,
     queryFn: api.labels,
   });
@@ -157,7 +159,7 @@ export function ChatSidebar(props: {
                   label={item.labelId ? labelMap.get(item.labelId) : undefined}
                   labels={labels}
                   draft={props.drafts[item.id]}
-                  onManageLabels={() => setManagerOpen(true)}
+                  onManageLabels={openManager}
                 />
               ))
             )}

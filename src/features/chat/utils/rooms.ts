@@ -79,6 +79,31 @@ export function upsertRoom(list: Room[], room: Room): Room[] {
   return sortRooms(next);
 }
 
+/** So hai bản của một phòng theo giá trị (lần poll nào cũng trả đối tượng mới dù nội dung không đổi). */
+export function sameRoom(a: Room, b: Room): boolean {
+  if (a === b) {
+    return true;
+  }
+  const keys = Object.keys(a) as (keyof Room)[];
+  if (keys.length !== Object.keys(b).length) {
+    return false;
+  }
+  return keys.every((key) => {
+    const x = a[key];
+    const y = b[key];
+    if (Object.is(x, y)) {
+      return true;
+    }
+    return (
+      typeof x === 'object' &&
+      x !== null &&
+      typeof y === 'object' &&
+      y !== null &&
+      JSON.stringify(x) === JSON.stringify(y)
+    );
+  });
+}
+
 export function mergeRooms(
   prev: Room[],
   next: Room[],

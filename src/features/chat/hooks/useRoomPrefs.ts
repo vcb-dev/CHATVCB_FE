@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Modal, message as antMessage } from 'antd';
 import { api } from '@/api/client';
@@ -139,12 +139,9 @@ export function useRoomPrefs({
     [apply],
   );
 
-  return {
-    togglePin,
-    toggleUnread,
-    hide,
-    mute,
-    unmute,
-    setLabel,
-  };
+  // Cùng một đối tượng giữa các lần vẽ, để dòng phòng không vẽ lại chỉ vì `actions` đổi danh tính
+  return useMemo(
+    () => ({ togglePin, toggleUnread, hide, mute, unmute, setLabel }),
+    [togglePin, toggleUnread, hide, mute, unmute, setLabel],
+  );
 }

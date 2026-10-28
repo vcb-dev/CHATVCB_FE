@@ -29,6 +29,20 @@ const MAX_JUMP_PAGES = 10;
 const EMPTY_READS: RoomRead[] = [];
 const EMPTY_MEMBERS: RoomMember[] = [];
 const EMPTY_PINS: ChatMessage[] = [];
+const EMPTY_MESSAGES: ChatMessage[] = [];
+
+// Giữ các tin đã có sẵn mà trang vừa nạp chưa có và mới hơn tin cuối của trang
+function mergeNewer(page: ChatMessage[], existing: ChatMessage[]): ChatMessage[] {
+  if (existing.length === 0) {
+    return page;
+  }
+  const lastAt = page.length ? new Date(page[page.length - 1].createdAt).getTime() : 0;
+  const known = new Set(page.map((item) => item.id));
+  const newer = existing.filter(
+    (item) => !known.has(item.id) && new Date(item.createdAt).getTime() > lastAt,
+  );
+  return newer.length ? [...page, ...newer] : page;
+}
 
 function flashMessage(el: HTMLElement) {
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -57,7 +71,31 @@ export function useChatRoom({
   isViewingChat: () => boolean;
   setError: (error: string) => void;
 }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Tin nhắn gắn với phòng đã nạp chúng: vừa đổi phòng là không còn tin của phòng cũ trên màn hình,
+  // không phải chờ phòng mới tải xong.
+  const [store, setStore] = useState<{ roomId: string; items: ChatMessage[]; loaded: boolean }>({
+    roomId: '',
+    items: EMPTY_MESSAGES,
+    loaded: false,
+  });
+  const messagesLoaded = store.roomId === roomId && store.loaded;
+  const messages = store.roomId === roomId ? store.items : EMPTY_MESSAGES;
+  // Mọi chỗ sửa danh sách tin (socket, sửa, xóa, thả cảm xúc…) đều tác động lên phòng đang mở
+  const setMessages: Dispatch<SetStateAction<ChatMessage[]>> = useCallback(
+    (action) => {
+      setStore((prev) => {
+        const openId = roomIdRef.current;
+        const same = prev.roomId === openId;
+        const base = same ? prev.items : EMPTY_MESSAGES;
+        return {
+          roomId: openId,
+          items: typeof action === 'function' ? action(base) : action,
+          loaded: same && prev.loaded,
+        };
+      });
+    },
+    [roomIdRef],
+  );
   // Tin đầu tiên chưa đọc lúc mở phòng; giữ nguyên tới khi đổi phòng
   const [unreadFromId, setUnreadFromId] = useState<string | null>(null);
   const unreadScrolledRef = useRef('');
@@ -137,7 +175,7 @@ export function useChatRoom({
   useEffect(() => {
     if (!roomId) {
       // Phòng cuối cùng vừa bị xóa/rời: không để tin cũ còn trên màn hình
-      setMessages([]);
+      setStore({ roomId: '', items: EMPTY_MESSAGES, loaded: false });
       return;
     }
     let cancelled = false;
@@ -159,7 +197,15 @@ export function useChatRoom({
               userRef.current.id,
             ),
           );
-          setMessages(page.data);
+          setStore((prev) => ({
+            roomId,
+            // Tin tới qua socket trong lúc đang tải (mới hơn trang vừa nạp) được giữ lại
+            items:
+              prev.roomId === roomId
+                ? mergeNewer(page.data, prev.items)
+                : page.data,
+            loaded: true,
+          }));
           setPageMeta(page.meta);
           pageMetaRef.current = page.meta;
           const latest = page.data[page.data.length - 1];
@@ -335,12 +381,15 @@ export function useChatRoom({
   }
 
   function appendMessage(message: ChatMessage) {
-    setMessages((current) => {
-      if (current.some((item) => item.id === message.id)) {
-        return current;
-      }
-      return [...current, message];
-    });
+    // Gửi xong mà đã sang phòng khác thì tin không được chèn vào phòng đang mở
+    if (!message.roomId || message.roomId === roomIdRef.current) {
+      setMessages((current) => {
+        if (current.some((item) => item.id === message.id)) {
+          return current;
+        }
+        return [...current, message];
+      });
+    }
     setRooms((current) => {
       const target = current.find((r) => r.id === (message.roomId || roomIdRef.current));
       if (!target) {
@@ -376,6 +425,7 @@ export function useChatRoom({
 
   return {
     messages,
+    messagesLoaded,
     setMessages,
     unreadFromId,
     reads,

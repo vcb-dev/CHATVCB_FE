@@ -29,11 +29,17 @@ function SeenNames({ viewers }: { viewers: RoomRead[] }) {
 
 export function SeenBubble({
   viewers,
+  disabled,
   children,
 }: {
   viewers: RoomRead[];
+  /** Tin của mình trong nhóm dùng vòng "đã đọc" riêng, không mở hộp "Đã xem" khi bấm vào bong bóng. */
+  disabled?: boolean;
   children: ReactNode;
 }) {
+  if (disabled) {
+    return <>{children}</>;
+  }
   return (
     <Popover
       trigger="click"

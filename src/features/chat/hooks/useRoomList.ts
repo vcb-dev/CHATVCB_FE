@@ -92,27 +92,34 @@ export function useRoomList({
     setRoomId(nextRoom.id);
   }
 
-  function selectRoom(next: Room) {
-    unreadOnOpenRef.current = { roomId: next.id, count: next.unreadCount };
-    setRoomId(next.id);
-    setRooms((current) =>
-      current.map((r) => (r.id === next.id ? { ...r, unreadCount: 0 } : r)),
-    );
-  }
+  // Giữ nguyên danh tính giữa các lần vẽ để dòng phòng (RoomListItem) không phải vẽ lại
+  const selectRoom = useCallback(
+    (next: Room) => {
+      unreadOnOpenRef.current = { roomId: next.id, count: next.unreadCount };
+      setRoomId(next.id);
+      setRooms((current) =>
+        current.map((r) => (r.id === next.id ? { ...r, unreadCount: 0 } : r)),
+      );
+    },
+    [setRooms],
+  );
 
   function updateRoom(next: Room) {
     setRooms((current) => current.map((item) => (item.id === next.id ? { ...item, ...next } : item)));
   }
 
-  function removeRoom(removedRoomId: string) {
-    setRooms((prev) => {
-      const next = prev.filter((item) => item.id !== removedRoomId);
-      if (roomIdRef.current === removedRoomId) {
-        setRoomId(next[0]?.id ?? '');
-      }
-      return next;
-    });
-  }
+  const removeRoom = useCallback(
+    (removedRoomId: string) => {
+      setRooms((prev) => {
+        const next = prev.filter((item) => item.id !== removedRoomId);
+        if (roomIdRef.current === removedRoomId) {
+          setRoomId(next[0]?.id ?? '');
+        }
+        return next;
+      });
+    },
+    [setRooms],
+  );
 
   async function loadMoreRooms() {
     const meta = queryClient.getQueryData<RoomsPage>(queryKeys.rooms)?.meta;

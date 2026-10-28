@@ -254,6 +254,9 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             messages={chat.messages}
             unreadFromId={chat.unreadFromId}
             reads={chat.reads}
+            members={chat.members}
+            loading={Boolean(roomId) && !chat.messagesLoaded}
+            readReceipts={Boolean(room) && !isDirect && !room?.isCloud}
             userId={user.id}
             myHandle={myHandle}
             loadingOlder={chat.loadingOlder}
@@ -262,7 +265,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             canPin={canPin}
             canManage={room?.canManage ?? false}
             mentionsEnabled={mentionsAllowed(room)}
-            showDelivery={!room?.isCloud}
+            showDelivery={!room?.isCloud && isDirect}
             selecting={selection.selecting}
             selectedIds={selection.selectedIds}
             onToggleSelect={selection.toggle}

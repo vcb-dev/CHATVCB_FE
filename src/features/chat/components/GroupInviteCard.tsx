@@ -9,11 +9,11 @@ import type { Room } from '@/types';
 import { errorText } from '@/lib/errors';
 import { inviteUrl } from '../utils/invite';
 
-type GroupInviteCardProps = {
+type Props = {
   room: Room;
 };
 
-export function GroupInviteCard({ room }: GroupInviteCardProps) {
+export function GroupInviteCard({ room }: Props) {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
 

@@ -5,7 +5,7 @@ import { api } from '@/api/client';
 import type { GroupSettings, Room } from '@/types';
 import { errorText } from '@/lib/errors';
 
-type GroupSettingsCardProps = {
+type Props = {
   room: Room;
   onRoomUpdated: (room: Room) => void;
 };
@@ -17,7 +17,7 @@ const SETTING_ITEMS: { key: keyof GroupSettings; label: string }[] = [
   { key: 'joinApproval', label: 'Duyệt thành viên mới' },
 ];
 
-export function GroupSettingsCard({ room, onRoomUpdated }: GroupSettingsCardProps) {
+export function GroupSettingsCard({ room, onRoomUpdated }: Props) {
   const [loadingKey, setLoadingKey] = useState<keyof GroupSettings | null>(null);
 
   if (!room.canManage) {

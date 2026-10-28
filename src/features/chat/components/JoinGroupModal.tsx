@@ -7,13 +7,13 @@ import { avatarColor, initials } from '@/lib/avatar';
 import type { Room } from '@/types';
 import { errorText } from '@/lib/errors';
 
-type JoinGroupModalProps = {
+type Props = {
   token: string | null;
   onClose: () => void;
   onOpenRoom: (room: Room) => void;
 };
 
-export function JoinGroupModal({ token, onClose, onOpenRoom }: JoinGroupModalProps) {
+export function JoinGroupModal({ token, onClose, onOpenRoom }: Props) {
   const [requested, setRequested] = useState(false);
   const [joining, setJoining] = useState(false);
 

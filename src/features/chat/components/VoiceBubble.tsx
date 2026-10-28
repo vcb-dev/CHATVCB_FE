@@ -3,14 +3,14 @@ import { Button, message as antMessage } from 'antd';
 import { CaretRightOutlined, PauseOutlined } from '@ant-design/icons';
 import { formatDuration } from '../utils/datetime';
 
-export type VoiceBubbleProps = {
+type Props = {
   url: string;
   durationMs: number;
 };
 
 let playingAudio: HTMLAudioElement | null = null;
 
-export function VoiceBubble({ url, durationMs }: VoiceBubbleProps) {
+export function VoiceBubble({ url, durationMs }: Props) {
   const [playing, setPlaying] = useState(false);
   const [currentMs, setCurrentMs] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);

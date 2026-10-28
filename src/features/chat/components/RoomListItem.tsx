@@ -8,7 +8,7 @@ import type { useRoomPrefs } from '../hooks/useRoomPrefs';
 import { isRoomMuted, sameRoom } from '../utils/rooms';
 import { RoomMenu } from './RoomMenu';
 
-type RoomListItemProps = {
+type Props = {
   room: Room;
   active: boolean;
   online: boolean;
@@ -20,7 +20,7 @@ type RoomListItemProps = {
   onManageLabels?: () => void;
 };
 
-function RoomListItemView(props: RoomListItemProps) {
+function RoomListItemView(props: Props) {
   const { room, actions, label, labels, onManageLabels } = props;
   const name = room.title || room.name;
   const hasUnread = room.unreadCount > 0 || (room.markedUnread ?? false);

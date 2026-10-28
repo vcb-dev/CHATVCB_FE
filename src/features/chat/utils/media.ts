@@ -4,7 +4,7 @@ import type { ChatMessage, GalleryImage, PendingImage } from '@/types';
 
 export const ACCEPT_IMAGES = 'image/jpeg,image/png,image/gif,image/webp';
 
-export const MAX_ALBUM_IMAGES = 20;
+const MAX_ALBUM_IMAGES = 20;
 
 export function filesFromClipboard(event: ClipboardEvent) {
   const files = Array.from(event.clipboardData?.files ?? []).filter((file) =>

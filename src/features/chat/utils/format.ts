@@ -1,6 +1,6 @@
 import type { RichBlock, RichInline } from '@/types';
 
-export const LINK = /https?:\/\/[^\s<>"']+/g;
+const LINK = /https?:\/\/[^\s<>"']+/g;
 const TRAILING_PUNCT = /[.,;:!?)*~]+$/;
 
 function splitLinkPunct(raw: string): { url: string; punct: string } {
@@ -86,7 +86,7 @@ function parseItalic(s: string): RichInline[] {
   return [{ type: 'text', text: s }];
 }
 
-export function parseInline(text: string): RichInline[] {
+function parseInline(text: string): RichInline[] {
   if (!text) return [];
 
   // 1. Inline code: `...`

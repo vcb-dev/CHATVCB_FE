@@ -57,7 +57,7 @@ export function buildMentionOptions(
 // không thuộc [A-Za-z0-9._-], nên địa chỉ email như `a@sale2.vn` không phải là tag.
 const TAG = /(?:^|[^A-Za-z0-9._-])@([A-Za-z0-9._-]+)/g;
 
-export const ALL_HANDLE = 'all';
+const ALL_HANDLE = 'all';
 
 export const AGENT_HANDLE = 'agent';
 

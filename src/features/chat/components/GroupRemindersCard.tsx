@@ -9,7 +9,7 @@ import { canEditItem } from '../utils/rooms';
 import { formatShort } from '../utils/datetime';
 import { GroupBoardCard } from './GroupBoardCard';
 
-type GroupRemindersCardProps = {
+type Props = {
   room: Room;
   currentUserId: string;
   onEdit: (reminder: Reminder) => void;
@@ -21,7 +21,7 @@ export function GroupRemindersCard({
   currentUserId,
   onEdit,
   onCreate,
-}: GroupRemindersCardProps) {
+}: Props) {
   const queryClient = useQueryClient();
 
   const { data: reminders = [] } = useQuery({

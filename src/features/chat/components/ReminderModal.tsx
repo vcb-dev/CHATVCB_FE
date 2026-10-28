@@ -6,7 +6,7 @@ import { queryKeys } from '@/api/queryKeys';
 import type { Reminder } from '@/types';
 import { fromLocalInput, toLocalInput } from '../utils/datetime';
 
-type ReminderModalProps = {
+type Props = {
   open: boolean;
   roomId: string;
   reminder: Reminder | null;
@@ -24,7 +24,7 @@ export function ReminderModal({
   roomId,
   reminder,
   onClose,
-}: ReminderModalProps) {
+}: Props) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
   const [remindAt, setRemindAt] = useState('');

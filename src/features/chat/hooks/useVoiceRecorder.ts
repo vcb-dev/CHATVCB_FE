@@ -11,7 +11,7 @@ const FORMATS = [
   'audio/ogg;codecs=opus',
 ];
 
-export type UseVoiceRecorderOptions = {
+type UseVoiceRecorderOptions = {
   roomId: string;
   onDone: (blob: Blob) => void;
 };

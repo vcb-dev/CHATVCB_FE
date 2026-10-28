@@ -1,7 +1,7 @@
 import { message as antMessage } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage } from '@/types';
-import { isSelectable } from '../utils/forward';
+import { isSelectable } from '../utils/selection';
 
 const MAX_SELECT = 20;
 

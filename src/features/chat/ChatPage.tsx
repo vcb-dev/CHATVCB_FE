@@ -42,7 +42,8 @@ import { useTypingSignal } from './hooks/useTypingSignal';
 import { useWorkspace } from './hooks/useWorkspace';
 import { DropOverlay } from './components/DropOverlay';
 import { useFileDrop } from './hooks/useFileDrop';
-import { canForward, isSelectable } from './utils/forward';
+import { canForward } from './utils/forward';
+import { isSelectable } from './utils/selection';
 import { photosFromMessages, splitDropped } from './utils/media';
 import { handleFromEmail, mentionsAllowed } from './utils/mentions';
 import {

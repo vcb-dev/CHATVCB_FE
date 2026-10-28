@@ -4,10 +4,6 @@ import { isVoice } from './attachments';
 
 export const MAX_FORWARD_TARGETS = 10;
 
-export function isSelectable(message: ChatMessage): boolean {
-  return message.role !== 'system' && !message.recalled;
-}
-
 export function canForward(message: ChatMessage): boolean {
   return (
     !message.recalled &&

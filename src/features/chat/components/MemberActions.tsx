@@ -4,7 +4,7 @@ import { api } from '@/api/client';
 import type { Room, RoomMember } from '@/types';
 import { errorText } from '@/lib/errors';
 
-type MemberActionsProps = {
+type Props = {
   room: Room;
   member: RoomMember;
   currentUserId: string;
@@ -18,7 +18,7 @@ export function MemberActions({
   currentUserId,
   onMembersUpdated,
   onRemove,
-}: MemberActionsProps) {
+}: Props) {
   if (member.id === currentUserId) {
     return null;
   }

@@ -6,13 +6,13 @@ import type { Room, RoomNote } from '@/types';
 import { formatShort } from '../utils/datetime';
 import { GroupBoardCard } from './GroupBoardCard';
 
-type GroupNotesCardProps = {
+type Props = {
   room: Room;
   onOpen: (note: RoomNote) => void;
   onCreate: () => void;
 };
 
-export function GroupNotesCard({ room, onOpen, onCreate }: GroupNotesCardProps) {
+export function GroupNotesCard({ room, onOpen, onCreate }: Props) {
   const { data: notes = [] } = useQuery({
     queryKey: queryKeys.notes(room.id),
     queryFn: () => api.notes(room.id),

@@ -1,6 +1,6 @@
 export type Drafts = Record<string, string>;
 
-export const MAX_DRAFTS = 50;
+const MAX_DRAFTS = 50;
 
 const STORAGE_KEY = 'chatvcb.drafts';
 

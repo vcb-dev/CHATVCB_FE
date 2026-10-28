@@ -26,7 +26,7 @@ import { VoiceBubble } from './VoiceBubble';
 import { firstLink } from '../utils/format';
 import { inviteTokenOf } from '../utils/invite';
 
-type MessageRowProps = {
+type Props = {
   message: ChatMessage;
   userId: string;
   myHandle: string;
@@ -56,7 +56,7 @@ type MessageRowProps = {
   onMessageUpdated?: (m: ChatMessage) => void;
 };
 
-function MessageRowView(props: MessageRowProps) {
+function MessageRowView(props: Props) {
   const { message, mine, first, last } = props;
   const hasReceipt = typeof props.readTotal === 'number' && props.readTotal > 0;
   const agent = message.role === 'agent';
@@ -302,8 +302,8 @@ function sameElements(a: unknown[], b: unknown[]) {
 }
 
 // Vẽ lại một dòng chỉ khi dữ liệu của chính nó đổi; mảng (người đã xem…) so theo từng phần tử
-function sameRow(a: MessageRowProps, b: MessageRowProps) {
-  const keys = Object.keys(a) as (keyof MessageRowProps)[];
+function sameRow(a: Props, b: Props) {
+  const keys = Object.keys(a) as (keyof Props)[];
   if (keys.length !== Object.keys(b).length) {
     return false;
   }

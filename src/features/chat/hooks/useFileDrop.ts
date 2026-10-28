@@ -1,6 +1,6 @@
 import { type DragEvent, useEffect, useRef, useState } from 'react';
 
-export type UseFileDropOptions = {
+type UseFileDropOptions = {
   disabled: boolean;
   onFiles: (files: File[]) => void;
 };

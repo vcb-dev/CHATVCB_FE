@@ -2,13 +2,13 @@ import { Button } from 'antd';
 import { SendOutlined } from '@ant-design/icons';
 import { formatDuration } from '../utils/datetime';
 
-export type VoiceRecorderBarProps = {
+type Props = {
   elapsedMs: number;
   onCancel: () => void;
   onSend: () => void;
 };
 
-export function VoiceRecorderBar({ elapsedMs, onCancel, onSend }: VoiceRecorderBarProps) {
+export function VoiceRecorderBar({ elapsedMs, onCancel, onSend }: Props) {
   return (
     <div className="voice-recorder-bar">
       <div className="voice-recorder-status">

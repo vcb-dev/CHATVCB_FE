@@ -7,12 +7,12 @@ import { avatarColor, initials } from '@/lib/avatar';
 import type { Room, RoomMember } from '@/types';
 import { errorText } from '@/lib/errors';
 
-type JoinRequestsCardProps = {
+type Props = {
   room: Room;
   onMembersUpdated: (members: RoomMember[]) => void;
 };
 
-export function JoinRequestsCard({ room, onMembersUpdated }: JoinRequestsCardProps) {
+export function JoinRequestsCard({ room, onMembersUpdated }: Props) {
   const queryClient = useQueryClient();
 
   const { data: requests = [] } = useQuery({

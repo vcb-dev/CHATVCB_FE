@@ -3,9 +3,9 @@ import type { ChatMessage, PendingFile } from '@/types';
 export const ACCEPT_FILES =
   '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.json,.zip,.rar,.7z,.mp4,.mov';
 
-export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
-export const MAX_PENDING_FILES = 5;
+const MAX_PENDING_FILES = 5;
 
 const ALLOWED_EXTS = new Set([
   'pdf',
@@ -25,7 +25,7 @@ const ALLOWED_EXTS = new Set([
   'mov',
 ]);
 
-export function validateFile(file: File): string | null {
+function validateFile(file: File): string | null {
   if (file.size > MAX_FILE_BYTES) {
     return 'Tệp tối đa 10MB.';
   }

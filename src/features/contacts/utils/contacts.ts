@@ -11,7 +11,7 @@ export function teamLabel(team: string): string {
 }
 
 /** Chữ cái đầu để gom nhóm A-Z; bỏ dấu tiếng Việt (Đ -> D), ký tự lạ rơi vào "#". */
-export function letterOf(name: string): string {
+function letterOf(name: string): string {
   const first = name
     .trim()
     .normalize('NFD')

@@ -7,7 +7,7 @@ import type { RoomNote } from '@/types';
 import { errorText } from '@/lib/errors';
 import { formatShort } from '../utils/datetime';
 
-type NoteModalProps = {
+type Props = {
   open: boolean;
   roomId: string;
   note: RoomNote | null;
@@ -21,7 +21,7 @@ export function NoteModal({
   note,
   canEdit,
   onClose,
-}: NoteModalProps) {
+}: Props) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');

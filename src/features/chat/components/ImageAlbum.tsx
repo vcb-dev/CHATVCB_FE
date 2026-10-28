@@ -2,12 +2,12 @@ import type { MouseEvent } from 'react';
 import { Image } from 'antd';
 import { fileSrc } from '@/api/client';
 
-export type ImageAlbumProps = {
+type Props = {
   images: { id: string; url: string }[];
   onOpen: () => void;
 };
 
-export function ImageAlbum({ images, onOpen }: ImageAlbumProps) {
+export function ImageAlbum({ images, onOpen }: Props) {
   const cols = images.length === 2 || images.length === 4 ? 2 : 3;
 
   return (

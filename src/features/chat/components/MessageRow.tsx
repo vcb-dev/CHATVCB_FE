@@ -117,6 +117,7 @@ export function MessageRow(props: {
                       },
                     ]
                   : []),
+                ...(message.recalled ? [] : [{ key: 'select', label: 'Chọn nhiều tin' }]),
                 { key: 'delete', label: 'Xóa tin nhắn' },
                 ...(mine && !message.recalled
                   ? [{ key: 'recall', label: 'Thu hồi tin nhắn', danger: true }]

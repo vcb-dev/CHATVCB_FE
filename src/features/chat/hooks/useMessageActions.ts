@@ -12,6 +12,7 @@ export function useMessageActions({
   onReply,
   onForward,
   onEdit,
+  onSelect,
   onSavedToCloud,
 }: {
   roomId: string;
@@ -20,6 +21,7 @@ export function useMessageActions({
   onReply: (message: ChatMessage) => void;
   onForward: (message: ChatMessage) => void;
   onEdit: (message: ChatMessage) => void;
+  onSelect: (message: ChatMessage) => void;
   onSavedToCloud?: (sent: ChatMessage) => void;
 }) {
   async function handleMessageAction(key: string, message: ChatMessage) {
@@ -36,6 +38,10 @@ export function useMessageActions({
     }
     if (key === 'edit') {
       onEdit(message);
+      return;
+    }
+    if (key === 'select') {
+      onSelect(message);
       return;
     }
     if (key === 'copy' || key === 'copyImage') {
@@ -104,6 +110,32 @@ export function useMessageActions({
     }
   }
 
+  /** Xóa phía mình nhiều tin: tuần tự, tin nào lỗi thì báo số lượng và giữ lại trên màn hình. */
+  function handleDeleteMany(targets: ChatMessage[], onDone: () => void) {
+    const targetRoomId = roomId;
+    Modal.confirm({
+      title: `Xóa ${targets.length} tin nhắn?`,
+      content: 'Chỉ xóa với bạn. Người khác vẫn thấy các tin này.',
+      okText: 'Xóa',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        let failed = 0;
+        for (const target of targets) {
+          try {
+            await api.deleteMessage(targetRoomId, target.id);
+            setMessages((current) => current.filter((item) => item.id !== target.id));
+          } catch {
+            failed += 1;
+          }
+        }
+        if (failed > 0) {
+          antMessage.error(`Không xóa được ${failed} tin.`);
+        }
+        onDone();
+      },
+    });
+  }
+
   async function handleReact(message: ChatMessage, emoji: string) {
     if (!roomId) {
       return;
@@ -116,5 +148,5 @@ export function useMessageActions({
     }
   }
 
-  return { handleMessageAction, handleReact };
+  return { handleMessageAction, handleReact, handleDeleteMany };
 }

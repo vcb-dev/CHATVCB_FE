@@ -20,6 +20,7 @@ import { NavRail } from './components/NavRail';
 import { NewChatModal } from './components/NewChatModal';
 import { NoteModal } from './components/NoteModal';
 import { PinBar } from './components/PinBar';
+import { SelectionBar } from './components/SelectionBar';
 import { PollCreateModal } from './components/PollCreateModal';
 import { ReminderModal } from './components/ReminderModal';
 import { TypingIndicator } from './components/TypingIndicator';
@@ -30,6 +31,7 @@ import { useChatRoom } from './hooks/useChatRoom';
 import { useChatSocket } from './hooks/useChatSocket';
 import { useComposer } from './hooks/useComposer';
 import { useMessageActions } from './hooks/useMessageActions';
+import { isSelectable, useMessageSelection } from './hooks/useMessageSelection';
 import { useRoomList } from './hooks/useRoomList';
 import { useRoomPrefs } from './hooks/useRoomPrefs';
 import { useRoomTools } from './hooks/useRoomTools';
@@ -37,6 +39,7 @@ import { useTypingSignal } from './hooks/useTypingSignal';
 import { useWorkspace } from './hooks/useWorkspace';
 import { DropOverlay } from './components/DropOverlay';
 import { useFileDrop } from './hooks/useFileDrop';
+import { canForward } from './utils/forward';
 import { photosFromMessages, splitDropped } from './utils/media';
 import { everyoneTagAllowed, handleFromEmail } from './utils/mentions';
 import {
@@ -60,7 +63,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [groupOverlay, setGroupOverlay] = useState(false);
   const [rightPane, setRightPane] = useState<'info' | 'search'>('info');
-  const [forwarding, setForwarding] = useState<ChatMessage | null>(null);
+  const [forwarding, setForwarding] = useState<ChatMessage[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
@@ -119,13 +122,15 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       if (docs.length) composer.addDocs(docs);
     },
   });
-  const { handleMessageAction, handleReact } = useMessageActions({
+  const selection = useMessageSelection(roomId);
+  const { handleMessageAction, handleReact, handleDeleteMany } = useMessageActions({
     roomId,
     setMessages: chat.setMessages,
     setPins: chat.setPins,
     onReply: composer.setReplyTo,
-    onForward: setForwarding,
+    onForward: (message) => setForwarding([message]),
     onEdit: composer.startEdit,
+    onSelect: selection.start,
     onSavedToCloud: chat.handleForwarded,
   });
   const { onlineUserIds, typing, emitTyping } = useChatSocket({
@@ -164,6 +169,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const team = user.team ?? room?.team ?? 'sale';
   const chatPhotos = useMemo(() => photosFromMessages(chat.messages), [chat.messages]);
   const markRead = () => chat.markMessageRead();
+  // Tin bị thu hồi trong lúc đang chọn tự rơi khỏi danh sách
+  const selectedMessages = useMemo(
+    () => chat.messages.filter((m) => selection.selectedIds.has(m.id) && isSelectable(m)),
+    [chat.messages, selection.selectedIds],
+  );
 
   function isRoomOnline(item: Room) {
     if (item.id !== roomId) {
@@ -210,7 +220,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       ) : null}
 
       {workspace === 'messenger' ? (
-        <main className="chat" {...drop.dropProps}>
+        <main className={selection.selecting ? 'chat selecting' : 'chat'} {...drop.dropProps}>
           <ChatHeader
             room={room}
             isDirect={isDirect}
@@ -241,6 +251,9 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             canPin={canPin}
             canManage={room?.canManage ?? false}
             everyoneTag={everyoneTagAllowed(room)}
+            selecting={selection.selecting}
+            selectedIds={selection.selectedIds}
+            onToggleSelect={selection.toggle}
             onLoadOlder={chat.loadOlder}
             onMarkRead={markRead}
             onViewProfile={setViewProfileId}
@@ -253,6 +266,20 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onOpenNote={tools.openNoteById}
           />
           <TypingIndicator typing={typing} roomId={roomId} members={chat.members} />
+          {selection.selecting ? (
+            <SelectionBar
+              count={selectedMessages.length}
+              onForward={() => {
+                if (!selectedMessages.some(canForward)) {
+                  void antMessage.info('Không có tin nào chuyển tiếp được.');
+                  return;
+                }
+                setForwarding(selectedMessages);
+              }}
+              onDelete={() => handleDeleteMany(selectedMessages, selection.clear)}
+              onCancel={selection.clear}
+            />
+          ) : null}
           <Composer
             room={room}
             userId={user.id}
@@ -293,10 +320,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       )}
 
       <ForwardModal
-        message={forwarding}
+        messages={forwarding}
         rooms={rooms}
-        onClose={() => setForwarding(null)}
+        onClose={() => setForwarding([])}
         onForwarded={chat.handleForwarded}
+        onSuccess={selection.clear}
       />
       {workspace === 'messenger' ? (
         rightPane === 'search' && room ? (

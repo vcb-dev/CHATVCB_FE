@@ -10,6 +10,7 @@ export const queryKeys = {
   files: (roomId: string) => ['room-media', roomId, 'files'] as const,
   links: (roomId: string) => ['room-media', roomId, 'links'] as const,
   labels: ['labels'] as const,
+  user: (userId: string) => ['user', userId] as const,
   roomSearch: (roomId: string, params: RoomMessageSearch) => ['room-search', roomId, params] as const,
   linkPreview: (url: string) => ['link-preview', url] as const,
   invite: (roomId: string) => ['invite', roomId] as const,

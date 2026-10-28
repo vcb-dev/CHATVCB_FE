@@ -10,6 +10,7 @@ import type { ChatMessage, Room, User } from '@/types';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatSidebar } from './components/ChatSidebar';
 import { Composer } from './components/Composer';
+import { ContactPickerModal } from './components/ContactPickerModal';
 import { ConversationSearch } from './components/ConversationSearch';
 import { ForwardModal } from './components/ForwardModal';
 import { GalleryModal } from './components/GalleryModal';
@@ -65,6 +66,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [rightPane, setRightPane] = useState<'info' | 'search'>('info');
   const [forwarding, setForwarding] = useState<ChatMessage[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const [cardPickerOpen, setCardPickerOpen] = useState(false);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [joinToken, setJoinToken] = useState<string | null>(() => parseJoinHash(window.location.hash));
@@ -257,6 +259,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onLoadOlder={chat.loadOlder}
             onMarkRead={markRead}
             onViewProfile={setViewProfileId}
+            onOpenRoom={roomList.openRoom}
             onAction={handleMessageAction}
             onReact={handleReact}
             onJump={chat.jumpToMessage}
@@ -310,6 +313,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onMarkRead={markRead}
             onTool={(kind) => tools.setToolModal(kind)}
             onLocation={() => void composer.sendLocation()}
+            onCard={() => setCardPickerOpen(true)}
           />
           <DropOverlay visible={drop.dragging} />
         </main>
@@ -374,6 +378,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         user={user}
         onClose={() => setProfileOpen(false)}
         onUpdated={onUserUpdate}
+      />
+      <ContactPickerModal
+        open={cardPickerOpen}
+        currentUserId={user.id}
+        onClose={() => setCardPickerOpen(false)}
+        onPick={(userId) => void composer.sendRich({ type: 'card', userId })}
       />
       <NewChatModal
         open={newChatOpen}

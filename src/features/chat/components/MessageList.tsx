@@ -1,7 +1,7 @@
 import { RobotOutlined } from '@ant-design/icons';
 import { Avatar, Checkbox } from 'antd';
 import { Fragment, type RefObject } from 'react';
-import type { ChatMessage, RoomRead } from '@/types';
+import type { ChatMessage, Room, RoomRead } from '@/types';
 import { isSelectable } from '../hooks/useMessageSelection';
 import { mentionsUser } from '../utils/mentions';
 import { lastSeenOn, viewersOf } from '../utils/seen';
@@ -32,6 +32,7 @@ export function MessageList(props: {
   onLoadOlder: () => Promise<void>;
   onMarkRead: () => void;
   onViewProfile: (userId: string) => void;
+  onOpenRoom: (room: Room) => void;
   onAction: (key: string, message: ChatMessage) => Promise<void>;
   onReact: (message: ChatMessage, emoji: string) => Promise<void>;
   onJump: (id: string, createdAt?: string) => Promise<void>;
@@ -85,6 +86,7 @@ export function MessageList(props: {
             canManage={props.canManage}
             onMarkRead={props.onMarkRead}
             onViewProfile={props.onViewProfile}
+            onOpenRoom={props.onOpenRoom}
             onAction={props.onAction}
             onReact={props.onReact}
             onJump={props.onJump}

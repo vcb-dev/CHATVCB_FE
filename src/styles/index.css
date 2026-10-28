@@ -4669,5 +4669,48 @@ body {
 }
 
 .location-info a {
+  color: inherit;
   font-weight: 500;
+  text-decoration: underline;
+}
+
+/* Danh thiếp */
+.contact-card {
+  display: grid;
+  gap: 10px;
+  min-width: 230px;
+}
+
+.contact-card-loading {
+  height: 64px;
+}
+
+.contact-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.contact-card-info {
+  display: grid;
+  min-width: 0;
+}
+
+.contact-card-info span {
+  font-size: 12px;
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Nút trắng, chữ tối: đọc được trên cả bong bóng xanh của mình lẫn bong bóng xám */
+.contact-card-actions .ant-btn {
+  color: #1c1e21;
+  background: #fff;
+  border-color: #dadde1;
 }

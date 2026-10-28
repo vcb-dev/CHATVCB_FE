@@ -3,6 +3,7 @@ import {
   ClockCircleOutlined,
   EnvironmentOutlined,
   FileTextOutlined,
+  IdcardOutlined,
   PlusCircleOutlined,
 } from '@ant-design/icons';
 import { Button, Dropdown, type MenuProps, Tooltip } from 'antd';
@@ -14,6 +15,7 @@ export function ComposerToolsMenu(props: {
   disabled: boolean;
   onPick: (kind: ToolKind) => void;
   onLocation: () => void;
+  onCard: () => void;
 }) {
   const items: MenuProps['items'] = [];
   if (props.isGroup && !props.locked) {
@@ -40,6 +42,11 @@ export function ComposerToolsMenu(props: {
       icon: <EnvironmentOutlined />,
       label: 'Gửi vị trí',
     },
+    {
+      key: 'card',
+      icon: <IdcardOutlined />,
+      label: 'Gửi danh thiếp',
+    },
   );
 
   return (
@@ -49,6 +56,8 @@ export function ComposerToolsMenu(props: {
         onClick: ({ key }) => {
           if (key === 'location') {
             props.onLocation();
+          } else if (key === 'card') {
+            props.onCard();
           } else {
             props.onPick(key as ToolKind);
           }

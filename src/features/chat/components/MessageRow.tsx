@@ -3,7 +3,7 @@ import { Avatar, Dropdown } from 'antd';
 import { fileSrc } from '@/api/client';
 import { CopyableImage } from '@/components/CopyableImage';
 import { avatarColor, initials } from '@/lib/avatar';
-import type { ChatMessage, RoomRead } from '@/types';
+import type { ChatMessage, Room, RoomRead } from '@/types';
 import { isVoice } from '../utils/attachments';
 import { canEdit } from '../utils/edit';
 import { canForward } from '../utils/forward';
@@ -37,6 +37,7 @@ export function MessageRow(props: {
   canManage?: boolean;
   onMarkRead: () => void;
   onViewProfile: (userId: string) => void;
+  onOpenRoom: (room: Room) => void;
   onAction: (key: string, message: ChatMessage) => Promise<void>;
   onReact: (message: ChatMessage, emoji: string) => Promise<void>;
   onJump: (id: string, createdAt?: string) => Promise<void>;
@@ -202,7 +203,14 @@ export function MessageRow(props: {
                           />
                         )
                       ) : null}
-                      {isRich ? <RichBubble message={message} /> : null}
+                      {isRich ? (
+                        <RichBubble
+                          message={message}
+                          currentUserId={props.userId}
+                          onViewProfile={props.onViewProfile}
+                          onOpenRoom={props.onOpenRoom}
+                        />
+                      ) : null}
                       {isPoll ? (
                         <PollCard
                           message={message}

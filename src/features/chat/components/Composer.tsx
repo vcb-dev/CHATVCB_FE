@@ -59,6 +59,7 @@ export function Composer(props: {
   onMarkRead: () => void;
   onTool?: (kind: ToolKind) => void;
   onLocation: () => void;
+  onCard: () => void;
 }) {
   const { room, draft, replyTo, members, pendingImages, pendingFiles } = props;
   const voiceRecorder = useVoiceRecorder({
@@ -210,6 +211,7 @@ export function Composer(props: {
                   disabled={props.disabled}
                   onPick={(kind) => props.onTool?.(kind)}
                   onLocation={props.onLocation}
+                  onCard={props.onCard}
                 />
                 {voiceRecorder.supported ? (
                   <Tooltip title="Ghi tin nhắn thoại">

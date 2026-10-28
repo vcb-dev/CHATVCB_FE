@@ -26,11 +26,12 @@ export function useComposer({
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   setError: (error: string) => void;
 }) {
-  const [drafts, setDrafts] = useState<Drafts>(loadDrafts);
+  // `draftsRef` luôn mới nhất (ghi mỗi lần gõ); `drafts` là ảnh chụp lúc đổi phòng cho danh sách phòng,
+  // nhờ đó gõ phím không làm cả danh sách phòng vẽ lại.
+  const draftsRef = useRef<Drafts>(loadDrafts());
+  const [drafts, setDrafts] = useState<Drafts>(draftsRef.current);
   // Chữ đang gõ thuộc về đúng một phòng; phòng khác thì lấy nháp đã lưu của phòng đó.
   const [draftState, setDraftState] = useState({ roomId, text: '' });
-  const draftsRef = useRef<Drafts>(drafts);
-  draftsRef.current = drafts;
   const draft = draftState.roomId === roomId ? draftState.text : (drafts[roomId] ?? '');
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
@@ -61,7 +62,6 @@ export function useComposer({
     }
     const next = withDraft(draftsRef.current, draftState.roomId, draftState.text);
     draftsRef.current = next;
-    setDrafts(next);
     saveDrafts(next);
   }, [draftState]);
   pendingImagesRef.current = pendingImages;
@@ -77,6 +77,7 @@ export function useComposer({
     setGalleryOpen(false);
     setReplyTo(null);
     setEditing(null);
+    setDrafts(draftsRef.current);
     setDraftState({ roomId, text: draftsRef.current[roomId] ?? '' });
   }, [roomId]);
 

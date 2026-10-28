@@ -5,10 +5,13 @@ import type { CSSProperties } from 'react';
 export function ReadStatus({
   read,
   total,
+  open,
   onOpen,
 }: {
   read: number;
   total: number;
+  /** Hộp "Đã đọc | Chưa đọc" đang mở: bỏ tooltip gốc để không chồng lên hộp. */
+  open?: boolean;
   onOpen: (anchor: HTMLElement) => void;
 }) {
   const all = read >= total;
@@ -18,7 +21,7 @@ export function ReadStatus({
       type="button"
       className={all ? 'read-status all' : 'read-status'}
       style={{ '--p': Math.round((read / total) * 100) } as CSSProperties}
-      title={label}
+      title={open ? undefined : label}
       aria-label={label}
       onClick={(event) => onOpen(event.currentTarget)}
     >

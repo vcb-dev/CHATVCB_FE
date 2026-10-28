@@ -140,6 +140,7 @@ export function MessageList(props: {
             delivery={props.showDelivery && !receipt ? seen.deliveryOf(message) : null}
             readCount={receipt?.read.length}
             readTotal={receipt ? receipt.read.length + receipt.unread.length : undefined}
+            readOpen={receiptAt?.id === message.id}
             onOpenReceipt={openReceipt}
             canSaveToCloud={props.canSaveToCloud}
             canPin={props.canPin}

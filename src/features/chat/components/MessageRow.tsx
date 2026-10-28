@@ -41,6 +41,8 @@ type MessageRowProps = {
   /** Tin của mình trong nhóm: số người đã đọc / tổng số người khác (kiểu Lark). */
   readCount?: number;
   readTotal?: number;
+  /** Hộp "Đã đọc | Chưa đọc" của tin này đang mở. */
+  readOpen?: boolean;
   onOpenReceipt?: (message: ChatMessage, anchor: HTMLElement) => void;
   canSaveToCloud?: boolean;
   canPin?: boolean;
@@ -261,6 +263,7 @@ function MessageRowView(props: MessageRowProps) {
             <ReadStatus
               read={props.readCount ?? 0}
               total={props.readTotal as number}
+              open={props.readOpen}
               onOpen={(anchor) => props.onOpenReceipt?.(message, anchor)}
             />
           ) : null}

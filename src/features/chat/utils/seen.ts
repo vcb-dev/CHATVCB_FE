@@ -2,6 +2,8 @@ import type { ChatMessage, RoomMember, RoomRead } from '@/types';
 
 export type Delivery = 'sent' | 'delivered';
 
+const NO_READS: RoomRead[] = [];
+
 /** Nhóm: ai đã đọc / chưa đọc một tin của mình (không tính mình). */
 export type Receipt = {
   read: RoomMember[];
@@ -9,9 +11,12 @@ export type Receipt = {
 };
 
 export type Seen = {
-  /** Những người đã đọc tới tin này (trừ người gửi). */
+  /** Những người khác đã đọc tới tin này (trừ người gửi và mình). */
   viewersOf: (message: ChatMessage) => RoomRead[];
-  /** Avatar “đã xem” nằm dưới tin nhắn của mình mà đối phương đọc tới, không phải tin họ vừa click. */
+  /**
+   * Avatar “đã xem” (kiểu Zalo): dưới tin của mình thì là những người đọc tới đúng tin đó, không phải tin họ vừa click;
+   * dưới tin của người khác thì là những người đọc dừng lại ở đúng tin đó (không tính mình và người viết tin).
+   */
   lastSeenOn: (message: ChatMessage) => RoomRead[];
   /** "Đã gửi"/"Đã nhận" dưới tin cuối của mình khi chưa ai xem; đã có người xem thì dùng avatar "đã xem". */
   deliveryOf: (message: ChatMessage) => Delivery | null;
@@ -80,6 +85,28 @@ export function buildSeen(
     .reverse()
     .find((item) => item.userId === myId && item.role === 'user' && !item.recalled);
 
+  // Tin của người khác: avatar những người đọc dừng lại ở đó. Bỏ qua tin hệ thống (không có dòng để gắn avatar),
+  // tin của mình (đã có vòng "đã đọc" hoặc avatar riêng) và tin do chính người đọc viết.
+  const stoppedAt = new Map<string, RoomRead[]>();
+  reads.forEach((read, i) => {
+    if (read.userId === myId) {
+      return;
+    }
+    let at = through[i];
+    while (at >= 0 && messages[at].role === 'system') {
+      at -= 1;
+    }
+    if (at < 0 || messages[at].userId === myId || messages[at].userId === read.userId) {
+      return;
+    }
+    const list = stoppedAt.get(messages[at].id);
+    if (list) {
+      list.push(read);
+    } else {
+      stoppedAt.set(messages[at].id, [read]);
+    }
+  });
+
   const viewersCache = new Map<string, RoomRead[]>();
   const lastSeenCache = new Map<string, RoomRead[]>();
   const receiptCache = new Map<string, Receipt | null>();
@@ -107,7 +134,10 @@ export function buildSeen(
       const idx = indexOf.get(message.id) ?? -1;
       cached = idx < 0
         ? []
-        : reads.filter((read, i) => read.userId !== message.userId && idx <= through[i]);
+        : reads.filter(
+            (read, i) =>
+              read.userId !== message.userId && read.userId !== myId && idx <= through[i],
+          );
       viewersCache.set(message.id, cached);
     }
     return cached;
@@ -115,7 +145,7 @@ export function buildSeen(
 
   const lastSeenOn: Seen['lastSeenOn'] = (message) => {
     if (message.userId !== myId) {
-      return [];
+      return stoppedAt.get(message.id) ?? NO_READS;
     }
     let cached = lastSeenCache.get(message.id);
     if (!cached) {

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isChatVisible } from '@/lib/notify';
 
-export type Workspace = 'messenger' | 'email' | 'docs' | 'meetings';
+export type Workspace = 'messenger' | 'email' | 'docs' | 'meetings' | 'hr';
 
-const WORKSPACE_IDS: Workspace[] = ['messenger', 'email', 'docs', 'meetings'];
+const WORKSPACE_IDS: Workspace[] = ['messenger', 'email', 'docs', 'meetings', 'hr'];
 
 function asWorkspace(value?: string | null): Workspace | null {
   return value && WORKSPACE_IDS.includes(value as Workspace) ? (value as Workspace) : null;

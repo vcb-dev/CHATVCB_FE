@@ -40,17 +40,20 @@
   padding: 8px 18px;
   border-radius: 999px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .dept-module-nav-btn:hover {
-  border-color: #1a6b45;
-  color: #1a6b45;
+  border-color: #0084ff;
+  color: #0084ff;
 }
 
 .dept-module-nav-btn.active {
-  background: #1a6b45;
-  border-color: #1a6b45;
+  background: #0084ff;
+  border-color: #0084ff;
   color: #fff;
 }
 
@@ -158,13 +161,13 @@
 }
 
 .dept-primary.ant-btn-primary {
-  background: #1a6b45;
-  border-color: #1a6b45;
+  background: #0084ff;
+  border-color: #0084ff;
 }
 
 .dept-primary.ant-btn-primary:not(:disabled):hover {
-  background: #145a38;
-  border-color: #145a38;
+  background: #3e90dd;
+  border-color: #3e90dd;
 }
 
 .dept-count {
@@ -207,7 +210,7 @@
 
 .dept-dept-icon {
   font-size: 20px;
-  color: #1a6b45;
+  color: #0084ff;
   margin-top: 2px;
 }
 
@@ -246,7 +249,7 @@
 }
 
 .dept-link.ant-btn-link {
-  color: #1a6b45;
+  color: #0084ff;
   padding-inline: 6px;
 }
 

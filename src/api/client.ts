@@ -517,4 +517,50 @@ export const api = {
   deleteDepartment(id: string) {
     return request<void>(`/departments/${id}`, { method: "DELETE" });
   },
+  createDepartmentGroup(
+    departmentId: string,
+    payload: {
+      name: string;
+      leaderName?: string;
+      memberCount?: number;
+      status?: "active" | "inactive";
+    },
+  ) {
+    return request<{
+      id: string;
+      name: string;
+      leaderName: string | null;
+      memberCount: number;
+      status: "active" | "inactive";
+    }>(`/departments/${departmentId}/groups`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  updateDepartmentGroup(
+    departmentId: string,
+    groupId: string,
+    payload: Partial<{
+      name: string;
+      leaderName: string | null;
+      memberCount: number;
+      status: "active" | "inactive";
+    }>,
+  ) {
+    return request<{
+      id: string;
+      name: string;
+      leaderName: string | null;
+      memberCount: number;
+      status: "active" | "inactive";
+    }>(`/departments/${departmentId}/groups/${groupId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteDepartmentGroup(departmentId: string, groupId: string) {
+    return request<void>(`/departments/${departmentId}/groups/${groupId}`, {
+      method: "DELETE",
+    });
+  },
 };

@@ -1,9 +1,16 @@
 import { api } from '@/api/client';
-import type { OrgDepartment, OrgUnitStatus } from '../types';
+import type { OrgDepartment, OrgGroup, OrgUnitStatus } from '../types';
 
 export interface UpsertDepartmentPayload {
   name: string;
   code: string;
+  status?: OrgUnitStatus;
+}
+
+export interface UpsertDepartmentGroupPayload {
+  name: string;
+  leaderName?: string;
+  memberCount?: number;
   status?: OrgUnitStatus;
 }
 
@@ -23,4 +30,27 @@ export function deleteDepartment(id: string) {
   return api.deleteDepartment(id);
 }
 
-export type { OrgDepartment };
+export function createDepartmentGroup(
+  departmentId: string,
+  payload: UpsertDepartmentGroupPayload,
+) {
+  return api.createDepartmentGroup(departmentId, payload);
+}
+
+export type UpdateDepartmentGroupPayload = Partial<
+  Omit<UpsertDepartmentGroupPayload, 'leaderName'> & { leaderName?: string | null }
+>;
+
+export function updateDepartmentGroup(
+  departmentId: string,
+  groupId: string,
+  payload: UpdateDepartmentGroupPayload,
+) {
+  return api.updateDepartmentGroup(departmentId, groupId, payload);
+}
+
+export function deleteDepartmentGroup(departmentId: string, groupId: string) {
+  return api.deleteDepartmentGroup(departmentId, groupId);
+}
+
+export type { OrgDepartment, OrgGroup };

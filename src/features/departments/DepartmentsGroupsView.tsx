@@ -24,9 +24,14 @@ import {
   DepartmentFormModal,
   type DepartmentFormValues,
 } from "./components/DepartmentFormModal";
+import {
+  DepartmentGroupFormModal,
+  type DepartmentGroupFormValues,
+} from "./components/DepartmentGroupFormModal";
+import { useDepartmentGroupMutations } from "./hooks/useDepartmentGroupMutations";
 import { useDepartmentMutations } from "./hooks/useDepartmentMutations";
 import { useDepartmentsQuery } from "./hooks/useDepartmentsQuery";
-import type { OrgDepartment, OrgUnitStatus } from "./types";
+import type { OrgDepartment, OrgGroup, OrgUnitStatus } from "./types";
 import { orgDepartmentMemberCount, orgStructureStats } from "./types";
 
 type SortKey = "name-asc" | "name-desc" | "members-desc";
@@ -36,8 +41,13 @@ type DeptModalState =
   | { mode: "edit"; department: OrgDepartment }
   | null;
 
-function demoAction(label: string) {
-  message.info(`${label} — sẽ bổ sung sau (CRUD nhóm).`);
+type GroupModalState =
+  | { mode: "create"; department: OrgDepartment }
+  | { mode: "edit"; department: OrgDepartment; group: OrgGroup }
+  | null;
+
+function demoMembersAction() {
+  message.info("Gán thành viên vào nhóm — sẽ bổ sung sau.");
 }
 
 function statusLabel(status: OrgUnitStatus) {
@@ -52,6 +62,11 @@ export function DepartmentsGroupsView() {
     error,
   } = useDepartmentsQuery();
   const { create, update, remove } = useDepartmentMutations();
+  const {
+    create: createGroup,
+    update: updateGroup,
+    remove: removeGroup,
+  } = useDepartmentGroupMutations();
 
   const [query, setQuery] = useState("");
   const [groupFilter, setGroupFilter] = useState<string | null>(null);
@@ -61,6 +76,7 @@ export function DepartmentsGroupsView() {
   const [sort, setSort] = useState<SortKey>("name-asc");
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const [modal, setModal] = useState<DeptModalState>(null);
+  const [groupModal, setGroupModal] = useState<GroupModalState>(null);
 
   const allGroupNames = useMemo(
     () =>
@@ -121,15 +137,60 @@ export function DepartmentsGroupsView() {
     setModal(null);
   }
 
+  function confirmDeleteGroup(department: OrgDepartment, group: OrgGroup) {
+    Modal.confirm({
+      title: "Xóa nhóm?",
+      content: `Bạn sắp xóa nhóm "${group.name}" trong ${department.name}.`,
+      okText: "Xóa",
+      okType: "danger",
+      cancelText: "Huỷ",
+      onOk: () =>
+        removeGroup.mutateAsync({
+          departmentId: department.id,
+          groupId: group.id,
+        }),
+    });
+  }
+
+  async function handleGroupModalSubmit(values: DepartmentGroupFormValues) {
+    if (!groupModal) return;
+    const payload = {
+      name: values.name,
+      leaderName: values.leaderName || undefined,
+      memberCount: values.memberCount,
+      status: values.status,
+    };
+    if (groupModal.mode === "create") {
+      await createGroup.mutateAsync({
+        departmentId: groupModal.department.id,
+        payload,
+      });
+    } else {
+      await updateGroup.mutateAsync({
+        departmentId: groupModal.department.id,
+        groupId: groupModal.group.id,
+        payload: {
+          ...payload,
+          leaderName: values.leaderName.trim() || null,
+        },
+      });
+    }
+    setGroupModal(null);
+  }
+
   const collapseItems: CollapseProps["items"] = filtered.map((dept) =>
     departmentPanel(dept, {
-      onAddGroup: () => demoAction("Thêm nhóm"),
+      onAddGroup: () => setGroupModal({ mode: "create", department: dept }),
       onEdit: () => setModal({ mode: "edit", department: dept }),
       onDelete: () => confirmDelete(dept),
+      onEditGroup: (group) =>
+        setGroupModal({ mode: "edit", department: dept, group }),
+      onDeleteGroup: (group) => confirmDeleteGroup(dept, group),
     }),
   );
 
   const modalLoading = create.isPending || update.isPending;
+  const groupModalLoading = createGroup.isPending || updateGroup.isPending;
 
   return (
     <main className="dept-page">
@@ -258,13 +319,29 @@ export function DepartmentsGroupsView() {
         onClose={() => setModal(null)}
         onSubmit={handleModalSubmit}
       />
+
+      <DepartmentGroupFormModal
+        open={groupModal !== null}
+        mode={groupModal?.mode === "edit" ? "edit" : "create"}
+        departmentName={groupModal?.department.name ?? ""}
+        initial={groupModal?.mode === "edit" ? groupModal.group : null}
+        confirmLoading={groupModalLoading}
+        onClose={() => setGroupModal(null)}
+        onSubmit={handleGroupModalSubmit}
+      />
     </main>
   );
 }
 
 function departmentPanel(
   dept: OrgDepartment,
-  actions: { onAddGroup: () => void; onEdit: () => void; onDelete: () => void },
+  actions: {
+    onAddGroup: () => void;
+    onEdit: () => void;
+    onDelete: () => void;
+    onEditGroup: (group: OrgGroup) => void;
+    onDeleteGroup: (group: OrgGroup) => void;
+  },
 ) {
   const members = orgDepartmentMemberCount(dept);
   const groupCount = dept.groups.length;
@@ -363,7 +440,7 @@ function departmentPanel(
                         type="link"
                         size="small"
                         className="dept-link"
-                        onClick={() => demoAction("Thêm thành viên vào nhóm")}
+                        onClick={demoMembersAction}
                       >
                         + Thành viên
                       </Button>
@@ -372,7 +449,7 @@ function departmentPanel(
                         size="small"
                         aria-label="Sửa nhóm"
                         icon={<EditOutlined />}
-                        onClick={() => demoAction("Sửa nhóm")}
+                        onClick={() => actions.onEditGroup(group)}
                       />
                       <Button
                         type="text"
@@ -380,7 +457,7 @@ function departmentPanel(
                         danger
                         aria-label="Xóa nhóm"
                         icon={<DeleteOutlined />}
-                        onClick={() => demoAction("Xóa nhóm")}
+                        onClick={() => actions.onDeleteGroup(group)}
                       />
                     </div>
                   </td>

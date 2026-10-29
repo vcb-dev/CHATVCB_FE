@@ -1,3 +1,9 @@
+import { useDepartmentsQuery } from "@/features/departments/hooks/useDepartmentsQuery";
+import type { OrgDepartment } from "@/features/departments/types";
+import {
+  departmentSelectOptions,
+  groupSelectOptionsForDepartment,
+} from "@/features/departments/utils/departmentSelect";
 import { avatarColor, initials } from "@/lib/avatar";
 import {
   ArrowLeftOutlined,
@@ -30,10 +36,6 @@ import {
   HrSensitiveBanner,
   HrSubBlock,
 } from "./components/HrUi";
-import {
-  orgDepartmentOptions,
-  orgGroupOptionsForDepartment,
-} from "@/features/departments/mockDepartments";
 import type { EmployeeProfile } from "./types";
 
 interface Props {
@@ -83,6 +85,7 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
   }
 
   const data = editing ? draft : profile;
+  const { data: orgDepartments = [] } = useDepartmentsQuery();
 
   return (
     <main className="hr-page hr-detail-page">
@@ -163,7 +166,7 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
         />
         <div className="hr-detail-tab-scroll">
           <div className="hr-tab-panel">
-            {tabContent(activeTab, data, editing, form)}
+            {tabContent(activeTab, data, editing, form, orgDepartments)}
           </div>
         </div>
       </Form>
@@ -207,10 +210,13 @@ function tabContent(
   data: EmployeeProfile,
   editing: boolean,
   _form: ReturnType<typeof Form.useForm<EmployeeProfile>>[0],
+  orgDepartments: OrgDepartment[],
 ) {
   switch (key) {
     case "work":
-      return <WorkTab data={data} editing={editing} />;
+      return (
+        <WorkTab data={data} editing={editing} orgDepartments={orgDepartments} />
+      );
     case "personal":
       return <PersonalTab data={data} editing={editing} />;
     case "education":
@@ -227,13 +233,16 @@ function tabContent(
 function WorkTab({
   data,
   editing,
+  orgDepartments,
 }: {
   data: EmployeeProfile;
   editing: boolean;
+  orgDepartments: OrgDepartment[];
 }) {
   const form = Form.useFormInstance<EmployeeProfile>();
   const departmentWatch = Form.useWatch("department", form);
-  const departmentGroupOptions = orgGroupOptionsForDepartment(
+  const departmentGroupOptions = groupSelectOptionsForDepartment(
+    orgDepartments,
     departmentWatch ?? data.department,
   );
 
@@ -313,8 +322,8 @@ function WorkTab({
               allowClear
               showSearch
               optionFilterProp="label"
-              options={orgDepartmentOptions()}
-              onChange={() => form.setFieldValue("departmentGroup", undefined)}
+              options={departmentSelectOptions(orgDepartments)}
+              onChange={() => form.setFieldValue("departmentGroup", "")}
             />
           </Form.Item>
           <Form.Item name="departmentGroup" label="Nhóm (theo phòng ban)">

@@ -1,4 +1,6 @@
 import type { ChatMessage, Room, RoomHit } from '@/types';
+import { isVoice } from './attachments';
+import { richLabel } from './rich';
 
 export function roomFromHit(hit: RoomHit): Room {
   return {
@@ -12,8 +14,83 @@ export function isDirectRoom(room: Room): boolean {
   return room.type === 'direct' || room.kind === 'direct';
 }
 
+export type RoomFilter =
+  | { kind: 'all' }
+  | { kind: 'unread' }
+  | { kind: 'group' }
+  | { kind: 'direct' }
+  | { kind: 'label'; labelId: string };
+
+function matchesFilter(room: Room, filter: RoomFilter): boolean {
+  switch (filter.kind) {
+    case 'unread':
+      return room.unreadCount > 0 || (room.markedUnread ?? false);
+    case 'group':
+      return !isDirectRoom(room);
+    case 'direct':
+      return isDirectRoom(room);
+    case 'label':
+      return room.labelId === filter.labelId;
+    default:
+      return true;
+  }
+}
+
+// Cloud của tôi luôn hiện ở đầu danh sách, không bộ lọc nào ẩn nó đi
+export function filterRooms(rooms: Room[], filter: RoomFilter): Room[] {
+  if (filter.kind === 'all') {
+    return rooms;
+  }
+  return rooms.filter((r) => r.isCloud || matchesFilter(r, filter));
+}
+
+export const MUTE_OPTIONS: { minutes: number | null; label: string }[] = [
+  { minutes: 60, label: '1 giờ' },
+  { minutes: 240, label: '4 giờ' },
+  { minutes: 480, label: '8 giờ' },
+  { minutes: 1440, label: '24 giờ' },
+  { minutes: null, label: 'Cho đến khi bật lại' },
+];
+
+export function isRoomMuted(room: Room, now: number = Date.now()): boolean {
+  if (room.mutedUntil) {
+    return new Date(room.mutedUntil).getTime() > now;
+  }
+  return Boolean(room.muted);
+}
+
+export function muteLabel(room: Room): string {
+  if (room.mutedUntil) {
+    const d = new Date(room.mutedUntil);
+    if (d.getTime() > Date.now()) {
+      const timeStr = d.toLocaleString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+      });
+      return `Tắt đến ${timeStr}`;
+    }
+  }
+  if (room.muted) {
+    return 'Đã tắt thông báo';
+  }
+  return '';
+}
+
 export function sortRooms(list: Room[]): Room[] {
   return [...list].sort((a, b) => {
+    // Cloud của tôi luôn đứng đầu, trên cả phòng đã ghim
+    const cloudA = Boolean(a.isCloud);
+    const cloudB = Boolean(b.isCloud);
+    if (cloudA !== cloudB) {
+      return cloudA ? -1 : 1;
+    }
+    const pinA = Boolean(a.pinned);
+    const pinB = Boolean(b.pinned);
+    if (pinA !== pinB) {
+      return pinA ? -1 : 1;
+    }
     const timeA = new Date(a.updatedAt).getTime();
     const timeB = new Date(b.updatedAt).getTime();
     return timeB - timeA;
@@ -30,6 +107,31 @@ export function upsertRoom(list: Room[], room: Room): Room[] {
     next = [room, ...list];
   }
   return sortRooms(next);
+}
+
+/** So hai bản của một phòng theo giá trị (lần poll nào cũng trả đối tượng mới dù nội dung không đổi). */
+export function sameRoom(a: Room, b: Room): boolean {
+  if (a === b) {
+    return true;
+  }
+  const keys = Object.keys(a) as (keyof Room)[];
+  if (keys.length !== Object.keys(b).length) {
+    return false;
+  }
+  return keys.every((key) => {
+    const x = a[key];
+    const y = b[key];
+    if (Object.is(x, y)) {
+      return true;
+    }
+    return (
+      typeof x === 'object' &&
+      x !== null &&
+      typeof y === 'object' &&
+      y !== null &&
+      JSON.stringify(x) === JSON.stringify(y)
+    );
+  });
 }
 
 export function mergeRooms(
@@ -70,13 +172,22 @@ export function previewOf(
   currentUserId?: string,
   isDirect = false,
 ): string {
+  if (message.role === 'system') {
+    return message.content;
+  }
   let body = '';
   if (message.recalled) {
     body = 'Tin nhắn đã được thu hồi';
+  } else if (message.rich) {
+    body = richLabel(message.rich);
   } else if (message.imageId || message.imageUrl) {
     body = 'Hình ảnh';
   } else if (message.fileId || message.fileUrl) {
-    body = message.fileName ? `[Tệp] ${message.fileName}` : 'Tệp đính kèm';
+    body = isVoice(message)
+      ? 'Tin nhắn thoại'
+      : message.fileName
+        ? `[Tệp] ${message.fileName}`
+        : 'Tệp đính kèm';
   } else {
     const text = message.content.trim();
     body = text.length <= 120 ? text : `${text.slice(0, 120)}…`;
@@ -95,4 +206,8 @@ export function previewOf(
   }
 
   return body;
+}
+
+export function canEditItem(room: Room, creatorId: string, userId: string): boolean {
+  return creatorId === userId || room.canManage === true;
 }

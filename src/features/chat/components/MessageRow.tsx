@@ -1,19 +1,32 @@
 import { PushpinOutlined, RobotOutlined } from '@ant-design/icons';
 import { Avatar, Dropdown } from 'antd';
+import { memo } from 'react';
 import { fileSrc } from '@/api/client';
 import { CopyableImage } from '@/components/CopyableImage';
 import { avatarColor, initials } from '@/lib/avatar';
-import type { ChatMessage, RoomRead } from '@/types';
+import type { ChatMessage, Room, RoomRead } from '@/types';
+import { isVoice } from '../utils/attachments';
+import { canEdit } from '../utils/edit';
+import type { Delivery } from '../utils/seen';
 import { canForward } from '../utils/forward';
 import { isStickerText } from '../utils/stickers';
+import { DeliveryStatus } from './DeliveryStatus';
 import { FileCard } from './FileCard';
-import { MentionText } from './MentionText';
+import { ImageAlbum } from './ImageAlbum';
+import { LinkPreviewCard } from './LinkPreviewCard';
+import { PollCard } from './PollCard';
+import { RichBubble } from './RichBubble';
 import { ReactionPicker } from './ReactionPicker';
 import { ReactionSummary } from './ReactionSummary';
+import { ReadStatus } from './ReadStatus';
+import { RichText } from './RichText';
 import { SeenAvatars } from './SeenAvatars';
 import { SeenBubble } from './SeenBubble';
+import { VoiceBubble } from './VoiceBubble';
+import { firstLink } from '../utils/format';
+import { inviteTokenOf } from '../utils/invite';
 
-export function MessageRow(props: {
+type Props = {
   message: ChatMessage;
   userId: string;
   myHandle: string;
@@ -21,15 +34,31 @@ export function MessageRow(props: {
   first: boolean;
   last: boolean;
   tagged: boolean;
+  mentionsEnabled?: boolean;
   viewers: RoomRead[];
   lastReaders: RoomRead[];
+  delivery?: Delivery | null;
+  /** Tin của mình trong nhóm: số người đã đọc / tổng số người khác (kiểu Lark). */
+  readCount?: number;
+  readTotal?: number;
+  /** Hộp "Đã đọc | Chưa đọc" của tin này đang mở. */
+  readOpen?: boolean;
+  onOpenReceipt?: (message: ChatMessage, anchor: HTMLElement) => void;
+  canSaveToCloud?: boolean;
+  canPin?: boolean;
+  canManage?: boolean;
   onMarkRead: () => void;
   onViewProfile: (userId: string) => void;
+  onOpenRoom: (room: Room) => void;
   onAction: (key: string, message: ChatMessage) => Promise<void>;
   onReact: (message: ChatMessage, emoji: string) => Promise<void>;
   onJump: (id: string, createdAt?: string) => Promise<void>;
-}) {
+  onMessageUpdated?: (m: ChatMessage) => void;
+};
+
+function MessageRowView(props: Props) {
   const { message, mine, first, last } = props;
+  const hasReceipt = typeof props.readTotal === 'number' && props.readTotal > 0;
   const agent = message.role === 'agent';
   const cls = [
     'row',
@@ -39,10 +68,17 @@ export function MessageRow(props: {
   ]
     .filter(Boolean)
     .join(' ');
-  const hasImage = Boolean(message.imageUrl && !message.recalled);
+  const album = (message.images ?? []).length > 1 && !message.recalled;
+  const hasImage = Boolean(message.imageUrl && !message.recalled) && !album;
   const hasFile = Boolean(message.fileUrl && !message.recalled);
-  const hasText = Boolean(message.content && !message.recalled);
-  const sticker = !hasImage && !hasFile && hasText && isStickerText(message.content);
+  const isPoll = Boolean(message.poll && !message.recalled);
+  const isRich = Boolean(message.rich && !message.recalled);
+  const hasText = Boolean(message.content && !message.recalled) && !isPoll && !isRich;
+  const sticker =
+    (!hasImage && !album && !hasFile && hasText && isStickerText(message.content)) ||
+    message.rich?.type === 'sticker';
+  const link = !isPoll && hasText && !hasImage && !album && !hasFile && !sticker ? firstLink(message.content) : null;
+  const previewLink = link && !inviteTokenOf(link) ? link : null;
   return (
     <div
       id={`msg-${message.id}`}
@@ -86,13 +122,22 @@ export function MessageRow(props: {
                   disabled: message.recalled,
                 },
                 ...(canForward(message) ? [{ key: 'forward', label: 'Chuyển tiếp' }] : []),
+                ...(props.canSaveToCloud && canForward(message)
+                  ? [{ key: 'saveCloud', label: 'Lưu vào Cloud' }]
+                  : []),
                 ...(hasText ? [{ key: 'copy', label: 'Sao chép tin nhắn' }] : []),
+                ...(canEdit(message, props.userId) ? [{ key: 'edit', label: 'Sửa tin nhắn' }] : []),
                 ...(hasImage ? [{ key: 'copyImage', label: 'Sao chép ảnh' }] : []),
-                {
-                  key: 'pin',
-                  label: message.pinned ? 'Bỏ ghim tin nhắn' : 'Ghim tin nhắn',
-                  disabled: message.recalled,
-                },
+                ...(props.canPin !== false
+                  ? [
+                      {
+                        key: 'pin',
+                        label: message.pinned ? 'Bỏ ghim tin nhắn' : 'Ghim tin nhắn',
+                        disabled: message.recalled,
+                      },
+                    ]
+                  : []),
+                ...(message.recalled ? [] : [{ key: 'select', label: 'Chọn nhiều tin' }]),
                 { key: 'delete', label: 'Xóa tin nhắn' },
                 ...(mine && !message.recalled
                   ? [{ key: 'recall', label: 'Thu hồi tin nhắn', danger: true }]
@@ -102,11 +147,11 @@ export function MessageRow(props: {
             }}
           >
             <div className="bubble-hit">
-              <SeenBubble viewers={props.viewers}>
+              <SeenBubble viewers={props.viewers} disabled={hasReceipt}>
                 <div
                   className={[
                     'bubble',
-                    hasImage ? 'has-image' : '',
+                    hasImage || album ? 'has-image' : '',
                     hasFile ? 'has-file' : '',
                     hasText ? 'has-text' : '',
                     sticker ? 'sticker' : '',
@@ -142,7 +187,12 @@ export function MessageRow(props: {
                     <p className="recalled-text">Tin nhắn đã được thu hồi</p>
                   ) : (
                     <>
-                      {hasImage ? (
+                      {album ? (
+                        <ImageAlbum
+                          images={message.images ?? []}
+                          onOpen={props.onMarkRead}
+                        />
+                      ) : hasImage ? (
                         <CopyableImage
                           src={fileSrc(message.imageUrl as string)}
                           alt=""
@@ -154,15 +204,49 @@ export function MessageRow(props: {
                         />
                       ) : null}
                       {hasFile ? (
-                        <FileCard
-                          name={message.fileName || 'Tệp'}
-                          sizeBytes={message.fileSizeBytes}
-                          url={message.fileUrl as string}
-                          mimeType={message.fileMimeType}
+                        isVoice(message) ? (
+                          <VoiceBubble
+                            url={fileSrc(message.fileUrl as string)}
+                            durationMs={message.fileDurationMs ?? 0}
+                          />
+                        ) : (
+                          <FileCard
+                            name={message.fileName || 'Tệp'}
+                            sizeBytes={message.fileSizeBytes}
+                            url={message.fileUrl as string}
+                            mimeType={message.fileMimeType}
+                          />
+                        )
+                      ) : null}
+                      {isRich ? (
+                        <RichBubble
+                          message={message}
+                          currentUserId={props.userId}
+                          onViewProfile={props.onViewProfile}
+                          onOpenRoom={props.onOpenRoom}
                         />
                       ) : null}
-                      {hasText ? (
-                        <MentionText text={message.content} myHandle={props.myHandle} />
+                      {isPoll ? (
+                        <PollCard
+                          message={message}
+                          userId={props.userId}
+                          canManage={Boolean(props.canManage)}
+                          onUpdated={(m) => props.onMessageUpdated?.(m)}
+                        />
+                      ) : hasText ? (
+                        <RichText
+                          text={message.content}
+                          myHandle={props.myHandle}
+                          mentionsEnabled={props.mentionsEnabled}
+                        />
+                      ) : null}
+                      {message.editedAt ? (
+                        <span
+                          className="edited-mark"
+                          title={new Date(message.editedAt).toLocaleString('vi-VN')}
+                        >
+                          đã chỉnh sửa
+                        </span>
                       ) : null}
                     </>
                   )}
@@ -175,18 +259,31 @@ export function MessageRow(props: {
               </SeenBubble>
             </div>
           </Dropdown>
+          {hasReceipt ? (
+            <ReadStatus
+              read={props.readCount ?? 0}
+              total={props.readTotal as number}
+              open={props.readOpen}
+              onOpen={(anchor) => props.onOpenReceipt?.(message, anchor)}
+            />
+          ) : null}
           {!message.recalled ? (
             <ReactionPicker
+              mine={message.reactions
+                .filter((r) => r.userIds.includes(props.userId))
+                .map((r) => r.emoji)}
               onPick={(emoji) => void props.onReact(message, emoji)}
             />
           ) : null}
         </div>
+        {previewLink ? <LinkPreviewCard url={previewLink} /> : null}
         <ReactionSummary
           reactions={message.reactions}
           myId={props.userId}
           onToggle={(emoji) => void props.onReact(message, emoji)}
         />
         <SeenAvatars readers={props.lastReaders} />
+        {props.delivery ? <DeliveryStatus status={props.delivery} /> : null}
         {last ? (
           <time>
             {new Date(message.createdAt).toLocaleTimeString('vi-VN', {
@@ -199,3 +296,22 @@ export function MessageRow(props: {
     </div>
   );
 }
+
+function sameElements(a: unknown[], b: unknown[]) {
+  return a.length === b.length && a.every((item, index) => item === b[index]);
+}
+
+// Vẽ lại một dòng chỉ khi dữ liệu của chính nó đổi; mảng (người đã xem…) so theo từng phần tử
+function sameRow(a: Props, b: Props) {
+  const keys = Object.keys(a) as (keyof Props)[];
+  if (keys.length !== Object.keys(b).length) {
+    return false;
+  }
+  return keys.every((key) => {
+    const x = a[key];
+    const y = b[key];
+    return x === y || (Array.isArray(x) && Array.isArray(y) && sameElements(x, y));
+  });
+}
+
+export const MessageRow = memo(MessageRowView, sameRow);

@@ -1,7 +1,17 @@
 import { message as antMessage } from 'antd';
-import { useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Socket } from 'socket.io-client';
 import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
 import { connectSocket } from '@/api/socket';
 import { notifyIncoming } from '@/lib/notify';
 import type {
@@ -12,17 +22,29 @@ import type {
   RoomMember,
   RoomRead,
   RoomReadsEvent,
+  RoomRemovedEvent,
+  RoomClosedEvent,
+  RoomRefreshEvent,
+  RoomRequestsEvent,
+  TypingEvent,
   User,
 } from '@/types';
-import { mentionsUser } from '../utils/mentions';
-import { isDirectRoom, previewOf, upsertRoom } from '../utils/rooms';
+import { mentionsAllowed, mentionsUser } from '../utils/mentions';
+import { isDirectRoom, isRoomMuted, previewOf, upsertRoom } from '../utils/rooms';
+import { isVoice } from '../utils/attachments';
+import { richLabel } from '../utils/rich';
+
+const TYPING_TTL_MS = 6000;
 
 type Options = {
   user: User;
   myHandle: string;
   roomId: string;
   roomIdRef: RefObject<string>;
-  roomName: string;
+  rooms: Room[];
+  refreshRooms: () => Promise<Room[]>;
+  removeRoom: (roomId: string) => void;
+  openRoom: (roomId: string) => void;
   isViewingChat: () => boolean;
   markMessageRead: (message?: ChatMessage, targetRoomId?: string) => void;
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
@@ -36,9 +58,13 @@ type Options = {
 
 export function useChatSocket(options: Options) {
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+  const [typing, setTyping] = useState<TypingEvent[]>([]);
+  const typingTimersRef = useRef(new Map<string, number>());
   const socketRef = useRef<Socket | null>(null);
+  const joinedRoomRef = useRef('');
   const latestRef = useRef(options);
   latestRef.current = options;
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const token = localStorage.getItem('chatvcb.token');
@@ -59,65 +85,149 @@ export function useChatSocket(options: Options) {
     } = latestRef.current;
     const socket = connectSocket(token);
     socketRef.current = socket;
+    const typingTimers = typingTimersRef.current;
+
+    function dropTyping(roomId: string, userId: string) {
+      const key = `${roomId}:${userId}`;
+      window.clearTimeout(typingTimers.get(key));
+      typingTimers.delete(key);
+      setTyping((current) =>
+        current.filter((item) => item.roomId !== roomId || item.userId !== userId),
+      );
+    }
+
+    function alertIncoming(
+      message: ChatMessage,
+      room: Room,
+      tagged: boolean,
+      force = false,
+    ) {
+      if (!force && isRoomMuted(room) && !tagged) {
+        return;
+      }
+      const name = room.title || room.name;
+      if (tagged) {
+        void antMessage.info({
+          className: 'mention-alert',
+          content:
+            room.id === roomIdRef.current
+              ? `${message.authorName} đã tag bạn`
+              : `${message.authorName} đã tag bạn trong ${name}`,
+        });
+      }
+      const isReminderDue = message.systemKind === 'reminder.due';
+      notifyIncoming({
+        title: isReminderDue ? 'Nhắc hẹn' : message.authorName,
+        subtitle: name,
+        body: isReminderDue
+          ? message.content
+          : (message.rich ? richLabel(message.rich) : '') ||
+            message.content.trim() ||
+            (isVoice(message) ? 'Tin nhắn thoại' : '') ||
+            (message.fileName ? `[Tệp] ${message.fileName}` : '') ||
+            (message.imageUrl ? 'Đã gửi một ảnh' : 'Tin nhắn mới'),
+        mentioned: tagged,
+        tag: message.id,
+        roomId: room.id,
+        onOpen: () => latestRef.current.openRoom(room.id),
+      });
+    }
+
     socket.on('connect', () => {
       socket.emit('presence.get');
+      socket.emit('inbox.subscribe');
       if (roomIdRef.current) {
         socket.emit('join', roomIdRef.current);
       }
     });
     socket.on('message', (message: ChatMessage) => {
-      if (message.roomId && message.roomId !== roomIdRef.current) {
-        return;
+      if (message.userId) {
+        dropTyping(message.roomId, message.userId);
       }
-      setMessages((current) => {
-        if (current.some((item) => item.id === message.id)) {
-          return current;
+      const open = message.roomId === roomIdRef.current;
+      if (open) {
+        setMessages((current) => {
+          if (current.some((item) => item.id === message.id)) {
+            return current;
+          }
+          return [...current, message];
+        });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.roomMedia(message.roomId) });
+        if (message.role === 'agent') {
+          setPending(false);
         }
-        return [...current, message];
-      });
-      if (message.role === 'agent') {
-        setPending(false);
       }
-      const { user, myHandle, roomName } = latestRef.current;
+      const { user, myHandle, rooms, refreshRooms } = latestRef.current;
       const mine = message.userId === user.id;
-      const tagged =
+      const system = message.role === 'system';
+      const reminder = message.systemKind === 'reminder.due';
+      const shouldAlert = !mine && (!system || reminder);
+      const known = rooms.find((r) => r.id === message.roomId);
+      // Chỉ nhóm thật mới có tag; 1-1 và Cloud thì không
+      const isTagged = (target: Room | undefined) =>
         !mine &&
         message.role === 'user' &&
-        mentionsUser(message.content, myHandle);
-      if (tagged) {
-        void antMessage.info({
-          className: 'mention-alert',
-          content: `${message.authorName} đã tag bạn`,
-        });
+        mentionsAllowed(target) &&
+        mentionsUser(message.content, myHandle, true);
+      const tagged = isTagged(known);
+      const viewing = open && isViewingChat();
+      if (!mine && viewing) {
+        markMessageRead(message, message.roomId);
       }
-      const viewing = message.roomId === roomIdRef.current && isViewingChat();
-      if (!mine) {
-        notifyIncoming({
-          title: message.authorName,
-          subtitle: roomName,
-          body:
-            message.content.trim() ||
-            (message.fileName ? `[Tệp] ${message.fileName}` : '') ||
-            (message.imageUrl ? 'Đã gửi một ảnh' : 'Tin nhắn mới'),
-          mentioned: tagged,
-        });
-        if (viewing) {
-          markMessageRead(message, message.roomId);
-        }
+      if (!known) {
+        // refreshRooms gộp trang 1 vào cache và dùng lại lần tải đang chạy
+        void refreshRooms()
+          .then((list) => {
+            const fresh = list.find((r) => r.id === message.roomId);
+            if (fresh && shouldAlert) {
+              alertIncoming(message, fresh, isTagged(fresh), reminder);
+            }
+          })
+          .catch(() => {
+            // poll 10 giây sẽ bù
+          });
+        return;
+      }
+      if (shouldAlert) {
+        alertIncoming(message, known, tagged, reminder);
       }
       setRooms((current) => {
         const target = current.find((r) => r.id === message.roomId);
         if (!target) {
           return current;
         }
+        const inc = !(mine || (system && !reminder)) ? 1 : 0;
         const updated: Room = {
           ...target,
           lastMessagePreview: previewOf(message, latestRef.current.user?.id, isDirectRoom(target)),
           updatedAt: message.createdAt,
-          unreadCount: viewing ? 0 : target.unreadCount + (mine ? 0 : 1),
+          unreadCount: viewing ? 0 : target.unreadCount + inc,
+          mentioned: viewing ? false : Boolean(target.mentioned) || tagged,
         };
         return upsertRoom(current, updated);
       });
+    });
+    socket.on('room.typing', (payload: TypingEvent) => {
+      if (payload.userId === latestRef.current.user.id) {
+        return;
+      }
+      if (!payload.typing) {
+        dropTyping(payload.roomId, payload.userId);
+        return;
+      }
+      const key = `${payload.roomId}:${payload.userId}`;
+      window.clearTimeout(typingTimers.get(key));
+      setTyping((current) => {
+        const same = (item: TypingEvent) =>
+          item.roomId === payload.roomId && item.userId === payload.userId;
+        return current.some(same)
+          ? current.map((item) => (same(item) ? payload : item))
+          : [...current, payload];
+      });
+      typingTimers.set(
+        key,
+        window.setTimeout(() => dropTyping(payload.roomId, payload.userId), TYPING_TTL_MS),
+      );
     });
     socket.on('agent.pending', (payload: AgentPendingEvent) => {
       if (payload.roomId === roomIdRef.current) {
@@ -165,6 +275,7 @@ export function useChatSocket(options: Options) {
         }),
       );
       if (message.roomId === roomIdRef.current) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.roomMedia(message.roomId) });
         setPins((current) => {
           if (message.pinned && !message.recalled) {
             return [message, ...current.filter((item) => item.id !== message.id)];
@@ -173,8 +284,39 @@ export function useChatSocket(options: Options) {
         });
       }
     });
+    socket.on('room.removed', (payload: RoomRemovedEvent) => {
+      const { rooms, removeRoom } = latestRef.current;
+      const gone = rooms.find((r) => r.id === payload.roomId);
+      removeRoom(payload.roomId);
+      if (gone) {
+        void antMessage.info(`Bạn đã bị xóa khỏi nhóm ${gone.title || gone.name}.`);
+      }
+    });
+    socket.on('room.closed', (payload: RoomClosedEvent) => {
+      const { rooms, removeRoom } = latestRef.current;
+      const gone = rooms.find((r) => r.id === payload.roomId);
+      removeRoom(payload.roomId);
+      if (gone && payload.reason === 'dissolved') {
+        void antMessage.info(`Nhóm ${gone.title || gone.name} đã bị giải tán.`);
+      }
+    });
     socket.on('room.updated', (next: Room) => {
       setRooms((current) => current.map((item) => (item.id === next.id ? { ...item, ...next } : item)));
+      void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
+    });
+    socket.on('room.requests', (payload: RoomRequestsEvent) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.joinRequests(payload.roomId) });
+      if (payload.created) {
+        const target = latestRef.current.rooms.find((r) => r.id === payload.roomId);
+        const name = target?.title || target?.name || 'nhóm';
+        void antMessage.info(`Có yêu cầu tham gia nhóm ${name}.`);
+      }
+    });
+    socket.on('room.reminders', (payload: RoomRefreshEvent) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.reminders(payload.roomId) });
+    });
+    socket.on('room.notes', (payload: RoomRefreshEvent) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(payload.roomId) });
     });
     socket.on('room.members', () => {
       const targetRoomId = roomIdRef.current;
@@ -206,14 +348,30 @@ export function useChatSocket(options: Options) {
     return () => {
       socket.disconnect();
       socketRef.current = null;
+      for (const timer of typingTimers.values()) {
+        window.clearTimeout(timer);
+      }
+      typingTimers.clear();
     };
   }, []);
 
   useEffect(() => {
-    if (options.roomId) {
-      socketRef.current?.emit('join', options.roomId);
+    const socket = socketRef.current;
+    if (!socket) {
+      return;
     }
+    if (joinedRoomRef.current && joinedRoomRef.current !== options.roomId) {
+      socket.emit('leave', joinedRoomRef.current);
+    }
+    if (options.roomId) {
+      socket.emit('join', options.roomId);
+    }
+    joinedRoomRef.current = options.roomId;
   }, [options.roomId]);
 
-  return { onlineUserIds };
+  const emitTyping = useCallback((roomId: string, active: boolean) => {
+    socketRef.current?.emit('typing', { roomId, typing: active });
+  }, []);
+
+  return { onlineUserIds, typing, emitTyping };
 }

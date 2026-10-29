@@ -1,4 +1,4 @@
-export const CAMERA = {
+const CAMERA = {
   audio: {
     echoCancellation: true,
     noiseSuppression: true,
@@ -13,7 +13,7 @@ export const CAMERA = {
   },
 } as const;
 
-export const CAMERA_ONLY = {
+const CAMERA_ONLY = {
   video: CAMERA.video,
   audio: false as const,
 };
@@ -40,7 +40,7 @@ export function parseMeetHash() {
   return { code: query.get('code') || undefined };
 }
 
-export function meetTabUrl(code?: string) {
+function meetTabUrl(code?: string) {
   const next = new URL(window.location.href);
   next.hash = code ? `/meet?code=${encodeURIComponent(code)}` : '/meet';
   return next.toString();

@@ -52,7 +52,7 @@ function mentionHtml(text: string) {
   );
 }
 
-function showMentionBanner(title: string, subtitle: string, body: string) {
+function showMentionBanner(title: string, subtitle: string, body: string, onOpen?: () => void) {
   let host = document.getElementById('chatvcb-mention-toast');
   if (!host) {
     host = document.createElement('div');
@@ -67,6 +67,7 @@ function showMentionBanner(title: string, subtitle: string, body: string) {
   );
   host.onclick = () => {
     window.focus();
+    onOpen?.();
     host.classList.remove('show');
   };
 }
@@ -76,6 +77,9 @@ export function notifyIncoming(input: {
   body: string;
   subtitle?: string;
   mentioned?: boolean;
+  tag: string;
+  roomId?: string;
+  onOpen?: () => void;
 }) {
   if (!notifyEnabled()) {
     return;
@@ -86,7 +90,7 @@ export function notifyIncoming(input: {
   document.title = input.mentioned ? `${title} đã tag bạn` : `${title}: ${body.slice(0, 40)}`;
 
   if (input.mentioned) {
-    showMentionBanner(title, subtitle, body);
+    showMentionBanner(title, subtitle, body, input.onOpen);
   }
 
   if (window.chatvcb?.notify) {
@@ -95,6 +99,7 @@ export function notifyIncoming(input: {
       subtitle,
       body: body.slice(0, 240),
       mentioned: Boolean(input.mentioned),
+      roomId: input.roomId,
     });
     return;
   }
@@ -109,11 +114,12 @@ export function notifyIncoming(input: {
   try {
     const toast = new Notification(input.mentioned ? `${title} đã tag bạn` : title, {
       body: subtitle ? `${subtitle}\n${body}`.slice(0, 240) : body.slice(0, 240),
-      tag: `chatvcb-${Date.now()}`,
+      tag: `chatvcb-${input.tag}`,
       silent: false,
     });
     toast.onclick = () => {
       window.focus();
+      input.onOpen?.();
       toast.close();
     };
   } catch {

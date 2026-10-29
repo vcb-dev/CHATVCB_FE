@@ -7,6 +7,15 @@ export type User = {
   createdAt?: string;
 };
 
+export type GroupRole = 'owner' | 'admin' | 'member';
+
+export type GroupSettings = {
+  adminOnlySend: boolean;
+  adminOnlyInfo: boolean;
+  adminOnlyPin: boolean;
+  joinApproval: boolean;
+};
+
 export type Room = {
   id: string;
   title: string;
@@ -20,10 +29,41 @@ export type Room = {
   createdById: string | null;
   unreadCount: number;
   peerUserId: string | null;
+  /** DM mà người xem đã chặn đối phương; có ở GET /rooms. */
+  blockedByMe?: boolean;
   memberIds?: string[];
+  /** Có ở GET /rooms; kết quả tìm kiếm và room.updated không có. */
+  muted?: boolean;
+  mutedUntil?: string | null;
+  pinned?: boolean;
+  hidden?: boolean;
+  markedUnread?: boolean;
+  /** Bị tag (@tên hoặc @all) trong tin chưa đọc; có ở GET /rooms. */
+  mentioned?: boolean;
+  lastMessageId?: string | null;
+  labelId?: string | null;
+  isCloud?: boolean;
+  canLeave?: boolean;
   slug?: string;
   team?: string;
   agentName?: string;
+  myRole?: GroupRole;
+  canManage?: boolean;
+  settings?: GroupSettings;
+};
+
+export type ConversationLabel = {
+  id: string;
+  name: string;
+  color: string;
+};
+
+export type RoomPrefs = {
+  roomId: string;
+  pinned: boolean;
+  hidden: boolean;
+  markedUnread: boolean;
+  labelId: string | null;
 };
 
 export type MessageReply = {
@@ -43,6 +83,69 @@ export type MessageReaction = {
   users: { id: string; name: string; avatarUrl?: string }[];
 };
 
+export type SystemData = {
+  actorId: string;
+  targetId?: string;
+  messageId?: string;
+  reminderId?: string;
+  noteId?: string;
+};
+
+export type ToolKind = 'poll' | 'reminder' | 'note';
+
+export type Reminder = {
+  id: string;
+  roomId: string;
+  title: string;
+  remindAt: string;
+  repeat: 'none' | 'daily' | 'weekly';
+  creatorId: string;
+  creatorName: string;
+};
+
+export type RoomNote = {
+  id: string;
+  roomId: string;
+  title: string;
+  content: string;
+  creatorId: string;
+  creatorName: string;
+  updatedById: string | null;
+  updatedByName: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RoomRefreshEvent = {
+  roomId: string;
+};
+
+export type PollVoter = {
+  id: string;
+  name: string;
+  avatarUrl: string;
+};
+
+export type PollOption = {
+  id: string;
+  text: string;
+  count: number;
+  voterIds: string[];
+  voters: PollVoter[];
+};
+
+export type ChatPoll = {
+  id: string;
+  question: string;
+  multiple: boolean;
+  allowAddOptions: boolean;
+  closesAt: string | null;
+  closed: boolean;
+  creatorId: string;
+  totalVoters: number;
+  options: PollOption[];
+};
+
 export type ChatMessage = {
   id: string;
   roomId: string;
@@ -51,20 +154,33 @@ export type ChatMessage = {
   authorAvatarUrl?: string;
   role: 'user' | 'agent' | 'system';
   content: string;
+  systemKind?: string | null;
+  systemData?: SystemData | null;
   imageId?: string | null;
   imageUrl?: string | null;
+  images?: { id: string; url: string }[];
   fileId?: string | null;
   fileUrl?: string | null;
   fileName?: string | null;
   fileMimeType?: string | null;
   fileSizeBytes?: number | null;
+  fileDurationMs?: number | null;
   replyToId?: string | null;
   replyTo?: MessageReply | null;
   pinned?: boolean;
   recalled?: boolean;
+  editedAt?: string | null;
   reactions: MessageReaction[];
+  poll?: ChatPoll | null;
+  rich?: RichPayload | null;
   createdAt: string;
 };
+
+/** Tin có cấu trúc (BE: Message.rich). `content` của tin luôn có câu dự phòng cho app cũ. */
+export type RichPayload =
+  | { type: 'sticker'; id: string }
+  | { type: 'location'; lat: number; lng: number; label?: string }
+  | { type: 'card'; userId: string };
 
 export type PageMeta = {
   hasMore: boolean;
@@ -94,7 +210,30 @@ export type RoomMember = {
   displayName?: string;
   handle: string;
   avatarUrl?: string;
+  role?: GroupRole;
 };
+
+export type JoinRequest = {
+  userId: string;
+  name: string;
+  avatarUrl: string;
+  invitedById: string | null;
+  invitedByName: string | null;
+  createdAt: string;
+};
+
+export type InviteInfo = {
+  roomId: string;
+  name: string;
+  avatarUrl: string;
+  memberCount: number;
+  joinApproval: boolean;
+  status: 'member' | 'requested' | 'none';
+};
+
+export type JoinResult =
+  | { status: 'joined'; room: Room }
+  | { status: 'requested' };
 
 export type RoomRead = {
   userId: string;
@@ -102,6 +241,34 @@ export type RoomRead = {
   avatarUrl?: string;
   lastReadMessageId: string | null;
   lastReadAt: string | null;
+  /** Mốc "đã nhận"; BE cũ không có. */
+  lastDeliveredAt?: string | null;
+};
+
+export type RoomMessageSearch = {
+  q?: string;
+  senderId?: string;
+  from?: string;
+  to?: string;
+};
+
+export type RichInline =
+  | { type: 'text'; text: string }
+  | { type: 'bold' | 'italic' | 'strike'; children: RichInline[] }
+  | { type: 'code'; text: string }
+  | { type: 'link'; url: string };
+
+export type RichBlock =
+  | { type: 'paragraph'; lines: RichInline[][] }
+  | { type: 'code'; text: string }
+  | { type: 'list'; ordered: boolean; items: RichInline[][] };
+
+export type LinkPreview = {
+  url: string;
+  title: string | null;
+  description: string | null;
+  imageUrl: string | null;
+  siteName: string | null;
 };
 
 /** Payload socket `room.reads` (BE emit `{ roomId, reads }`, khác HTTP trả mảng). */
@@ -113,6 +280,34 @@ export type RoomReadsEvent = {
 export type AgentPendingEvent = {
   roomId: string;
   agentName: string;
+};
+
+export type TypingEvent = {
+  roomId: string;
+  userId: string;
+  name: string;
+  typing: boolean;
+};
+
+export type RoomRemovedEvent = {
+  roomId: string;
+};
+
+export type RoomClosedEvent = {
+  roomId: string;
+  reason: 'left' | 'dissolved';
+};
+
+export type RoomRequestsEvent = {
+  roomId: string;
+  pending: number;
+  created: boolean;
+};
+
+export type RoomMute = {
+  roomId: string;
+  muted: boolean;
+  mutedUntil: string | null;
 };
 
 export type GalleryImage = {
@@ -127,6 +322,7 @@ export type ChatFile = {
   filename: string;
   mimeType: string;
   sizeBytes: number;
+  durationMs?: number | null;
   url: string;
   createdAt: string;
 };
@@ -156,6 +352,14 @@ export type DirectoryUser = {
   email: string;
   team: string;
   avatarUrl?: string;
+  /** Có ở GET /users/:id: người xem đã chặn người này. */
+  blockedByMe?: boolean;
+};
+
+/** GET /users/teams: số người của mỗi team (không tính người xem). */
+export type TeamCount = {
+  team: string;
+  count: number;
 };
 
 export type RoomHit = Pick<
@@ -170,6 +374,7 @@ export type RoomHit = Pick<
   | 'canDelete'
   | 'unreadCount'
   | 'peerUserId'
+  | 'hidden'
 >;
 
 export type MessageHit = {

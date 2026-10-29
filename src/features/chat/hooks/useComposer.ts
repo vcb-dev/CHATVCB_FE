@@ -1,8 +1,10 @@
-import { message as antMessage } from 'antd';
-import { useEffect, useRef, useState } from 'react';
+import { Modal, message as antMessage } from 'antd';
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { api } from '@/api/client';
-import type { ChatMessage, GalleryImage, PendingFile, PendingImage } from '@/types';
+import type { ChatMessage, GalleryImage, PendingFile, PendingImage, RichPayload } from '@/types';
 import { addPendingDocs } from '../utils/attachments';
+import { loadDrafts, saveDrafts, withDraft, type Drafts } from '../utils/drafts';
+import { currentPosition, formatCoords } from '../utils/location';
 import {
   addGalleryPick,
   addPendingFiles,
@@ -15,23 +17,55 @@ export function useComposer({
   roomId,
   messages,
   appendMessage,
+  setMessages,
   setError,
 }: {
   roomId: string;
   messages: ChatMessage[];
   appendMessage: (message: ChatMessage) => void;
+  setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   setError: (error: string) => void;
 }) {
-  const [draft, setDraft] = useState('');
+  // `draftsRef` luôn mới nhất (ghi mỗi lần gõ); `drafts` là ảnh chụp lúc đổi phòng cho danh sách phòng,
+  // nhờ đó gõ phím không làm cả danh sách phòng vẽ lại.
+  const draftsRef = useRef<Drafts>(loadDrafts());
+  const [drafts, setDrafts] = useState<Drafts>(draftsRef.current);
+  // Chữ đang gõ thuộc về đúng một phòng; phòng khác thì lấy nháp đã lưu của phòng đó.
+  const [draftState, setDraftState] = useState({ roomId, text: '' });
+  const draft = draftState.roomId === roomId ? draftState.text : (drafts[roomId] ?? '');
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [editing, setEditing] = useState<ChatMessage | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
   const lastSentRef = useRef<{ at: number; text: string }>({ at: 0, text: '' });
   const pendingImagesRef = useRef<PendingImage[]>([]);
+  const editingRef = useRef<ChatMessage | null>(null);
+
+  const setDraft: Dispatch<SetStateAction<string>> = (value) => {
+    setDraftState((prev) => {
+      const base = prev.roomId === roomId ? prev.text : (draftsRef.current[roomId] ?? '');
+      return { roomId, text: typeof value === 'function' ? value(base) : value };
+    });
+  };
+
+  // Hết sửa tin thì trả lại nháp của phòng, không để nội dung sửa ghi đè nháp.
+  function restoreDraft() {
+    setDraftState({ roomId, text: draftsRef.current[roomId] ?? '' });
+  }
+
+  useEffect(() => {
+    if (editingRef.current || !draftState.roomId) {
+      return;
+    }
+    const next = withDraft(draftsRef.current, draftState.roomId, draftState.text);
+    draftsRef.current = next;
+    saveDrafts(next);
+  }, [draftState]);
   pendingImagesRef.current = pendingImages;
+  editingRef.current = editing;
 
   useEffect(() => {
     if (!roomId) {
@@ -42,11 +76,25 @@ export function useComposer({
     setPendingFiles([]);
     setGalleryOpen(false);
     setReplyTo(null);
+    setEditing(null);
+    setDrafts(draftsRef.current);
+    setDraftState({ roomId, text: draftsRef.current[roomId] ?? '' });
   }, [roomId]);
 
   useEffect(() => {
     return () => revokePending(pendingImagesRef.current);
   }, []);
+
+  function startEdit(message: ChatMessage) {
+    setReplyTo(null);
+    setEditing(message);
+    setDraft(message.content);
+  }
+
+  function cancelEdit() {
+    setEditing(null);
+    restoreDraft();
+  }
 
   function addImages(files: File[]) {
     setPendingImages((current) => addPendingFiles(current, files));
@@ -141,6 +189,24 @@ export function useComposer({
     if (!roomId) {
       return;
     }
+    if (editing) {
+      const content = raw.trim();
+      if (!content) {
+        return;
+      }
+      const target = editing;
+      setEditing(null);
+      restoreDraft();
+      try {
+        const next = await api.editMessage(roomId, target.id, content);
+        setMessages((current) => current.map((item) => (item.id === next.id ? next : item)));
+      } catch (err) {
+        setEditing(target);
+        setDraft(content);
+        antMessage.error(err instanceof Error ? err.message : 'Không sửa được tin nhắn.');
+      }
+      return;
+    }
     const content = raw.trim();
     const attachments = pendingImages;
     const filesToSend = pendingFiles;
@@ -163,26 +229,34 @@ export function useComposer({
     setError('');
     const unsentFiles = [...filesToSend];
     try {
-      const uploadedImages: { imageId?: string; caption: string }[] = [];
-      for (const [index, item] of attachments.entries()) {
-        const isLastOverall = filesToSend.length === 0 && index === attachments.length - 1;
-        const caption = isLastOverall ? content : '';
+      const imageIds: string[] = [];
+      for (const item of attachments) {
         if (item.imageId) {
-          uploadedImages.push({ imageId: item.imageId, caption });
+          imageIds.push(item.imageId);
           continue;
         }
         if (item.file) {
           const image = await api.uploadImage(roomId, item.file);
-          uploadedImages.push({ imageId: image.id, caption });
+          imageIds.push(image.id);
         }
       }
-      for (const [index, item] of uploadedImages.entries()) {
-        const isLastOverall = filesToSend.length === 0 && index === uploadedImages.length - 1;
+      const last = filesToSend.length === 0;
+      if (imageIds.length >= 2) {
         const message = await api.sendMessage(
           roomId,
-          item.caption,
-          item.imageId,
-          isLastOverall ? replyId : undefined,
+          last ? content : '',
+          undefined,
+          last ? replyId : undefined,
+          undefined,
+          imageIds,
+        );
+        appendMessage(message);
+      } else if (imageIds.length === 1) {
+        const message = await api.sendMessage(
+          roomId,
+          last ? content : '',
+          imageIds[0],
+          last ? replyId : undefined,
         );
         appendMessage(message);
       }
@@ -217,13 +291,68 @@ export function useComposer({
     }
   }
 
+  async function sendRich(rich: RichPayload) {
+    if (!roomId) {
+      return;
+    }
+    try {
+      const sent = await api.sendMessage(roomId, '', undefined, replyTo?.id, undefined, undefined, rich);
+      appendMessage(sent);
+      setReplyTo(null);
+    } catch (err) {
+      antMessage.error(err instanceof Error ? err.message : 'Gửi tin thất bại.');
+    }
+  }
+
+  async function sendLocation() {
+    const hide = antMessage.loading('Đang lấy vị trí…', 0);
+    let position: { lat: number; lng: number };
+    try {
+      position = await currentPosition();
+    } catch (err) {
+      antMessage.error(err instanceof Error ? err.message : 'Không lấy được vị trí, thử lại sau.');
+      return;
+    } finally {
+      hide();
+    }
+    Modal.confirm({
+      title: 'Gửi vị trí hiện tại của bạn?',
+      content: formatCoords(position.lat, position.lng),
+      okText: 'Gửi',
+      cancelText: 'Hủy',
+      onOk: () => sendRich({ type: 'location', ...position }),
+    });
+  }
+
+  async function sendVoice(blob: Blob) {
+    if (!roomId) return;
+    try {
+      let ext = 'webm';
+      if (blob.type.includes('mp4')) {
+        ext = 'm4a';
+      } else if (blob.type.includes('ogg')) {
+        ext = 'ogg';
+      }
+      const file = await api.uploadVoice(roomId, blob, `voice.${ext}`);
+      const sent = await api.sendMessage(roomId, '', undefined, replyTo?.id, file.id);
+      appendMessage(sent);
+      setReplyTo(null);
+    } catch (err) {
+      antMessage.error(err instanceof Error ? err.message : 'Gửi tin nhắn thoại thất bại.');
+    }
+  }
+
   return {
     draft,
     setDraft,
+    drafts,
     pendingImages,
     pendingFiles,
     replyTo,
     setReplyTo,
+    editing,
+    startEdit,
+    cancelEdit,
     galleryOpen,
     setGalleryOpen,
     gallery,
@@ -238,5 +367,8 @@ export function useComposer({
     sendSticker,
     sendGif,
     sendContent,
+    sendRich,
+    sendLocation,
+    sendVoice,
   };
 }

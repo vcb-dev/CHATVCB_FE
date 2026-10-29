@@ -148,6 +148,7 @@ export function DepartmentsGroupsView() {
       <div className="dept-hero">
         <section className="dept-hero-main">
           <h1>Phòng ban &amp; nhóm</h1>
+          <p>Quản lý cấu trúc tổ chức và thành viên nội bộ.</p>
         </section>
         <div className="dept-mini-stats">
           <div className="dept-mini-stat purple">

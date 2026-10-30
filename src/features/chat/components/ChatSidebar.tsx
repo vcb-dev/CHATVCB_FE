@@ -98,7 +98,8 @@ export function ChatSidebar(props: {
     <aside className="sidebar">
       <div className="sidebar-head">
         <div className="brand">
-          <strong>Messenger</strong>
+          <strong>VCB Chat
+          </strong>
           <small>Team {team}</small>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

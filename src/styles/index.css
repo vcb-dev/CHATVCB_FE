@@ -2144,6 +2144,7 @@ body {
 }
 
 .group-card {
+  flex-shrink: 0;
   background: #fff;
   border-radius: 12px;
   overflow: hidden;
@@ -2275,6 +2276,23 @@ body {
   white-space: nowrap;
 }
 
+/* Tên dài thì cắt "…" ở tên, tag Trưởng/Phó nhóm luôn hiện đủ. */
+.group-member-name {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.group-member-name > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group-member-name .role-tag {
+  flex-shrink: 0;
+}
+
 .group-photos {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -2306,6 +2324,42 @@ body {
   font-weight: 600;
   padding: 8px 0 0;
   cursor: pointer;
+}
+
+.group-members-more {
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #0084ff;
+  font-weight: 600;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.group-members-more:hover {
+  background: #f0f7ff;
+}
+
+.members-modal-search {
+  margin-bottom: 8px;
+}
+
+.members-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  margin: 0 -8px;
+  scrollbar-width: thin;
+  scrollbar-color: #d0d3d8 transparent;
+}
+
+.members-modal-empty {
+  margin: 0;
+  padding: 24px 0;
+  text-align: center;
+  color: #8a8d91;
 }
 
 
@@ -3302,6 +3356,7 @@ body {
 
 .group-member-wrap .group-member {
   flex: 1;
+  min-width: 0;
 }
 
 .group-member-remove {
@@ -4455,7 +4510,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: 12px 14px;
 }
 
 .group-row.board-toggle,

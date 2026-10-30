@@ -9,10 +9,8 @@ import {
   LinkOutlined,
   LogoutOutlined,
   PictureOutlined,
-  PlusOutlined,
   PushpinOutlined,
   RightOutlined,
-  TeamOutlined,
 } from '@ant-design/icons';
 import { Avatar, Button, Input, Modal, Switch, Typography, message } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -34,8 +32,7 @@ import { GroupSettingsCard } from './GroupSettingsCard';
 import { GroupRemindersCard } from './GroupRemindersCard';
 import { GroupNotesCard } from './GroupNotesCard';
 import { JoinRequestsCard } from './JoinRequestsCard';
-import { MemberActions } from './MemberActions';
-import { RoleTag } from './RoleTag';
+import { GroupMembersCard } from './GroupMembersCard';
 import type { ChatFile, ChatMessage, DirectoryUser, GalleryImage, Reminder, Room, RoomLink, RoomMember, RoomNote } from '@/types';
 
 const EMPTY_PHOTOS: GalleryImage[] = [];
@@ -458,71 +455,22 @@ export function GroupDrawer({
           ) : null}
 
           {isGroup ? (
-            <div className="group-card">
-              <button type="button" className="group-row" onClick={() => toggle('members')}>
-                <span className="group-ico">
-                  <TeamOutlined />
-                </span>
-                <span className="group-row-text">
-                  <strong>Thành viên</strong>
-                  <small>{members.length} người</small>
-                </span>
-                <RightOutlined className={openSection === 'members' ? 'chev open' : 'chev'} />
-              </button>
-              {openSection === 'members' ? (
-                <div className="group-list">
-                  {canAddMember ? (
-                    <button
-                      type="button"
-                      className="group-member group-add-btn"
-                      onClick={() => setAddMemberOpen(true)}
-                    >
-                      <span className="group-file-ico">
-                        <PlusOutlined />
-                      </span>
-                      <span className="group-member-info">
-                        <strong>{isSuggestMember ? 'Đề xuất thành viên' : 'Thêm thành viên'}</strong>
-                      </span>
-                    </button>
-                  ) : null}
-                  {members.map((item) => (
-                    <div key={item.id} className="group-member-wrap">
-                      <button
-                        type="button"
-                        className="group-member"
-                        onClick={() => {
-                          setNickUser(item);
-                          setNickValue(item.nickname || '');
-                        }}
-                      >
-                        <Avatar
-                          size={40}
-                          src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
-                          style={{ background: avatarColor(item.displayName || item.name) }}
-                        >
-                          {initials(item.displayName || item.name)}
-                        </Avatar>
-                        <span className="group-member-info">
-                          <strong>
-                            {item.displayName || item.name}
-                            <RoleTag role={item.role} />
-                          </strong>
-                          <small>@{item.handle}</small>
-                        </span>
-                        <RightOutlined className="chev" />
-                      </button>
-                      <MemberActions
-                        room={room}
-                        member={item}
-                        currentUserId={currentUserId}
-                        onMembersUpdated={onMembersUpdated}
-                        onRemove={handleRemoveMember}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+            <GroupMembersCard
+              key={room.id}
+              room={room}
+              members={members}
+              currentUserId={currentUserId}
+              open={openSection === 'members'}
+              onToggle={() => toggle('members')}
+              addLabel={canAddMember ? (isSuggestMember ? 'Đề xuất thành viên' : 'Thêm thành viên') : null}
+              onAdd={() => setAddMemberOpen(true)}
+              onPick={(member) => {
+                setNickUser(member);
+                setNickValue(member.nickname || '');
+              }}
+              onMembersUpdated={onMembersUpdated}
+              onRemove={handleRemoveMember}
+            />
           ) : null}
 
           {isGroup && room ? (

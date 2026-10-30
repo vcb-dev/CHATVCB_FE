@@ -1,9 +1,11 @@
 import {
+  ApartmentOutlined,
   ContactsOutlined,
   FileTextOutlined,
   LogoutOutlined,
   MailOutlined,
   MessageOutlined,
+  TeamOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
 import { Avatar } from 'antd';
@@ -18,6 +20,8 @@ const WORKSPACES: { id: Workspace; label: string; icon: typeof MessageOutlined }
   { id: 'email', label: 'Email', icon: MailOutlined },
   { id: 'docs', label: 'Docs', icon: FileTextOutlined },
   { id: 'meetings', label: 'Cuộc họp', icon: VideoCameraOutlined },
+  { id: 'hr', label: 'Nhân sự', icon: TeamOutlined },
+  { id: 'departments', label: 'Phòng ban', icon: ApartmentOutlined },
 ];
 
 export function NavRail(props: {

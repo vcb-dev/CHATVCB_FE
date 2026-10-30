@@ -3,6 +3,8 @@ import { message as antMessage } from 'antd';
 import { ContactsPage } from '@/features/contacts/ContactsPage';
 import { DocsPage } from '@/features/docs/DocsPage';
 import { EmailPage } from '@/features/email/EmailPage';
+import { DepartmentsPage } from '@/features/departments/DepartmentsPage';
+import { HrPage } from '@/features/hr/HrPage';
 import { MeetingsPage } from '@/features/meetings/MeetingsPage';
 import { ProfileDrawer } from '@/features/profile/ProfileDrawer';
 import { UserProfileModal } from '@/features/profile/UserProfileModal';
@@ -343,6 +345,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         <EmailPage />
       ) : workspace === 'docs' ? (
         <DocsPage user={user} />
+      ) : workspace === 'hr' ? (
+        <HrPage />
+      ) : workspace === 'departments' ? (
+        <DepartmentsPage />
       ) : (
         <MeetingsPage user={user} />
       )}

@@ -55,7 +55,9 @@ body {
 
 .app-shell.module-meetings,
 .app-shell.module-email,
-.app-shell.module-docs {
+.app-shell.module-docs,
+.app-shell.module-hr,
+.app-shell.module-departments {
   grid-template-columns: 76px minmax(0, 1fr);
 }
 
@@ -2840,7 +2842,9 @@ body {
 
   .app-shell.module-meetings,
   .app-shell.module-email,
-  .app-shell.module-docs {
+  .app-shell.module-docs,
+  .app-shell.module-hr,
+  .app-shell.module-departments {
     grid-template-columns: 76px minmax(0, 1fr);
   }
 
@@ -2877,7 +2881,9 @@ body {
   .app-shell:not(.module-messenger),
   .app-shell.module-meetings,
   .app-shell.module-email,
-  .app-shell.module-docs {
+  .app-shell.module-docs,
+  .app-shell.module-hr,
+  .app-shell.module-departments {
     grid-template-columns: 76px minmax(0, 1fr);
   }
 

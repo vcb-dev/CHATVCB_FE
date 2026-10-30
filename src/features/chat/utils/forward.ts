@@ -1,13 +1,31 @@
 import { api } from '@/api/client';
 import type { ChatMessage } from '@/types';
+import { isVoice } from './attachments';
 
 export const MAX_FORWARD_TARGETS = 10;
 
 export function canForward(message: ChatMessage): boolean {
-  return !message.recalled && Boolean(message.content.trim() || message.imageUrl || message.fileUrl);
+  return (
+    !message.recalled &&
+    !message.poll &&
+    Boolean(message.rich || message.content.trim() || message.imageUrl || message.fileUrl) &&
+    !isVoice(message)
+  );
 }
 
 export async function forwardMessage(message: ChatMessage, roomId: string): Promise<ChatMessage> {
+  if (message.rich) {
+    return api.sendMessage(roomId, '', undefined, undefined, undefined, undefined, message.rich);
+  }
+  if ((message.images ?? []).length > 1) {
+    const ids: string[] = [];
+    for (const image of message.images ?? []) {
+      const res = await api.attachRemoteImage(roomId, image.url);
+      ids.push(res.id);
+    }
+    return api.sendMessage(roomId, message.content, undefined, undefined, undefined, ids);
+  }
+
   let imageId: string | undefined;
   if (message.imageUrl) {
     if (message.imageUrl.startsWith('https://')) {

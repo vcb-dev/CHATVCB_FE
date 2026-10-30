@@ -1,29 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Avatar, Checkbox, Input, Modal, message as antMessage } from 'antd';
 import { fileSrc } from '@/api/client';
-import { forwardMessage, MAX_FORWARD_TARGETS } from '../utils/forward';
+import { canForward, forwardMessage, MAX_FORWARD_TARGETS } from '../utils/forward';
 import { previewOf } from '../utils/rooms';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { ChatMessage, Room } from '@/types';
 
 export function ForwardModal(props: {
-  message: ChatMessage | null;
+  messages: ChatMessage[];
   rooms: Room[];
   onClose: () => void;
   onForwarded: (sent: ChatMessage) => void;
+  onSuccess?: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
+  // Số tin đã gửi tới từng phòng, để thử lại sau lỗi không gửi trùng
+  const progressRef = useRef(new Map<string, number>());
+  const forwardable = props.messages.filter(canForward);
+  const skipped = props.messages.length - forwardable.length;
 
   useEffect(() => {
     setQuery('');
     setSelected([]);
     setSending(false);
-  }, [props.message]);
+    progressRef.current = new Map();
+  }, [props.messages]);
 
   async function handleSend() {
-    if (!props.message) {
+    if (forwardable.length === 0) {
       return;
     }
     setSending(true);
@@ -31,9 +37,13 @@ export function ForwardModal(props: {
     const failedRoomIds: string[] = [];
     let firstError = '';
     for (const roomId of selected) {
+      let done = progressRef.current.get(roomId) ?? 0;
       try {
-        const sent = await forwardMessage(props.message, roomId);
-        props.onForwarded(sent);
+        for (; done < forwardable.length; done += 1) {
+          const sent = await forwardMessage(forwardable[done], roomId);
+          progressRef.current.set(roomId, done + 1);
+          props.onForwarded(sent);
+        }
         successCount += 1;
       } catch (err) {
         failedRoomIds.push(roomId);
@@ -45,7 +55,15 @@ export function ForwardModal(props: {
     setSending(false);
 
     if (failedRoomIds.length === 0) {
-      antMessage.success(`Đã chuyển tiếp tới ${successCount} cuộc trò chuyện.`);
+      antMessage.success(
+        forwardable.length === 1
+          ? `Đã chuyển tiếp tới ${successCount} cuộc trò chuyện.`
+          : `Đã chuyển tiếp ${forwardable.length} tin tới ${successCount} cuộc trò chuyện.`,
+      );
+      if (skipped > 0) {
+        antMessage.info(`Đã bỏ qua ${skipped} tin không chuyển tiếp được.`);
+      }
+      props.onSuccess?.();
       props.onClose();
     } else {
       const failedNames = failedRoomIds.map((id) => {
@@ -63,13 +81,13 @@ export function ForwardModal(props: {
 
   return (
     <Modal
-      open={props.message !== null}
+      open={props.messages.length > 0}
       title="Chuyển tiếp tin nhắn"
       onCancel={props.onClose}
       onOk={handleSend}
       okText="Gửi"
       cancelText="Hủy"
-      okButtonProps={{ disabled: selected.length === 0 }}
+      okButtonProps={{ disabled: selected.length === 0 || forwardable.length === 0 }}
       confirmLoading={sending}
       cancelButtonProps={{ disabled: sending }}
       closable={!sending}
@@ -78,7 +96,8 @@ export function ForwardModal(props: {
       destroyOnHidden
     >
       <div className="forward-preview">
-        {props.message ? previewOf(props.message) : null}
+        {forwardable.length > 0 ? previewOf(forwardable[0]) : 'Không có tin nào chuyển tiếp được.'}
+        {forwardable.length > 1 ? ` · và ${forwardable.length - 1} tin khác` : ''}
       </div>
       <Input
         placeholder="Tìm cuộc trò chuyện"

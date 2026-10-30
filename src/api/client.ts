@@ -1,20 +1,33 @@
 import type {
   ChatFile,
   ChatMessage,
+  ConversationLabel,
   DirectoryUser,
   DocItem,
   GalleryImage,
+  GroupSettings,
+  InviteInfo,
+  JoinRequest,
+  JoinResult,
+  LinkPreview,
   MailAccount,
   MailItem,
   MailMessage,
   Meeting,
   MessagesPage,
+  Reminder,
+  RichPayload,
   Room,
   RoomLink,
   RoomMember,
+  RoomMessageSearch,
+  RoomMute,
+  RoomNote,
+  RoomPrefs,
   RoomRead,
   RoomSearch,
   RoomsPage,
+  TeamCount,
   User,
 } from "@/types";
 
@@ -62,6 +75,25 @@ async function errorMessage(response: Response) {
     message = (await response.text()) || message;
   }
   return message;
+}
+
+async function uploadChatFile(
+  roomId: string,
+  path: 'files' | 'voice',
+  blob: Blob,
+  filename: string,
+): Promise<ChatFile> {
+  const body = new FormData();
+  body.append('file', blob, filename);
+  const response = await fetch(`${API_URL}/rooms/${roomId}/${path}`, {
+    method: 'POST',
+    headers: authHeader(),
+    body,
+  });
+  if (!response.ok) {
+    throw new Error(await errorMessage(response));
+  }
+  return response.json() as Promise<ChatFile>;
 }
 
 export function fileSrc(url: string) {
@@ -168,16 +200,31 @@ export const api = {
       },
     };
   },
+  searchRoomMessages(
+    roomId: string,
+    params: RoomMessageSearch & { cursor?: string },
+  ): Promise<MessagesPage> {
+    const sp = new URLSearchParams();
+    if (params.q) sp.set('q', params.q);
+    if (params.senderId) sp.set('senderId', params.senderId);
+    if (params.from) sp.set('from', params.from);
+    if (params.to) sp.set('to', params.to);
+    if (params.cursor) sp.set('cursor', params.cursor);
+    const qs = sp.toString();
+    return request<MessagesPage>(`/rooms/${roomId}/messages/search${qs ? `?${qs}` : ''}`);
+  },
   sendMessage(
     roomId: string,
     content: string,
     imageId?: string,
     replyToId?: string,
     fileId?: string,
+    imageIds?: string[],
+    rich?: RichPayload,
   ) {
     return request<ChatMessage>(`/rooms/${roomId}/messages`, {
-      method: "POST",
-      body: JSON.stringify({ content, imageId, replyToId, fileId }),
+      method: 'POST',
+      body: JSON.stringify({ content, imageId, replyToId, fileId, imageIds, rich }),
     });
   },
   reactMessage(roomId: string, messageId: string, emoji: string) {
@@ -189,18 +236,11 @@ export const api = {
       },
     );
   },
-  async uploadFile(roomId: string, file: File): Promise<ChatFile> {
-    const body = new FormData();
-    body.append("file", file);
-    const response = await fetch(`${API_URL}/rooms/${roomId}/files`, {
-      method: "POST",
-      headers: authHeader(),
-      body,
-    });
-    if (!response.ok) {
-      throw new Error(await errorMessage(response));
-    }
-    return response.json() as Promise<ChatFile>;
+  uploadFile(roomId: string, file: File): Promise<ChatFile> {
+    return uploadChatFile(roomId, 'files', file, file.name);
+  },
+  uploadVoice(roomId: string, blob: Blob, filename: string): Promise<ChatFile> {
+    return uploadChatFile(roomId, 'voice', blob, filename);
   },
   async download(url: string): Promise<Blob> {
     const response = await fetch(fileSrc(url));
@@ -212,9 +252,25 @@ export const api = {
   files(roomId: string) {
     return request<ChatFile[]>(`/rooms/${roomId}/files`);
   },
-  users(q?: string) {
-    const query = q?.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
-    return request<DirectoryUser[]>(`/users${query}`);
+  users(q?: string, team?: string) {
+    const params = new URLSearchParams();
+    if (q?.trim()) {
+      params.set('q', q.trim());
+    }
+    if (team) {
+      params.set('team', team);
+    }
+    const query = params.toString();
+    return request<DirectoryUser[]>(`/users${query ? `?${query}` : ''}`);
+  },
+  userTeams() {
+    return request<TeamCount[]>('/users/teams');
+  },
+  blockUser(id: string) {
+    return request<{ ok: boolean }>(`/users/${id}/block`, { method: 'POST' });
+  },
+  unblockUser(id: string) {
+    return request<{ ok: boolean }>(`/users/${id}/block`, { method: 'DELETE' });
   },
   user(id: string) {
     return request<DirectoryUser>(`/users/${id}`);
@@ -236,6 +292,11 @@ export const api = {
       body: JSON.stringify({ name, memberIds }),
     });
   },
+  cloudRoom(): Promise<Room> {
+    return request<Room>('/rooms/cloud', {
+      method: 'POST',
+    });
+  },
   addRoomMember(roomId: string, userId: string) {
     return request<RoomMember[]>(`/rooms/${roomId}/members`, {
       method: "POST",
@@ -247,9 +308,72 @@ export const api = {
       method: "DELETE",
     });
   },
+  setMemberRole(roomId: string, userId: string, role: 'admin' | 'member'): Promise<RoomMember[]> {
+    return request<RoomMember[]>(`/rooms/${roomId}/members/${userId}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    });
+  },
+  transferOwner(roomId: string, userId: string): Promise<RoomMember[]> {
+    return request<RoomMember[]>(`/rooms/${roomId}/owner`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  },
+  updatePermissions(roomId: string, patch: Partial<GroupSettings>): Promise<Room> {
+    return request<Room>(`/rooms/${roomId}/permissions`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  },
+  getInvite(roomId: string): Promise<{ token: string | null }> {
+    return request<{ token: string | null }>(`/rooms/${roomId}/invite`);
+  },
+  resetInvite(roomId: string): Promise<{ token: string }> {
+    return request<{ token: string }>(`/rooms/${roomId}/invite`, {
+      method: 'POST',
+    });
+  },
+  disableInvite(roomId: string): Promise<void> {
+    return request<void>(`/rooms/${roomId}/invite`, {
+      method: 'DELETE',
+    });
+  },
+  inviteInfo(token: string): Promise<InviteInfo> {
+    return request<InviteInfo>(`/invites/${token}`);
+  },
+  joinByInvite(token: string): Promise<JoinResult> {
+    return request<JoinResult>(`/invites/${token}/join`, {
+      method: 'POST',
+    });
+  },
+  requestMember(roomId: string, userId: string): Promise<{ ok: boolean }> {
+    return request<{ ok: boolean }>(`/rooms/${roomId}/join-requests`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  },
+  joinRequests(roomId: string): Promise<JoinRequest[]> {
+    return request<JoinRequest[]>(`/rooms/${roomId}/join-requests`);
+  },
+  approveRequest(roomId: string, userId: string): Promise<RoomMember[]> {
+    return request<RoomMember[]>(`/rooms/${roomId}/join-requests/${userId}/approve`, {
+      method: 'POST',
+    });
+  },
+  rejectRequest(roomId: string, userId: string): Promise<void> {
+    return request<void>(`/rooms/${roomId}/join-requests/${userId}`, {
+      method: 'DELETE',
+    });
+  },
   deleteRoom(roomId: string) {
     return request<void>(`/rooms/${roomId}`, {
       method: "DELETE",
+    });
+  },
+  leaveRoom(roomId: string) {
+    return request<void>(`/rooms/${roomId}/leave`, {
+      method: 'POST',
     });
   },
   updateRoom(roomId: string, name: string) {
@@ -277,6 +401,38 @@ export const api = {
       body: JSON.stringify({ userId, nickname }),
     });
   },
+  muteRoom(roomId: string, muted: boolean, minutes?: number) {
+    return request<RoomMute>(`/rooms/${roomId}/mute`, {
+      method: 'PATCH',
+      body: JSON.stringify({ muted, ...(minutes != null ? { minutes } : {}) }),
+    });
+  },
+  updateRoomPrefs(roomId: string, patch: Partial<Omit<RoomPrefs, 'roomId'>>) {
+    return request<RoomPrefs>(`/rooms/${roomId}/prefs`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  },
+  labels(): Promise<ConversationLabel[]> {
+    return request<ConversationLabel[]>('/labels');
+  },
+  createLabel(input: { name: string; color: string }): Promise<ConversationLabel> {
+    return request<ConversationLabel>('/labels', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  updateLabel(id: string, input: Partial<{ name: string; color: string }>): Promise<ConversationLabel> {
+    return request<ConversationLabel>(`/labels/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+  deleteLabel(id: string): Promise<void> {
+    return request<void>(`/labels/${id}`, {
+      method: 'DELETE',
+    });
+  },
   links(roomId: string) {
     return request<RoomLink[]>(`/rooms/${roomId}/links`);
   },
@@ -296,6 +452,12 @@ export const api = {
         method: "POST",
       },
     );
+  },
+  editMessage(roomId: string, messageId: string, content: string) {
+    return request<ChatMessage>(`/rooms/${roomId}/messages/${messageId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ content }),
+    });
   },
   deleteMessage(roomId: string, messageId: string) {
     return request<{ ok: boolean; id: string }>(
@@ -328,6 +490,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ url }),
     });
+  },
+  linkPreview(url: string): Promise<LinkPreview> {
+    return request<LinkPreview>(`/link-preview?url=${encodeURIComponent(url)}`);
   },
   async uploadImage(roomId: string, file: File) {
     const body = new FormData();
@@ -561,6 +726,89 @@ export const api = {
   deleteDepartmentGroup(departmentId: string, groupId: string) {
     return request<void>(`/departments/${departmentId}/groups/${groupId}`, {
       method: "DELETE",
+    });
+  },
+  createPoll(
+    roomId: string,
+    input: {
+      question: string;
+      options: string[];
+      multiple: boolean;
+      allowAddOptions: boolean;
+      closesAt?: string;
+    },
+  ) {
+    return request<ChatMessage>(`/rooms/${roomId}/polls`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  votePoll(roomId: string, pollId: string, optionIds: string[]) {
+    return request<ChatMessage>(`/rooms/${roomId}/polls/${pollId}/votes`, {
+      method: 'PUT',
+      body: JSON.stringify({ optionIds }),
+    });
+  },
+  addPollOption(roomId: string, pollId: string, text: string) {
+    return request<ChatMessage>(`/rooms/${roomId}/polls/${pollId}/options`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    });
+  },
+  closePoll(roomId: string, pollId: string) {
+    return request<ChatMessage>(`/rooms/${roomId}/polls/${pollId}/close`, {
+      method: 'POST',
+    });
+  },
+  reminders(roomId: string) {
+    return request<Reminder[]>(`/rooms/${roomId}/reminders`);
+  },
+  createReminder(
+    roomId: string,
+    input: { title: string; remindAt: string; repeat: string },
+  ) {
+    return request<Reminder>(`/rooms/${roomId}/reminders`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  updateReminder(
+    roomId: string,
+    reminderId: string,
+    input: { title?: string; remindAt?: string; repeat?: string },
+  ) {
+    return request<Reminder>(`/rooms/${roomId}/reminders/${reminderId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+  deleteReminder(roomId: string, reminderId: string) {
+    return request<void>(`/rooms/${roomId}/reminders/${reminderId}`, {
+      method: 'DELETE',
+    });
+  },
+  notes(roomId: string) {
+    return request<RoomNote[]>(`/rooms/${roomId}/notes`);
+  },
+  createNote(roomId: string, input: { title: string; content: string }) {
+    return request<RoomNote>(`/rooms/${roomId}/notes`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  updateNote(
+    roomId: string,
+    noteId: string,
+    input: { title?: string; content?: string },
+  ) {
+    return request<RoomNote>(`/rooms/${roomId}/notes/${noteId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  },
+  deleteNote(roomId: string, noteId: string) {
+    return request<void>(`/rooms/${roomId}/notes/${noteId}`, {
+      method: 'DELETE',
     });
   },
 };

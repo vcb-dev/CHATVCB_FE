@@ -1,5 +1,6 @@
 import {
   ApartmentOutlined,
+  ContactsOutlined,
   FileTextOutlined,
   LogoutOutlined,
   MailOutlined,
@@ -15,6 +16,7 @@ import type { Workspace } from '../hooks/useWorkspace';
 
 const WORKSPACES: { id: Workspace; label: string; icon: typeof MessageOutlined }[] = [
   { id: 'messenger', label: 'Messenger', icon: MessageOutlined },
+  { id: 'contacts', label: 'Danh bạ', icon: ContactsOutlined },
   { id: 'email', label: 'Email', icon: MailOutlined },
   { id: 'docs', label: 'Docs', icon: FileTextOutlined },
   { id: 'meetings', label: 'Cuộc họp', icon: VideoCameraOutlined },

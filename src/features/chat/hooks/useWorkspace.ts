@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isChatVisible } from '@/lib/notify';
 
-export type Workspace = 'messenger' | 'email' | 'docs' | 'meetings' | 'hr' | 'departments';
+export type Workspace =
+  | 'messenger'
+  | 'contacts'
+  | 'email'
+  | 'docs'
+  | 'meetings'
+  | 'hr'
+  | 'departments';
 
 const WORKSPACE_IDS: Workspace[] = [
   'messenger',
+  'contacts',
   'email',
   'docs',
   'meetings',

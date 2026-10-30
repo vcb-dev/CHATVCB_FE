@@ -5,6 +5,7 @@ import { MeetingSession } from '@/features/meetings/MeetingSession';
 import { parseMeetHash } from '@/features/meetings/meet';
 import { parseSheetHash } from '@/features/docs/sheet';
 import { SheetSession } from '@/features/docs/SheetSession';
+import { queryClient } from '@/lib/queryClient';
 import { AppTheme } from '@/theme/AppTheme';
 import type { User } from '@/types';
 
@@ -39,6 +40,7 @@ export default function App() {
       setSheet(parseSheetHash());
     };
     const onUnauthorized = () => {
+      queryClient.clear();
       setUser(null);
     };
     window.addEventListener('hashchange', onHash);
@@ -88,6 +90,7 @@ export default function App() {
             onLogout={() => {
               localStorage.removeItem('chatvcb.token');
               localStorage.removeItem('chatvcb.user');
+              queryClient.clear();
               setUser(null);
             }}
           />

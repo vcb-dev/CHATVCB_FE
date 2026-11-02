@@ -35,9 +35,9 @@ export function HrPage({ user }: HrPageProps) {
     [employees, selectedId],
   );
 
-  async function handleSave(next: EmployeeProfile) {
+  async function handleSave(patch: Partial<EmployeeProfile> & { id: string }) {
     if (!canUpdate) return;
-    await updateEmployee.mutateAsync(next);
+    await updateEmployee.mutateAsync(patch);
   }
 
   if (!canRead) {

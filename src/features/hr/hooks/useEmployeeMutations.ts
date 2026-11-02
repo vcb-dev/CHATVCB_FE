@@ -31,8 +31,10 @@ export function useCreateEmployeeMutation() {
 export function useUpdateEmployeeMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (profile: EmployeeProfile) =>
-      updateEmployee(profile.id, profile),
+    mutationFn: ({
+      id,
+      ...body
+    }: Partial<EmployeeProfile> & { id: string }) => updateEmployee(id, body),
     onSuccess: async () => {
       await invalidatePeople(queryClient);
       message.success("Đã lưu hồ sơ.");

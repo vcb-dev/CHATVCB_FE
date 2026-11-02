@@ -45,7 +45,9 @@ interface Props {
   canUpdateSensitive?: boolean;
   saveLoading?: boolean;
   onBack: () => void;
-  onSave: (next: EmployeeProfile) => void | Promise<void>;
+  onSave: (
+    patch: Partial<EmployeeProfile> & { id: string },
+  ) => void | Promise<void>;
 }
 
 const TAB_KEYS = [
@@ -56,6 +58,68 @@ const TAB_KEYS = [
   "family",
   "other",
 ] as const;
+
+type TabKey = (typeof TAB_KEYS)[number];
+
+const TAB_FIELDS: Record<TabKey, (keyof EmployeeProfile)[]> = {
+  work: [
+    "startDate",
+    "employeeCode",
+    "employeeSeq",
+    "contractType",
+    "jobTitle",
+    "specialtyPosition",
+    "department",
+    "departmentGroup",
+    "managementBlockCode",
+    "directManagerName",
+    "employmentStatus",
+  ],
+  personal: [
+    "fullName",
+    "gender",
+    "dateOfBirth",
+    "phone",
+    "email",
+    "maritalStatus",
+    "ethnicity",
+    "religion",
+    "address",
+    "permanentAddress",
+  ],
+  education: ["educationLevel", "schoolName"],
+  identity: [
+    "citizenIdNumber",
+    "citizenIdIssuedPlace",
+    "socialInsuranceNumber",
+  ],
+  family: ["emergencyContact", "guardianFather", "guardianMother"],
+  other: ["bankAccount", "vehicles"],
+};
+
+const SENSITIVE_TABS: TabKey[] = ["identity", "other"];
+
+const ALL_TAB_FIELD_NAMES = [
+  ...new Set(TAB_KEYS.flatMap((key) => TAB_FIELDS[key])),
+] as (keyof EmployeeProfile)[];
+
+const SAVE_VALIDATE_NAMES: (keyof EmployeeProfile)[] = [
+  "employeeCode",
+  "fullName",
+];
+
+function stripSensitivePatch(
+  patch: Partial<EmployeeProfile>,
+): Partial<EmployeeProfile> {
+  const next = { ...patch };
+  for (const tab of SENSITIVE_TABS) {
+    for (const key of TAB_FIELDS[tab]) {
+      delete next[key];
+    }
+  }
+  delete next.bankAccount;
+  return next;
+}
 
 export function EmployeeDetailView({
   profile,
@@ -69,7 +133,7 @@ export function EmployeeDetailView({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
   const [form] = Form.useForm<EmployeeProfile>();
-  const [activeTab, setActiveTab] = useState<(typeof TAB_KEYS)[number]>("work");
+  const [activeTab, setActiveTab] = useState<TabKey>("work");
 
   useEffect(() => {
     setDraft(profile);
@@ -85,11 +149,19 @@ export function EmployeeDetailView({
 
   function saveEdit() {
     void form
-      .validateFields()
-      .then(async (values) => {
-        const next = { ...draft, ...values };
-        await onSave(next);
-        setDraft(next);
+      .validateFields(SAVE_VALIDATE_NAMES)
+      .then(async () => {
+        const values = form.getFieldsValue(true);
+        let patch = Object.fromEntries(
+          ALL_TAB_FIELD_NAMES.map((key) => [key, values[key]]),
+        ) as Partial<EmployeeProfile>;
+        if (!canUpdateSensitive) {
+          patch = stripSensitivePatch(patch);
+        }
+        await onSave({ id: profile.id, ...patch });
+        const merged = { ...profile, ...patch } as EmployeeProfile;
+        setDraft(merged);
+        form.setFieldsValue(merged);
         setEditing(false);
       })
       .catch(() => message.warning("Kiểm tra lại các trường bắt buộc."));
@@ -168,7 +240,7 @@ export function EmployeeDetailView({
       >
         <Tabs
           activeKey={activeTab}
-          onChange={(key) => setActiveTab(key as (typeof TAB_KEYS)[number])}
+          onChange={(key) => setActiveTab(key as TabKey)}
           className="hr-detail-tabs"
           items={TAB_KEYS.map((key) => ({
             key,
@@ -176,33 +248,34 @@ export function EmployeeDetailView({
           }))}
         />
         <div className="hr-detail-tab-scroll">
-          <div className="hr-tab-panel">
-            {tabContent(activeTab, data, editing, form, orgDepartments, {
-              canReadSensitive,
-              canUpdateSensitive,
-            })}
-          </div>
+          {editing ? (
+            TAB_KEYS.map((key) => (
+              <div
+                key={key}
+                className="hr-tab-panel"
+                hidden={activeTab !== key}
+              >
+                {tabContent(key, data, editing, form, orgDepartments, {
+                  canReadSensitive,
+                  canUpdateSensitive,
+                })}
+              </div>
+            ))
+          ) : (
+            <div className="hr-tab-panel">
+              {tabContent(activeTab, data, editing, form, orgDepartments, {
+                canReadSensitive,
+                canUpdateSensitive,
+              })}
+            </div>
+          )}
         </div>
       </Form>
-
-      {editing ? (
-        <footer className="hr-edit-footer">
-          <Typography.Text type="secondary">
-            Tab: {tabLabel(activeTab)}
-          </Typography.Text>
-          <div>
-            <Button onClick={cancelEdit}>Hủy</Button>
-            <Button type="primary" loading={saveLoading} onClick={saveEdit}>
-              Lưu thay đổi
-            </Button>
-          </div>
-        </footer>
-      ) : null}
     </main>
   );
 }
 
-function tabLabel(key: (typeof TAB_KEYS)[number]) {
+function tabLabel(key: TabKey) {
   switch (key) {
     case "work":
       return "Công việc";
@@ -220,7 +293,7 @@ function tabLabel(key: (typeof TAB_KEYS)[number]) {
 }
 
 function tabContent(
-  key: (typeof TAB_KEYS)[number],
+  key: TabKey,
   data: EmployeeProfile,
   editing: boolean,
   _form: ReturnType<typeof Form.useForm<EmployeeProfile>>[0],
@@ -230,7 +303,11 @@ function tabContent(
   switch (key) {
     case "work":
       return (
-        <WorkTab data={data} editing={editing} orgDepartments={orgDepartments} />
+        <WorkTab
+          data={data}
+          editing={editing}
+          orgDepartments={orgDepartments}
+        />
       );
     case "personal":
       return <PersonalTab data={data} editing={editing} />;
@@ -625,7 +702,7 @@ function FamilyTab({
       </HrSubBlock>
       <HrSubBlock title="Thông tin con cái">
         {editing ? (
-          <Form.Item name="vehicles" label="Ghi chú con cái (demo text)">
+          <Form.Item label="Ghi chú con cái">
             <Input.TextArea rows={2} placeholder={childText} disabled />
           </Form.Item>
         ) : (

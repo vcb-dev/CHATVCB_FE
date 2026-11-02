@@ -1,4 +1,5 @@
 import { api } from "@/api/client";
+import { refreshSessionUser } from "@/lib/refreshAccess";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
 import { adminKeys } from "../queries/adminKeys";
@@ -9,8 +10,10 @@ function onError(err: Error) {
 
 export function useAdminMutations() {
   const queryClient = useQueryClient();
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: adminKeys.all });
+  const invalidate = async () => {
+    await queryClient.invalidateQueries({ queryKey: adminKeys.all });
+    await refreshSessionUser();
+  };
 
   return {
     createRole: useMutation({

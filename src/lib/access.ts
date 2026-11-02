@@ -21,6 +21,13 @@ export const P = {
     update: "roles.update",
     delete: "roles.delete",
   },
+  employees: {
+    read: "employees.read",
+    readSensitive: "employees.read_sensitive",
+    create: "employees.create",
+    update: "employees.update",
+    updateSensitive: "employees.update_sensitive",
+  },
 } as const;
 /** Kiểm tra quyền truy cập */
 export function can(

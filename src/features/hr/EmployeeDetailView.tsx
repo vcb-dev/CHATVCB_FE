@@ -40,6 +40,9 @@ import type { EmployeeProfile } from "./types";
 
 interface Props {
   profile: EmployeeProfile;
+  canUpdate?: boolean;
+  canReadSensitive?: boolean;
+  canUpdateSensitive?: boolean;
   onBack: () => void;
   onSave: (next: EmployeeProfile) => void;
 }
@@ -53,7 +56,14 @@ const TAB_KEYS = [
   "other",
 ] as const;
 
-export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
+export function EmployeeDetailView({
+  profile,
+  canUpdate = false,
+  canReadSensitive = false,
+  canUpdateSensitive = false,
+  onBack,
+  onSave,
+}: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
   const [form] = Form.useForm<EmployeeProfile>();
@@ -130,7 +140,7 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
                   Lưu thay đổi
                 </Button>
               </>
-            ) : (
+            ) : canUpdate ? (
               <Button
                 type="primary"
                 icon={<EditOutlined />}
@@ -138,7 +148,7 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
               >
                 Chỉnh sửa
               </Button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -166,7 +176,10 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
         />
         <div className="hr-detail-tab-scroll">
           <div className="hr-tab-panel">
-            {tabContent(activeTab, data, editing, form, orgDepartments)}
+            {tabContent(activeTab, data, editing, form, orgDepartments, {
+              canReadSensitive,
+              canUpdateSensitive,
+            })}
           </div>
         </div>
       </Form>
@@ -211,6 +224,7 @@ function tabContent(
   editing: boolean,
   _form: ReturnType<typeof Form.useForm<EmployeeProfile>>[0],
   orgDepartments: OrgDepartment[],
+  access: { canReadSensitive: boolean; canUpdateSensitive: boolean },
 ) {
   switch (key) {
     case "work":
@@ -222,11 +236,25 @@ function tabContent(
     case "education":
       return <EducationTab data={data} editing={editing} />;
     case "identity":
-      return <IdentityTab data={data} editing={editing} />;
+      return (
+        <IdentityTab
+          data={data}
+          editing={editing}
+          canReadSensitive={access.canReadSensitive}
+          canUpdateSensitive={access.canUpdateSensitive}
+        />
+      );
     case "family":
       return <FamilyTab data={data} editing={editing} />;
     default:
-      return <OtherTab data={data} editing={editing} />;
+      return (
+        <OtherTab
+          data={data}
+          editing={editing}
+          canReadSensitive={access.canReadSensitive}
+          canUpdateSensitive={access.canUpdateSensitive}
+        />
+      );
   }
 }
 
@@ -483,10 +511,22 @@ function EducationTab({
 function IdentityTab({
   data,
   editing,
+  canReadSensitive,
+  canUpdateSensitive,
 }: {
   data: EmployeeProfile;
   editing: boolean;
+  canReadSensitive: boolean;
+  canUpdateSensitive: boolean;
 }) {
+  if (!canReadSensitive) {
+    return (
+      <Typography.Text type="secondary">
+        Cần quyền «Xem thông tin nhạy cảm» để xem giấy tờ và BHXH.
+      </Typography.Text>
+    );
+  }
+  const canEdit = editing && canUpdateSensitive;
   return (
     <>
       <HrSensitiveBanner />
@@ -495,7 +535,7 @@ function IdentityTab({
         title="Giấy tờ & bảo hiểm"
         subtitle="CCCD và số sổ BHXH"
       >
-        {editing ? (
+        {canEdit ? (
           <HrFieldGrid>
             <Form.Item name="citizenIdNumber" label="Số CCCD">
               <Input />
@@ -629,10 +669,22 @@ function FamilyTab({
 function OtherTab({
   data,
   editing,
+  canReadSensitive,
+  canUpdateSensitive,
 }: {
   data: EmployeeProfile;
   editing: boolean;
+  canReadSensitive: boolean;
+  canUpdateSensitive: boolean;
 }) {
+  if (!canReadSensitive) {
+    return (
+      <Typography.Text type="secondary">
+        Cần quyền «Xem thông tin nhạy cảm» để xem ngân hàng lương.
+      </Typography.Text>
+    );
+  }
+  const canEdit = editing && canUpdateSensitive;
   return (
     <>
       <HrSensitiveBanner />
@@ -642,7 +694,7 @@ function OtherTab({
         subtitle="Ngân hàng lương và phương tiện di chuyển"
       >
         <HrSubBlock title="Tài khoản ngân hàng">
-          {editing ? (
+          {canEdit ? (
             <HrFieldGrid>
               <Form.Item name={["bankAccount", "bankName"]} label="Ngân hàng">
                 <Input />

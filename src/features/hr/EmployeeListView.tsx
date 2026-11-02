@@ -16,10 +16,11 @@ import type { EmployeeProfile } from "./types";
 
 interface Props {
   employees: EmployeeProfile[];
+  canCreate?: boolean;
   onOpen: (id: string) => void;
 }
 
-export function EmployeeListView({ employees, onOpen }: Props) {
+export function EmployeeListView({ employees, canCreate, onOpen }: Props) {
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState<string | null>(null);
   const [contract, setContract] = useState<string | null>(null);
@@ -154,13 +155,15 @@ export function EmployeeListView({ employees, onOpen }: Props) {
           >
             Export
           </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => message.info("Thêm nhân viên sẽ kết nối API sau.")}
-          >
-            Thêm nhân viên
-          </Button>
+          {canCreate ? (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => message.info("Thêm nhân viên sẽ kết nối API sau.")}
+            >
+              Thêm nhân viên
+            </Button>
+          ) : null}
         </div>
       </header>
 

@@ -26,6 +26,7 @@ import type {
   RoomClosedEvent,
   RoomRefreshEvent,
   RoomRequestsEvent,
+  TaskEvent,
   TypingEvent,
   User,
 } from '@/types';
@@ -136,6 +137,8 @@ export function useChatSocket(options: Options) {
     socket.on('connect', () => {
       socket.emit('presence.get');
       socket.emit('inbox.subscribe');
+      // Sự kiện việc lúc mất kết nối không được phát lại
+      void queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
       if (roomIdRef.current) {
         socket.emit('join', roomIdRef.current);
       }
@@ -143,6 +146,9 @@ export function useChatSocket(options: Options) {
     socket.on('message', (message: ChatMessage) => {
       if (message.userId) {
         dropTyping(message.roomId, message.userId);
+      }
+      if (message.task) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.roomTasks(message.roomId) });
       }
       const open = message.roomId === roomIdRef.current;
       if (open) {
@@ -254,6 +260,10 @@ export function useChatSocket(options: Options) {
       setReads(payload.reads);
     });
     socket.on('message.updated', (message: ChatMessage) => {
+      // Tin bị thu hồi không còn message.task nhưng việc đã rời danh sách của phòng
+      if (message.task || message.recalled) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.roomTasks(message.roomId) });
+      }
       setMessages((current) =>
         current.map((item) => {
           if (item.id === message.id) {
@@ -317,6 +327,11 @@ export function useChatSocket(options: Options) {
     });
     socket.on('room.notes', (payload: RoomRefreshEvent) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.notes(payload.roomId) });
+    });
+    // Tin nhắn đã báo rồi nên ở đây chỉ làm mới danh sách, không thông báo lần nữa
+    socket.on('task', (payload: TaskEvent) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.taskLists });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.roomTasks(payload.task.roomId) });
     });
     socket.on('room.members', () => {
       const targetRoomId = roomIdRef.current;

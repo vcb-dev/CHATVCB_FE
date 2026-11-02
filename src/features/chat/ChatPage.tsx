@@ -9,7 +9,8 @@ import { MeetingsPage } from '@/features/meetings/MeetingsPage';
 import { ProfileDrawer } from '@/features/profile/ProfileDrawer';
 import { UserProfileModal } from '@/features/profile/UserProfileModal';
 import { useMyProfile } from '@/features/profile/hooks/useMyProfile';
-import type { ChatMessage, Room, User } from '@/types';
+import { TasksPage } from '@/features/tasks/TasksPage';
+import type { ChatMessage, Room, TaskPreset, User } from '@/types';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatSidebar } from './components/ChatSidebar';
 import { Composer } from './components/Composer';
@@ -27,6 +28,7 @@ import { PinBar } from './components/PinBar';
 import { SelectionBar } from './components/SelectionBar';
 import { PollCreateModal } from './components/PollCreateModal';
 import { ReminderModal } from './components/ReminderModal';
+import { TaskModal } from './components/TaskModal';
 import { TypingIndicator } from './components/TypingIndicator';
 import { parseJoinHash } from './utils/invite';
 import { canEditItem } from './utils/rooms';
@@ -37,6 +39,7 @@ import { useChatSocket } from './hooks/useChatSocket';
 import { useComposer } from './hooks/useComposer';
 import { useMessageActions } from './hooks/useMessageActions';
 import { useMessageSelection } from './hooks/useMessageSelection';
+import { useOpenTask } from './hooks/useOpenTask';
 import { useRoomList } from './hooks/useRoomList';
 import { useRoomPrefs } from './hooks/useRoomPrefs';
 import { useRoomTools } from './hooks/useRoomTools';
@@ -71,6 +74,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [rightPane, setRightPane] = useState<'info' | 'search'>('info');
   const [forwarding, setForwarding] = useState<ChatMessage[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const [assigning, setAssigning] = useState<TaskPreset | null>(null);
   const [cardPickerOpen, setCardPickerOpen] = useState(false);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
@@ -167,10 +171,27 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setMembers: chat.setMembers,
   });
   useTypingSignal({ roomId, draft: composer.draft, emitTyping });
+  const onAssigned = (created: ChatMessage) => {
+    if (created.roomId === roomId) {
+      chat.appendMessage(created);
+    }
+  };
+
+  const openTask = useOpenTask({
+    roomId,
+    workspace,
+    messagesLoaded: chat.messagesLoaded,
+    setWorkspace,
+    findRoom: roomList.findRoom,
+    openRoom: roomList.openRoom,
+    jumpToMessage: chat.jumpToMessage,
+  });
 
   useEffect(() => {
     setGroupOverlay(false);
     setRightPane('info');
+    // Việc giao theo phòng đang mở: để modal mở qua phòng khác là tạo nhầm phòng
+    tools.setToolModal((current) => (current === 'task' ? null : current));
   }, [roomId]);
 
   const isDirect = Boolean(room && isDirectRoom(room));
@@ -335,6 +356,14 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           />
           <DropOverlay visible={drop.dragging} />
         </main>
+      ) : workspace === 'tasks' ? (
+        <TasksPage
+          userId={user.id}
+          onOpenTask={(task) => void openTask(task)}
+          rooms={rooms}
+          onAssign={(preset) => setAssigning(preset ?? {})}
+          onAssigned={onAssigned}
+        />
       ) : workspace === 'contacts' ? (
         <ContactsPage
           onlineUserIds={onlineUserIds}
@@ -390,6 +419,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onCreateReminder={() => tools.setToolModal('reminder')}
             onOpenNote={tools.setOpenNote}
             onCreateNote={() => tools.setToolModal('note')}
+            onCreateTask={() => tools.setToolModal('task')}
           />
         )
       ) : null}
@@ -461,6 +491,28 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           tools.setToolModal(null);
           tools.setOpenNote(null);
         }}
+      />
+      <TaskModal
+        open={tools.toolModal === 'task'}
+        roomId={roomId}
+        members={chat.members}
+        currentUserId={user.id}
+        isDirect={isDirect}
+        task={null}
+        onClose={() => tools.setToolModal(null)}
+        onCreated={chat.appendMessage}
+      />
+      <TaskModal
+        open={Boolean(assigning)}
+        roomId=""
+        members={[]}
+        currentUserId={user.id}
+        isDirect={false}
+        task={null}
+        rooms={rooms}
+        preset={assigning ?? undefined}
+        onClose={() => setAssigning(null)}
+        onCreated={onAssigned}
       />
     </div>
   );

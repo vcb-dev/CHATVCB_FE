@@ -13,6 +13,7 @@ export type GroupSettings = {
   adminOnlySend: boolean;
   adminOnlyInfo: boolean;
   adminOnlyPin: boolean;
+  adminOnlyTask: boolean;
   joinApproval: boolean;
 };
 
@@ -91,7 +92,98 @@ export type SystemData = {
   noteId?: string;
 };
 
-export type ToolKind = 'poll' | 'reminder' | 'note';
+export type ToolKind = 'poll' | 'reminder' | 'note' | 'task';
+
+export type TaskStatus = 'open' | 'done' | 'cancelled';
+
+export type TaskScope = 'all' | 'assigned' | 'created';
+
+export type MyTasksQuery = {
+  scope: TaskScope;
+  from?: string;
+  to?: string;
+  noDue?: boolean;
+};
+
+/** Kỳ của việc lặp lại chưa tạo, do BE tính; chưa là việc thật nên không thao tác trạng thái được. */
+export type PlannedTask = {
+  seriesId: string;
+  title: string;
+  dueAt: string;
+  roomId: string;
+  /** Rỗng với phòng 1-1. */
+  roomName: string;
+  frequency: TaskFrequency;
+  endsAt: string | null;
+  creator: TaskPerson;
+  assignee: TaskPerson;
+};
+
+export type TaskRoom = {
+  roomId: string;
+  /** Rỗng với phòng 1-1. */
+  roomName: string;
+  creator: TaskPerson;
+  assignee: TaskPerson;
+};
+
+export type TaskFrequency = 'weekly' | 'monthly';
+
+export type TaskSeriesInfo = {
+  id: string;
+  frequency: TaskFrequency;
+  endsAt: string | null;
+  stopped: boolean;
+};
+
+export type TaskPerson = {
+  id: string;
+  name: string;
+  avatarUrl: string;
+};
+
+/** Việc gắn trong tin nhắn; payload phát chung cho cả phòng nên không có quyền theo người xem. */
+export type MessageTask = {
+  id: string;
+  title: string;
+  notes: string;
+  status: TaskStatus;
+  assigneeCanCancel: boolean;
+  dueAt: string | null;
+  creatorId: string;
+  assigneeId: string;
+  creatorName: string;
+  assigneeName: string;
+  series: TaskSeriesInfo | null;
+};
+
+export type Task = {
+  id: string;
+  title: string;
+  notes: string;
+  status: TaskStatus;
+  assigneeCanCancel: boolean;
+  dueAt: string | null;
+  roomId: string;
+  /** Rỗng với phòng 1-1. */
+  roomName: string;
+  messageId: string | null;
+  /** Tin việc đã bị thu hồi: việc chỉ còn để xem, không thao tác được. */
+  recalled: boolean;
+  series: TaskSeriesInfo | null;
+  creator: TaskPerson;
+  assignee: TaskPerson;
+  createdAt: string;
+};
+
+export type TaskEvent = {
+  action: 'created' | 'updated';
+  actorId: string;
+  actorName: string;
+  actorAvatarUrl: string;
+  highlightMessageId: string | null;
+  task: Task;
+};
 
 export type Reminder = {
   id: string;
@@ -173,6 +265,8 @@ export type ChatMessage = {
   reactions: MessageReaction[];
   poll?: ChatPoll | null;
   rich?: RichPayload | null;
+  type?: string;
+  task?: MessageTask | null;
   createdAt: string;
 };
 
@@ -455,4 +549,16 @@ export type MailMessage = {
   date: string | null;
   text: string;
   html: string;
+};
+
+/** Điền sẵn cho form giao việc khi mở từ lịch. */
+export type AssignKind = 'group' | 'direct';
+
+export type TaskPreset = {
+  dueAt?: string;
+  title?: string;
+  kind?: AssignKind;
+  roomId?: string;
+  roomLabel?: string;
+  assigneeId?: string;
 };

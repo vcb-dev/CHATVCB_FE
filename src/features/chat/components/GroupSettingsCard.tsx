@@ -13,6 +13,7 @@ type Props = {
 const SETTING_ITEMS: { key: keyof GroupSettings; label: string }[] = [
   { key: 'adminOnlySend', label: 'Chỉ trưởng/phó nhóm được gửi tin' },
   { key: 'adminOnlyPin', label: 'Chỉ trưởng/phó nhóm được ghim tin' },
+  { key: 'adminOnlyTask', label: 'Chỉ trưởng/phó nhóm được giao việc' },
   { key: 'adminOnlyInfo', label: 'Chỉ trưởng/phó nhóm được đổi tên, ảnh nhóm' },
   { key: 'joinApproval', label: 'Duyệt thành viên mới' },
 ];
@@ -27,6 +28,7 @@ export function GroupSettingsCard({ room, onRoomUpdated }: Props) {
   const currentSettings: GroupSettings = {
     adminOnlySend: room.settings?.adminOnlySend ?? false,
     adminOnlyPin: room.settings?.adminOnlyPin ?? false,
+    adminOnlyTask: room.settings?.adminOnlyTask ?? true,
     adminOnlyInfo: room.settings?.adminOnlyInfo ?? false,
     joinApproval: room.settings?.joinApproval ?? false,
   };

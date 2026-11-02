@@ -78,6 +78,12 @@ export function useRoomList({
     [queryClient],
   );
 
+  // Danh sách nạp theo trang và bỏ phòng đã ẩn, nên phòng cần mở có thể chưa có ở FE
+  function findRoom(id: string): Promise<Room> {
+    const known = rooms.find((item) => item.id === id);
+    return known ? Promise.resolve(known) : api.room(id);
+  }
+
   async function openRoom(nextRoom: Room) {
     if (nextRoom.hidden) {
       try {
@@ -164,6 +170,7 @@ export function useRoomList({
     roomIdRef,
     roomsMeta,
     loadingOlderRooms,
+    findRoom,
     openRoom,
     selectRoom,
     unreadOnOpenRef,

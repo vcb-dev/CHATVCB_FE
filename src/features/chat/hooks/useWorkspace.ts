@@ -3,6 +3,7 @@ import { isChatVisible } from '@/lib/notify';
 
 export type Workspace =
   | 'messenger'
+  | 'tasks'
   | 'contacts'
   | 'email'
   | 'docs'
@@ -12,6 +13,7 @@ export type Workspace =
 
 const WORKSPACE_IDS: Workspace[] = [
   'messenger',
+  'tasks',
   'contacts',
   'email',
   'docs',

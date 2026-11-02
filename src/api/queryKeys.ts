@@ -1,4 +1,4 @@
-import type { RoomMessageSearch } from '@/types';
+import type { MyTasksQuery, RoomMessageSearch } from '@/types';
 
 export const queryKeys = {
   rooms: ['rooms'] as const,
@@ -20,4 +20,11 @@ export const queryKeys = {
   inviteInfo: (token: string) => ['invite-info', token] as const,
   reminders: (roomId: string) => ['reminders', roomId] as const,
   notes: (roomId: string) => ['notes', roomId] as const,
+  tasks: ['tasks'] as const,
+  roomTasks: (roomId: string) => ['tasks', 'room', roomId] as const,
+  taskLists: ['tasks', 'mine'] as const,
+  myTasks: (query: MyTasksQuery) => ['tasks', 'mine', query] as const,
+  myTaskRooms: ['tasks', 'mine', 'rooms'] as const,
+  taskPeople: ['taskPeople'] as const,
+  plannedTasks: (query: MyTasksQuery) => ['tasks', 'mine', 'planned', query] as const,
 };

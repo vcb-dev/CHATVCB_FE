@@ -22,6 +22,7 @@ import { ReadStatus } from './ReadStatus';
 import { RichText } from './RichText';
 import { SeenAvatars } from './SeenAvatars';
 import { SeenBubble } from './SeenBubble';
+import { TaskCard } from './TaskCard';
 import { VoiceBubble } from './VoiceBubble';
 import { firstLink } from '../utils/format';
 import { inviteTokenOf } from '../utils/invite';
@@ -73,7 +74,8 @@ function MessageRowView(props: Props) {
   const hasFile = Boolean(message.fileUrl && !message.recalled);
   const isPoll = Boolean(message.poll && !message.recalled);
   const isRich = Boolean(message.rich && !message.recalled);
-  const hasText = Boolean(message.content && !message.recalled) && !isPoll && !isRich;
+  const isTask = Boolean(message.task && !message.recalled);
+  const hasText = Boolean(message.content && !message.recalled) && !isPoll && !isRich && !isTask;
   const sticker =
     (!hasImage && !album && !hasFile && hasText && isStickerText(message.content)) ||
     message.rich?.type === 'sticker';
@@ -226,7 +228,9 @@ function MessageRowView(props: Props) {
                           onOpenRoom={props.onOpenRoom}
                         />
                       ) : null}
-                      {isPoll ? (
+                      {isTask ? (
+                        <TaskCard message={message} userId={props.userId} />
+                      ) : isPoll ? (
                         <PollCard
                           message={message}
                           userId={props.userId}

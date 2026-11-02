@@ -30,6 +30,7 @@ import { MuteDurationModal } from './MuteDurationModal';
 import { GroupInviteCard } from './GroupInviteCard';
 import { GroupSettingsCard } from './GroupSettingsCard';
 import { GroupRemindersCard } from './GroupRemindersCard';
+import { GroupTasksCard } from './GroupTasksCard';
 import { GroupNotesCard } from './GroupNotesCard';
 import { JoinRequestsCard } from './JoinRequestsCard';
 import { GroupMembersCard } from './GroupMembersCard';
@@ -83,6 +84,7 @@ type Props = {
   onCreateReminder: () => void;
   onOpenNote: (note: RoomNote) => void;
   onCreateNote: () => void;
+  onCreateTask: () => void;
 };
 
 export function GroupDrawer({
@@ -102,6 +104,7 @@ export function GroupDrawer({
   onCreateReminder,
   onOpenNote,
   onCreateNote,
+  onCreateTask,
 }: Props) {
   const [name, setName] = useState(room?.name ?? '');
   const [editingName, setEditingName] = useState(false);
@@ -479,6 +482,18 @@ export function GroupDrawer({
               <GroupInviteCard room={room} />
               <JoinRequestsCard room={room} onMembersUpdated={onMembersUpdated} />
             </>
+          ) : null}
+
+          {room && !room.isCloud ? (
+            <GroupTasksCard
+              room={room}
+              onCreate={onCreateTask}
+              onOpen={(task) => {
+                if (task.messageId) {
+                  onJumpMessage(task.messageId, task.createdAt);
+                }
+              }}
+            />
           ) : null}
 
           {room ? (

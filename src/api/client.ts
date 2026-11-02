@@ -15,6 +15,8 @@ import type {
   MailMessage,
   Meeting,
   MessagesPage,
+  MyTasksQuery,
+  PlannedTask,
   Reminder,
   RichPayload,
   Room,
@@ -27,6 +29,10 @@ import type {
   RoomRead,
   RoomSearch,
   RoomsPage,
+  Task,
+  TaskFrequency,
+  TaskRoom,
+  TaskStatus,
   TeamCount,
   User,
 } from "@/types";
@@ -274,6 +280,9 @@ export const api = {
   },
   user(id: string) {
     return request<DirectoryUser>(`/users/${id}`);
+  },
+  room(roomId: string) {
+    return request<Room>(`/rooms/${roomId}`);
   },
   searchRooms(q: string) {
     return request<RoomSearch>(
@@ -759,6 +768,54 @@ export const api = {
     return request<ChatMessage>(`/rooms/${roomId}/polls/${pollId}/close`, {
       method: 'POST',
     });
+  },
+  createTask(
+    roomId: string,
+    input: {
+      title: string;
+      assigneeId: string;
+      notes?: string;
+      dueAt?: string;
+      repeat?: { frequency: TaskFrequency; endsAt?: string };
+    },
+  ) {
+    return request<ChatMessage>(`/rooms/${roomId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  updateTask(
+    taskId: string,
+    patch: { status?: TaskStatus; title?: string; notes?: string; dueAt?: string | null },
+  ) {
+    return request<ChatMessage>(`/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  },
+  stopTaskSeries(seriesId: string) {
+    return request<{ ok: boolean }>(`/task-series/${seriesId}/stop`, { method: 'POST' });
+  },
+  roomTasks(roomId: string) {
+    return request<Task[]>(`/rooms/${roomId}/tasks`);
+  },
+  myTasks(query: MyTasksQuery) {
+    const params = new URLSearchParams({ scope: query.scope });
+    if (query.from) params.set('from', query.from);
+    if (query.to) params.set('to', query.to);
+    if (query.noDue) params.set('noDue', 'true');
+    return request<Task[]>(`/tasks/mine?${params.toString()}`);
+  },
+  plannedTasks(query: MyTasksQuery) {
+    const params = new URLSearchParams({
+      scope: query.scope,
+      from: query.from ?? '',
+      to: query.to ?? '',
+    });
+    return request<PlannedTask[]>(`/tasks/mine/planned?${params.toString()}`);
+  },
+  myTaskRooms() {
+    return request<TaskRoom[]>('/tasks/mine/rooms');
   },
   reminders(roomId: string) {
     return request<Reminder[]>(`/rooms/${roomId}/reminders`);

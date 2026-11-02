@@ -949,6 +949,19 @@ export const api = {
       },
     );
   },
+  async uploadCitizenId(id: string, side: "front" | "back", file: File) {
+    const body = new FormData();
+    body.append("file", file);
+    const response = await fetch(`${API_URL}/employees/${id}/citizen-id/${side}`, {
+      method: "POST",
+      headers: authHeader(),
+      body,
+    });
+    if (!response.ok) {
+      throw new Error(await errorMessage(response));
+    }
+    return response.json() as Promise<{ url: string }>;
+  },
   updateEmployee(id: string, body: Partial<EmployeeProfile>) {
     return request<EmployeeProfile>(`/employees/${id}`, {
       method: "PATCH",

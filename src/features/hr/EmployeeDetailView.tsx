@@ -1,3 +1,4 @@
+import { useAdminUsersQuery } from "@/features/admin/hooks/useAdminQueries";
 import { useDepartmentsQuery } from "@/features/departments/hooks/useDepartmentsQuery";
 import type { OrgDepartment } from "@/features/departments/types";
 import {
@@ -5,9 +6,14 @@ import {
   groupSelectOptionsForDepartment,
 } from "@/features/departments/utils/departmentSelect";
 import { avatarColor, initials } from "@/lib/avatar";
+import { CONSTANTS_ROLE } from "@/lib/common";
 import {
   ArrowLeftOutlined,
   BankOutlined,
+  CameraOutlined,
+  CloudUploadOutlined,
+  LoadingOutlined,
+  PictureOutlined,
   EditOutlined,
   IdcardOutlined,
   ReadOutlined,
@@ -18,6 +24,7 @@ import {
 import {
   Avatar,
   Button,
+  Image,
   Form,
   Input,
   Select,
@@ -26,9 +33,11 @@ import {
   Typography,
   message,
 } from "antd";
-import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState, type ChangeEvent } from "react";
+import { employeeKeys } from "./queries/employeeKeys";
+import { uploadCitizenId } from "./services/employeesApi";
 import {
-  HrDocPlaceholder,
   HrField,
   HrFieldGrid,
   HrPersonRow,
@@ -65,7 +74,6 @@ const TAB_FIELDS: Record<TabKey, (keyof EmployeeProfile)[]> = {
   work: [
     "startDate",
     "employeeCode",
-    "employeeSeq",
     "contractType",
     "jobTitle",
     "specialtyPosition",
@@ -347,6 +355,39 @@ function WorkTab({
 }) {
   const form = Form.useFormInstance<EmployeeProfile>();
   const departmentWatch = Form.useWatch("department", form);
+  const { data: adminUsers = [] } = useAdminUsersQuery();
+  const leaderOptions = adminUsers
+    .filter((u) =>
+      u.roles.some((r) =>
+        r.name.toLowerCase().includes(CONSTANTS_ROLE.LEADER.toLowerCase()),
+      ),
+    )
+    .map((u) => ({ value: u.name, label: u.name }));
+  if (
+    data.managementBlockCode &&
+    !leaderOptions.some((o) => o.value === data.managementBlockCode)
+  ) {
+    leaderOptions.push({
+      value: data.managementBlockCode,
+      label: data.managementBlockCode,
+    });
+  }
+  const managerRoles: string[] = [
+    CONSTANTS_ROLE.MANAGER,
+    CONSTANTS_ROLE.BOD,
+  ];
+  const managerOptions = adminUsers
+    .filter((u) => u.roles.some((r) => managerRoles.includes(r.name)))
+    .map((u) => ({ value: u.name, label: u.name }));
+  if (
+    data.directManagerName &&
+    !managerOptions.some((o) => o.value === data.directManagerName)
+  ) {
+    managerOptions.push({
+      value: data.directManagerName,
+      label: data.directManagerName,
+    });
+  }
   const departmentGroupOptions = groupSelectOptionsForDepartment(
     orgDepartments,
     departmentWatch ?? data.department,
@@ -367,7 +408,6 @@ function WorkTab({
           <HrFieldGrid>
             <HrField label="Ngày bắt đầu làm việc" value={data.startDate} />
             <HrField label="Mã nhân viên" value={data.employeeCode} highlight />
-            <HrField label="Mã định danh NV" value={data.employeeSeq} />
             <HrField label="Loại hợp đồng" value={data.contractType} />
             <HrField label="Vị trí (HĐ)" value={data.jobTitle} />
             <HrField label="Vị trí chuyên môn" value={data.specialtyPosition} />
@@ -376,10 +416,7 @@ function WorkTab({
               label="Nhóm (theo phòng ban)"
               value={data.departmentGroup}
             />
-            <HrField
-              label="Mã khối theo quản lý"
-              value={data.managementBlockCode}
-            />
+            <HrField label="Trưởng nhóm" value={data.managementBlockCode} />
             <HrField
               label="Tình trạng làm việc"
               value={data.employmentStatus}
@@ -402,9 +439,6 @@ function WorkTab({
           >
             <Input />
           </Form.Item>
-          <Form.Item name="employeeSeq" label="Mã định danh NV">
-            <Input disabled title="Chỉ HR — readonly demo" />
-          </Form.Item>
           <Form.Item name="contractType" label="Loại hợp đồng">
             <Select
               options={[
@@ -418,7 +452,13 @@ function WorkTab({
             />
           </Form.Item>
           <Form.Item name="jobTitle" label="Vị trí (HĐ)">
-            <Input />
+            <Select
+              allowClear
+              options={[
+                { value: "Fulltime", label: "Fulltime" },
+                { value: "Parttime", label: "Parttime" },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="specialtyPosition" label="Vị trí chuyên môn">
             <Input />
@@ -446,11 +486,23 @@ function WorkTab({
               }
             />
           </Form.Item>
-          <Form.Item name="managementBlockCode" label="Mã khối theo quản lý">
-            <Input />
+          <Form.Item name="managementBlockCode" label="Trưởng nhóm">
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              options={leaderOptions}
+              placeholder="Chọn trưởng nhóm"
+            />
           </Form.Item>
           <Form.Item name="directManagerName" label="Quản lý trực tiếp">
-            <Input />
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              options={managerOptions}
+              placeholder="Chọn quản lý trực tiếp"
+            />
           </Form.Item>
           <Form.Item name="employmentStatus" label="Tình trạng làm việc">
             <Select
@@ -505,7 +557,13 @@ function PersonalTab({
             <Input type="email" />
           </Form.Item>
           <Form.Item name="maritalStatus" label="Tình trạng hôn nhân">
-            <Input />
+            <Select
+              allowClear
+              options={[
+                { value: "Đã kết hôn", label: "Đã kết hôn" },
+                { value: "Chưa kết hôn", label: "Chưa kết hôn" },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="ethnicity" label="Dân tộc">
             <Input />
@@ -636,11 +694,105 @@ function IdentityTab({
           </HrFieldGrid>
         )}
         <div className="hr-doc-row">
-          <HrDocPlaceholder label="Mặt trước CCCD" />
-          <HrDocPlaceholder label="Mặt sau CCCD" />
+          <CitizenIdSlot
+            label="Mặt trước CCCD"
+            userId={data.id}
+            side="front"
+            url={data.citizenIdFrontUrl}
+            canUpload={canUpdateSensitive && !editing}
+          />
+          <CitizenIdSlot
+            label="Mặt sau CCCD"
+            userId={data.id}
+            side="back"
+            url={data.citizenIdBackUrl}
+            canUpload={canUpdateSensitive && !editing}
+          />
         </div>
       </HrSectionCard>
     </>
+  );
+}
+
+function CitizenIdSlot({
+  label,
+  userId,
+  side,
+  url,
+  canUpload,
+}: {
+  label: string;
+  userId: string;
+  side: "front" | "back";
+  url?: string;
+  canUpload: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [uploading, setUploading] = useState(false);
+
+  async function onPick(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      message.warning("Chỉ chấp nhận file ảnh.");
+      return;
+    }
+    setUploading(true);
+    try {
+      await uploadCitizenId(userId, side, file);
+      await queryClient.invalidateQueries({ queryKey: employeeKeys.all });
+      message.success("Đã tải ảnh lên.");
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Tải ảnh thất bại.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const input = (
+    <input
+      type="file"
+      accept="image/*"
+      hidden
+      disabled={uploading}
+      onChange={onPick}
+    />
+  );
+
+  return (
+    <div className="hr-doc-slot">
+      <span className="hr-field-label">{label}</span>
+      {url ? (
+        <div className="hr-doc-card">
+          <Image src={url} alt={label} className="hr-doc-img" />
+          {canUpload ? (
+            <label className="hr-doc-replace">
+              {input}
+              <CameraOutlined /> {uploading ? "Đang tải..." : "Đổi ảnh"}
+            </label>
+          ) : null}
+        </div>
+      ) : canUpload ? (
+        <label className="hr-doc-frame hr-doc-drop">
+          {input}
+          {uploading ? (
+            <LoadingOutlined />
+          ) : (
+            <>
+              <CloudUploadOutlined className="hr-doc-drop-icon" />
+              <strong>Tải ảnh lên</strong>
+              <span>JPG, PNG · tối đa 8MB</span>
+            </>
+          )}
+        </label>
+      ) : (
+        <div className="hr-doc-frame">
+          <PictureOutlined className="hr-doc-drop-icon" />
+          <span>Chưa tải ảnh</span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -651,21 +803,11 @@ function FamilyTab({
   data: EmployeeProfile;
   editing: boolean;
 }) {
-  const childText =
-    data.children.length === 0
-      ? "Chưa khai báo"
-      : data.children
-          .map(
-            (c, i) =>
-              `Con ${i + 1}: ${c.fullName}${c.dateOfBirth ? ` (${c.dateOfBirth})` : ""}`,
-          )
-          .join("\n");
-
   return (
     <HrSectionCard
       icon={<TeamOutlined />}
       title="Gia đình & liên hệ"
-      subtitle="Con cái, khẩn cấp và người giám hộ"
+      subtitle="Liên hệ khẩn cấp và người giám hộ"
     >
       <HrSubBlock title="Liên hệ khẩn cấp">
         {editing ? (
@@ -698,15 +840,6 @@ function FamilyTab({
               value={data.emergencyContact.phone}
             />
           </HrFieldGrid>
-        )}
-      </HrSubBlock>
-      <HrSubBlock title="Thông tin con cái">
-        {editing ? (
-          <Form.Item label="Ghi chú con cái">
-            <Input.TextArea rows={2} placeholder={childText} disabled />
-          </Form.Item>
-        ) : (
-          <HrField label="Danh sách" value={childText} wide />
         )}
       </HrSubBlock>
       <HrSubBlock title="Người giám hộ">

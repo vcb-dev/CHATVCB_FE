@@ -8,3 +8,8 @@ export const createEmployee = (
 ) => api.createEmployee(body);
 export const updateEmployee = (id: string, body: Partial<EmployeeProfile>) =>
   api.updateEmployee(id, body);
+export const uploadCitizenId = (
+  id: string,
+  side: "front" | "back",
+  file: File,
+) => api.uploadCitizenId(id, side, file);

@@ -6,7 +6,13 @@ import type {
   ConversationLabel,
   DirectoryUser,
   DocItem,
+  GalleryAccess,
+  GalleryAlbum,
   GalleryImage,
+  GalleryPhoto,
+  GalleryPhotoInput,
+  GalleryPhotoPage,
+  GalleryPhotoPatch,
   GroupSettings,
   InviteInfo,
   JoinRequest,
@@ -640,6 +646,102 @@ export const api = {
     return request<MailMessage>(
       `/mail/accounts/${id}/messages/${encodeURIComponent(uid)}`,
     );
+  },
+  galleryAccess() {
+    return request<GalleryAccess>("/gallery/access");
+  },
+  galleryAlbums() {
+    return request<GalleryAlbum[]>("/gallery/albums");
+  },
+  createGalleryAlbum(input: { name: string; description?: string }) {
+    return request<GalleryAlbum>("/gallery/albums", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  updateGalleryAlbum(id: string, input: { name?: string; description?: string }) {
+    return request<GalleryAlbum>(`/gallery/albums/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+  deleteGalleryAlbum(id: string) {
+    return request<void>(`/gallery/albums/${id}`, { method: "DELETE" });
+  },
+  galleryPhotos(query: { albumId?: string; cursor?: string }) {
+    const params = new URLSearchParams();
+    if (query.albumId) {
+      params.set("albumId", query.albumId);
+    }
+    if (query.cursor) {
+      params.set("cursor", query.cursor);
+    }
+    return request<GalleryPhotoPage>(`/gallery/photos?${params.toString()}`);
+  },
+  myGalleryPhotos(query: { status?: string; cursor?: string }) {
+    const params = new URLSearchParams();
+    if (query.status) {
+      params.set("status", query.status);
+    }
+    if (query.cursor) {
+      params.set("cursor", query.cursor);
+    }
+    return request<GalleryPhotoPage>(`/gallery/photos/mine?${params.toString()}`);
+  },
+  async submitGalleryPhoto(blob: Blob, filename: string, input: GalleryPhotoInput) {
+    const body = new FormData();
+    if (input.albumId) {
+      body.append("albumId", input.albumId);
+    }
+    if (input.caption) {
+      body.append("caption", input.caption);
+    }
+    if (input.visibility) {
+      body.append("visibility", input.visibility);
+    }
+    body.append("file", blob, filename);
+    const response = await authedFetch(`${API_URL}/gallery/photos`, {
+      method: "POST",
+      body,
+    });
+    if (!response.ok) {
+      throw new Error(await errorMessage(response));
+    }
+    return response.json() as Promise<GalleryPhoto>;
+  },
+  submitGalleryPhotoFromChat(imageId: string, input: GalleryPhotoInput) {
+    return request<GalleryPhoto>("/gallery/photos/from-chat", {
+      method: "POST",
+      body: JSON.stringify({ imageId, ...input }),
+    });
+  },
+  updateGalleryPhoto(id: string, patch: GalleryPhotoPatch) {
+    return request<GalleryPhoto>(`/gallery/photos/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+  },
+  deleteGalleryPhoto(id: string) {
+    return request<void>(`/gallery/photos/${id}`, { method: "DELETE" });
+  },
+  galleryReviewPhotos(cursor?: string) {
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    return request<GalleryPhotoPage>(`/gallery/review/photos${query}`);
+  },
+  galleryReviewCount() {
+    return request<{ pending: number }>("/gallery/review/count");
+  },
+  approveGalleryPhoto(id: string, input: GalleryPhotoPatch) {
+    return request<GalleryPhoto>(`/gallery/photos/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  rejectGalleryPhoto(id: string, reason: string) {
+    return request<GalleryPhoto>(`/gallery/photos/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
   },
   googleSheetsStatus() {
     return request<{ ready: boolean; connected: boolean; email: string }>(

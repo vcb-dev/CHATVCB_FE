@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { message as antMessage } from 'antd';
+import { useQuery } from '@tanstack/react-query';
 import { AdminPage } from '@/features/admin/AdminPage';
 import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
 import { ContactsPage } from '@/features/contacts/ContactsPage';
 import { DocsPage } from '@/features/docs/DocsPage';
 import { EmailPage } from '@/features/email/EmailPage';
 import { DepartmentsPage } from '@/features/departments/DepartmentsPage';
+import { GalleryPage } from '@/features/gallery/GalleryPage';
+import { SubmitPhotosModal } from '@/features/gallery/components/SubmitPhotosModal';
+import { useGalleryAccess } from '@/features/gallery/hooks/useGalleryAccess';
+import { chatImagesOf } from '@/features/gallery/utils/chatImages';
 import { HrPage } from '@/features/hr/HrPage';
 import { canAccessWorkspace } from '@/lib/workspaces';
 import { MeetingsPage } from '@/features/meetings/MeetingsPage';
@@ -77,6 +83,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [groupOverlay, setGroupOverlay] = useState(false);
   const [rightPane, setRightPane] = useState<'info' | 'search'>('info');
   const [forwarding, setForwarding] = useState<ChatMessage[]>([]);
+  const [sharingImages, setSharingImages] = useState<{ id: string; url: string }[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
   const [assigning, setAssigning] = useState<TaskPreset | null>(null);
   const [cardPickerOpen, setCardPickerOpen] = useState(false);
@@ -105,6 +112,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       setWorkspace('messenger');
     }
   }, [accessLoaded, workspace, user, setWorkspace]);
+  const { canReview: canReviewGallery } = useGalleryAccess();
+  const { data: galleryReview } = useQuery({
+    queryKey: queryKeys.galleryReviewCount,
+    queryFn: () => api.galleryReviewCount(),
+    enabled: canReviewGallery,
+  });
   const roomList = useRoomList({ isViewingChat, setError });
   const { rooms, room, roomId } = roomList;
   const { setBlocked } = useBlockUser({ setRooms: roomList.setRooms });
@@ -161,6 +174,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setPins: chat.setPins,
     onReply: composer.setReplyTo,
     onForward: (message) => setForwarding([message]),
+    onShareToLibrary: (message) => setSharingImages(chatImagesOf(message)),
     onEdit: composer.startEdit,
     onSelect: selection.start,
     onSavedToCloud: chat.handleForwarded,
@@ -258,6 +272,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       <NavRail
         workspace={workspace}
         user={user}
+        badges={canReviewGallery ? { gallery: galleryReview?.pending ?? 0 } : undefined}
         onSelect={(next) => {
           setWorkspace(next);
           setGroupOverlay(false);
@@ -421,9 +436,17 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         <DepartmentsPage user={user} />
       ) : workspace === 'admin' ? (
         <AdminPage user={user} />
+      ) : workspace === 'gallery' ? (
+        <GalleryPage />
       ) : (
         <MeetingsPage user={user} />
       )}
+
+      <SubmitPhotosModal
+        open={sharingImages.length > 0}
+        chatImages={sharingImages}
+        onClose={() => setSharingImages([])}
+      />
 
       <ForwardModal
         messages={forwarding}

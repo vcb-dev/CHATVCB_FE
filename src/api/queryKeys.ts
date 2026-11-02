@@ -27,4 +27,11 @@ export const queryKeys = {
   myTaskRooms: ['tasks', 'mine', 'rooms'] as const,
   taskPeople: ['taskPeople'] as const,
   plannedTasks: (query: MyTasksQuery) => ['tasks', 'mine', 'planned', query] as const,
+  galleryLibrary: ['gallery-library'] as const,
+  galleryAccess: ['gallery-library', 'access'] as const,
+  galleryAlbums: ['gallery-library', 'albums'] as const,
+  galleryPhotos: (albumId: string) => ['gallery-library', 'photos', albumId] as const,
+  galleryMine: (status: string) => ['gallery-library', 'mine', status] as const,
+  galleryReview: ['gallery-library', 'review'] as const,
+  galleryReviewCount: ['gallery-library', 'review-count'] as const,
 };

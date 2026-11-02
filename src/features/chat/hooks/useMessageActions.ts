@@ -14,6 +14,7 @@ export function useMessageActions({
   onEdit,
   onSelect,
   onSavedToCloud,
+  onShareToLibrary,
 }: {
   roomId: string;
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
@@ -23,6 +24,7 @@ export function useMessageActions({
   onEdit: (message: ChatMessage) => void;
   onSelect: (message: ChatMessage) => void;
   onSavedToCloud?: (sent: ChatMessage) => void;
+  onShareToLibrary: (message: ChatMessage) => void;
 }) {
   async function handleMessageAction(key: string, message: ChatMessage) {
     if (!roomId) {
@@ -34,6 +36,10 @@ export function useMessageActions({
     }
     if (key === 'forward') {
       onForward(message);
+      return;
+    }
+    if (key === 'shareLibrary') {
+      onShareToLibrary(message);
       return;
     }
     if (key === 'edit') {

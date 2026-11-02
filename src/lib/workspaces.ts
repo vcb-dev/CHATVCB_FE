@@ -19,6 +19,7 @@ export const WORKSPACE_REGISTRY: {
   { id: 'email', label: 'Email', access: { kind: 'open' } },
   { id: 'docs', label: 'Docs', access: { kind: 'open' } },
   { id: 'meetings', label: 'Cuộc họp', access: { kind: 'open' } },
+  { id: 'gallery', label: 'Thư viện ảnh', access: { kind: 'open' } },
   { id: 'hr', label: 'Nhân sự', access: { kind: 'permission', permission: P.employees.read } },
   {
     id: 'departments',

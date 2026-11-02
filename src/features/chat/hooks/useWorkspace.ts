@@ -8,6 +8,7 @@ export type Workspace =
   | 'email'
   | 'docs'
   | 'meetings'
+  | 'gallery'
   | 'hr'
   | 'departments'
   | 'admin';
@@ -19,6 +20,7 @@ const WORKSPACE_IDS: Workspace[] = [
   'email',
   'docs',
   'meetings',
+  'gallery',
   'hr',
   'departments',
   'admin',

@@ -8,6 +8,7 @@ import type { ChatMessage, Room, RoomRead } from '@/types';
 import { isVoice } from '../utils/attachments';
 import { canEdit } from '../utils/edit';
 import type { Delivery } from '../utils/seen';
+import { chatImagesOf } from '@/features/gallery/utils/chatImages';
 import { canForward } from '../utils/forward';
 import { isStickerText } from '../utils/stickers';
 import { DeliveryStatus } from './DeliveryStatus';
@@ -126,6 +127,9 @@ function MessageRowView(props: Props) {
                 ...(canForward(message) ? [{ key: 'forward', label: 'Chuyển tiếp' }] : []),
                 ...(props.canSaveToCloud && canForward(message)
                   ? [{ key: 'saveCloud', label: 'Lưu vào Cloud' }]
+                  : []),
+                ...(chatImagesOf(message).length
+                  ? [{ key: 'shareLibrary', label: 'Đưa lên thư viện' }]
                   : []),
                 ...(hasText ? [{ key: 'copy', label: 'Sao chép tin nhắn' }] : []),
                 ...(canEdit(message, props.userId) ? [{ key: 'edit', label: 'Sửa tin nhắn' }] : []),

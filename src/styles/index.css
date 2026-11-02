@@ -58,6 +58,7 @@ body {
 .app-shell.module-docs,
 .app-shell.module-hr,
 .app-shell.module-tasks,
+.app-shell.module-gallery,
 .app-shell.module-departments,
 .app-shell.module-admin,
 .app-shell.module-contacts {
@@ -2902,6 +2903,7 @@ body {
   .app-shell.module-docs,
   .app-shell.module-hr,
   .app-shell.module-tasks,
+  .app-shell.module-gallery,
   .app-shell.module-departments,
   .app-shell.module-admin,
   .app-shell.module-contacts {
@@ -2944,6 +2946,7 @@ body {
   .app-shell.module-docs,
   .app-shell.module-hr,
   .app-shell.module-tasks,
+  .app-shell.module-gallery,
   .app-shell.module-departments,
   .app-shell.module-admin,
   .app-shell.module-contacts {

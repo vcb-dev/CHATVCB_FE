@@ -591,3 +591,57 @@ export type TaskPreset = {
   roomLabel?: string;
   assigneeId?: string;
 };
+
+export type GalleryPhotoStatus = 'pending' | 'approved' | 'rejected';
+export type GalleryVisibility = 'public' | 'private';
+
+export type GalleryPhoto = {
+  id: string;
+  url: string;
+  thumbUrl: string;
+  filename: string;
+  bytes: number;
+  caption: string;
+  status: GalleryPhotoStatus;
+  visibility: GalleryVisibility;
+  albumId: string | null;
+  uploader: { id: string; name: string; avatarUrl: string } | null;
+  rejectReason: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  canEdit: boolean;
+  canEditDetails: boolean;
+  canDelete: boolean;
+};
+
+export type GalleryPhotoPage = { items: GalleryPhoto[]; nextCursor: string | null };
+
+export type GalleryAlbum = {
+  id: string;
+  name: string;
+  description: string;
+  coverUrl: string | null;
+  photoCount: number;
+};
+
+export type GalleryAccess = { canReview: boolean; canReadPrivate: boolean };
+
+export type GalleryPhotoInput = {
+  albumId?: string;
+  caption?: string;
+  visibility?: GalleryVisibility;
+};
+
+export type GalleryPhotoPatch = {
+  albumId?: string | null;
+  caption?: string;
+  visibility?: GalleryVisibility;
+};
+
+export type GalleryPendingEvent = { pending: number; added: boolean };
+
+export type GalleryReviewedEvent = {
+  photoId: string;
+  status: 'approved' | 'rejected';
+  rejectReason: string | null;
+};

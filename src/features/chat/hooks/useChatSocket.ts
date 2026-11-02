@@ -15,6 +15,8 @@ import { queryKeys } from '@/api/queryKeys';
 import { closeSocket, connectSocket } from '@/api/socket';
 import { notifyIncoming } from '@/lib/notify';
 import type {
+  GalleryPendingEvent,
+  GalleryReviewedEvent,
   AgentPendingEvent,
   ChatMessage,
   PresenceUser,
@@ -135,6 +137,7 @@ export function useChatSocket(options: Options) {
       socket.emit('inbox.subscribe');
       // Sự kiện việc lúc mất kết nối không được phát lại
       void queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.galleryLibrary });
       if (roomIdRef.current) {
         socket.emit('join', roomIdRef.current);
       }
@@ -209,6 +212,27 @@ export function useChatSocket(options: Options) {
         return upsertRoom(current, updated);
       });
     });
+    socket.on('gallery.pending', ({ pending, added }: GalleryPendingEvent) => {
+      queryClient.setQueryData(queryKeys.galleryReviewCount, { pending });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.galleryReview });
+      if (added) {
+        // Cùng key nên gửi nhiều ảnh một lúc chỉ hiện một thông báo
+        void antMessage.info({ key: 'gallery-pending', content: 'Có ảnh mới chờ duyệt' });
+      }
+    });
+
+    socket.on('gallery.reviewed', ({ status, rejectReason }: GalleryReviewedEvent) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.galleryLibrary });
+      void antMessage.open({
+        key: 'gallery-reviewed',
+        type: status === 'approved' ? 'success' : 'warning',
+        content:
+          status === 'approved'
+            ? 'Ảnh của bạn đã được duyệt.'
+            : `Ảnh của bạn bị từ chối: ${rejectReason ?? ''}`,
+      });
+    });
+
     socket.on('room.typing', (payload: TypingEvent) => {
       if (payload.userId === latestRef.current.user.id) {
         return;

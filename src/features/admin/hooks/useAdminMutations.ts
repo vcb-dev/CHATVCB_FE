@@ -10,12 +10,15 @@ function onError(err: Error) {
 
 export function useAdminMutations() {
   const queryClient = useQueryClient();
-  const invalidate = async () => {
-    await queryClient.invalidateQueries({ queryKey: adminKeys.all });
-    await refreshSessionUser();
-  };
+  const invalidateAdmin = () =>
+    queryClient.invalidateQueries({ queryKey: adminKeys.all });
+
+  /** Gọi 1 lần sau lưu quyền/role — tránh gọi `me()` lặp trong từng mutation. */
+  const refreshSessionAccess = () =>
+    refreshSessionUser().catch(() => null);
 
   return {
+    refreshSessionAccess,
     createRole: useMutation({
       mutationFn: (input: {
         name: string;
@@ -25,7 +28,7 @@ export function useAdminMutations() {
       }) => api.createRole(input),
       onSuccess: async () => {
         message.success("Đã tạo role.");
-        await invalidate();
+        await invalidateAdmin();
       },
       onError,
     }),
@@ -40,7 +43,7 @@ export function useAdminMutations() {
       }) => api.updateRole(id, input),
       onSuccess: async () => {
         message.success("Đã cập nhật role.");
-        await invalidate();
+        await invalidateAdmin();
       },
       onError,
     }),
@@ -54,7 +57,7 @@ export function useAdminMutations() {
       }) => api.setRolePermissions(id, permissions),
       onSuccess: async () => {
         message.success("Đã lưu quyền role.");
-        await invalidate();
+        await invalidateAdmin();
       },
       onError,
     }),
@@ -62,7 +65,7 @@ export function useAdminMutations() {
       mutationFn: (id: string) => api.deleteRole(id),
       onSuccess: async () => {
         message.success("Đã xóa role.");
-        await invalidate();
+        await invalidateAdmin();
       },
       onError,
     }),
@@ -75,7 +78,7 @@ export function useAdminMutations() {
         roleIds?: string[];
       }) => api.createAdminUser(input),
       onSuccess: async () => {
-        await invalidate();
+        await invalidateAdmin();
       },
       onError,
     }),
@@ -91,7 +94,7 @@ export function useAdminMutations() {
       }) => api.updateAdminUser(id, input),
       onSuccess: async () => {
         message.success("Đã cập nhật tài khoản.");
-        await invalidate();
+        await invalidateAdmin();
       },
       onError,
     }),
@@ -99,7 +102,7 @@ export function useAdminMutations() {
       mutationFn: (id: string) => api.deactivateAdminUser(id),
       onSuccess: async () => {
         message.success("Đã khóa tài khoản.");
-        await invalidate();
+        await invalidateAdmin();
       },
       onError,
     }),
@@ -111,7 +114,7 @@ export function useAdminMutations() {
       mutationFn: ({ id, roleIds }: { id: string; roleIds: string[] }) =>
         api.setAdminUserRoles(id, roleIds),
       onSuccess: async () => {
-        await invalidate();
+        await invalidateAdmin();
       },
       onError,
     }),
@@ -124,7 +127,7 @@ export function useAdminMutations() {
         items: { permission: string; effect: "allow" | "deny" }[];
       }) => api.setAdminUserPermissions(id, items),
       onSuccess: async () => {
-        await invalidate();
+        await invalidateAdmin();
       },
       onError,
     }),

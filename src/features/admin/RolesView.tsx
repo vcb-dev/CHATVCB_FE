@@ -1,8 +1,8 @@
 import { P, can } from "@/lib/access";
 import type { User } from "@/types";
 import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
-import { Button, Table, Tag } from "antd";
-import { useState } from "react";
+import { Button, Input, Select, Table, Tag } from "antd";
+import { useMemo, useState } from "react";
 import { RoleFormModal } from "./components/RoleFormModal";
 import { confirmDeleteRole } from "./roleDeleteConfirm";
 import { useAdminMutations } from "./hooks/useAdminMutations";
@@ -20,6 +20,24 @@ export function RolesView({ user }: RolesViewProps) {
   const [modal, setModal] = useState<
     { mode: "create" } | { mode: "edit"; role: AdminRole } | null
   >(null);
+  const [query, setQuery] = useState("");
+  const [kindFilter, setKindFilter] = useState<"all" | "system" | "custom">(
+    "all",
+  );
+
+  const filteredRoles = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return roles.filter((row) => {
+      if (kindFilter === "system" && !row.isSystem) return false;
+      if (kindFilter === "custom" && row.isSystem) return false;
+      if (!q) return true;
+      return (
+        row.name.toLowerCase().includes(q) ||
+        row.key.toLowerCase().includes(q) ||
+        row.description.toLowerCase().includes(q)
+      );
+    });
+  }, [roles, query, kindFilter]);
 
   const canDeleteRole = can(user, P.roles.delete);
 
@@ -30,14 +48,25 @@ export function RolesView({ user }: RolesViewProps) {
 
   return (
     <main className="dept-page">
-      <div className="dept-hero">
-        <section className="dept-hero-main">
-          <h1>Role</h1>
-          <p>Tạo role, tick quyền mặc định, gán sau vào tài khoản.</p>
-        </section>
-      </div>
-      {can(user, P.roles.create) ? (
-        <div className="dept-toolbar">
+      <div className="dept-toolbar">
+        <Input.Search
+          allowClear
+          placeholder="Tìm tên, mã role, mô tả…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="dept-search"
+        />
+        <Select
+          style={{ minWidth: 160 }}
+          value={kindFilter}
+          onChange={setKindFilter}
+          options={[
+            { value: "all", label: "Tất cả role" },
+            { value: "system", label: "Hệ thống" },
+            { value: "custom", label: "Tùy chỉnh" },
+          ]}
+        />
+        {can(user, P.roles.create) ? (
           <div className="dept-toolbar-actions">
             <Button
               type="primary"
@@ -47,12 +76,12 @@ export function RolesView({ user }: RolesViewProps) {
               Role
             </Button>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
       <Table
         rowKey="id"
         loading={isPending}
-        dataSource={roles}
+        dataSource={filteredRoles}
         pagination={false}
         columns={[
           {
@@ -142,6 +171,7 @@ export function RolesView({ user }: RolesViewProps) {
               });
             }
           }
+          await mutations.refreshSessionAccess();
           setModal(null);
         }}
       />

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { message as antMessage } from 'antd';
+import { AdminPage } from '@/features/admin/AdminPage';
 import { api } from '@/api/client';
 import { ContactsPage } from '@/features/contacts/ContactsPage';
 import { DocsPage } from '@/features/docs/DocsPage';
 import { EmailPage } from '@/features/email/EmailPage';
 import { DepartmentsPage } from '@/features/departments/DepartmentsPage';
 import { HrPage } from '@/features/hr/HrPage';
+import { canAccessWorkspace } from '@/lib/workspaces';
 import { MeetingsPage } from '@/features/meetings/MeetingsPage';
 import { openMeetTab } from '@/features/meetings/meet';
 import { ProfileDrawer } from '@/features/profile/ProfileDrawer';
@@ -93,6 +95,16 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
 
   const { changeAvatar } = useMyProfile(user, onUserUpdate);
   const { workspace, setWorkspace, isViewingChat } = useWorkspace();
+  const accessLoaded = Array.isArray(user.permissions);
+
+  useEffect(() => {
+    if (!accessLoaded) {
+      return;
+    }
+    if (!canAccessWorkspace(user, workspace)) {
+      setWorkspace('messenger');
+    }
+  }, [accessLoaded, workspace, user, setWorkspace]);
   const roomList = useRoomList({ isViewingChat, setError });
   const { rooms, room, roomId } = roomList;
   const { setBlocked } = useBlockUser({ setRooms: roomList.setRooms });
@@ -404,9 +416,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       ) : workspace === 'docs' ? (
         <DocsPage user={user} />
       ) : workspace === 'hr' ? (
-        <HrPage />
+        <HrPage user={user} />
       ) : workspace === 'departments' ? (
-        <DepartmentsPage />
+        <DepartmentsPage user={user} />
+      ) : workspace === 'admin' ? (
+        <AdminPage user={user} />
       ) : (
         <MeetingsPage user={user} />
       )}

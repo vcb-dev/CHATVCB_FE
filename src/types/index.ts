@@ -1,3 +1,10 @@
+export type PublicRole = {
+  id: string;
+  key: string;
+  name: string;
+  isSystem: boolean;
+};
+
 export type User = {
   id: string;
   name: string;
@@ -5,9 +12,11 @@ export type User = {
   team?: string;
   avatarUrl?: string;
   createdAt?: string;
+  roles?: PublicRole[];
+  permissions?: string[];
 };
 
-export type GroupRole = 'owner' | 'admin' | 'member';
+export type GroupRole = "owner" | "admin" | "member";
 
 export type GroupSettings = {
   adminOnlySend: boolean;
@@ -21,8 +30,8 @@ export type Room = {
   id: string;
   title: string;
   name: string;
-  type: 'direct' | 'group';
-  kind: 'direct' | 'group';
+  type: "direct" | "group";
+  kind: "direct" | "group";
   avatarUrl?: string;
   lastMessagePreview: string;
   updatedAt: string;
@@ -92,11 +101,11 @@ export type SystemData = {
   noteId?: string;
 };
 
-export type ToolKind = 'poll' | 'reminder' | 'note' | 'task';
+export type ToolKind = "poll" | "reminder" | "note" | "task";
 
-export type TaskStatus = 'open' | 'done' | 'cancelled';
+export type TaskStatus = "open" | "done" | "cancelled";
 
-export type TaskScope = 'all' | 'assigned' | 'created';
+export type TaskScope = "all" | "assigned" | "created";
 
 export type MyTasksQuery = {
   scope: TaskScope;
@@ -127,7 +136,7 @@ export type TaskRoom = {
   assignee: TaskPerson;
 };
 
-export type TaskFrequency = 'weekly' | 'monthly';
+export type TaskFrequency = "weekly" | "monthly";
 
 export type TaskSeriesInfo = {
   id: string;
@@ -177,7 +186,7 @@ export type Task = {
 };
 
 export type TaskEvent = {
-  action: 'created' | 'updated';
+  action: "created" | "updated";
   actorId: string;
   actorName: string;
   actorAvatarUrl: string;
@@ -190,7 +199,7 @@ export type Reminder = {
   roomId: string;
   title: string;
   remindAt: string;
-  repeat: 'none' | 'daily' | 'weekly';
+  repeat: "none" | "daily" | "weekly";
   creatorId: string;
   creatorName: string;
 };
@@ -244,7 +253,7 @@ export type ChatMessage = {
   userId: string | null;
   authorName: string;
   authorAvatarUrl?: string;
-  role: 'user' | 'agent' | 'system';
+  role: "user" | "agent" | "system";
   content: string;
   systemKind?: string | null;
   systemData?: SystemData | null;
@@ -272,10 +281,10 @@ export type ChatMessage = {
 
 /** Tin có cấu trúc (BE: Message.rich). `content` của tin luôn có câu dự phòng cho app cũ. */
 export type RichPayload =
-  | { type: 'sticker'; id: string }
-  | { type: 'location'; lat: number; lng: number; label?: string }
-  | { type: 'card'; userId: string }
-  | { type: 'meeting'; code: string; title: string };
+  | { type: "sticker"; id: string }
+  | { type: "location"; lat: number; lng: number; label?: string }
+  | { type: "card"; userId: string }
+  | { type: "meeting"; code: string; title: string };
 
 export type PageMeta = {
   hasMore: boolean;
@@ -323,12 +332,12 @@ export type InviteInfo = {
   avatarUrl: string;
   memberCount: number;
   joinApproval: boolean;
-  status: 'member' | 'requested' | 'none';
+  status: "member" | "requested" | "none";
 };
 
 export type JoinResult =
-  | { status: 'joined'; room: Room }
-  | { status: 'requested' };
+  | { status: "joined"; room: Room }
+  | { status: "requested" };
 
 export type RoomRead = {
   userId: string;
@@ -348,15 +357,15 @@ export type RoomMessageSearch = {
 };
 
 export type RichInline =
-  | { type: 'text'; text: string }
-  | { type: 'bold' | 'italic' | 'strike'; children: RichInline[] }
-  | { type: 'code'; text: string }
-  | { type: 'link'; url: string };
+  | { type: "text"; text: string }
+  | { type: "bold" | "italic" | "strike"; children: RichInline[] }
+  | { type: "code"; text: string }
+  | { type: "link"; url: string };
 
 export type RichBlock =
-  | { type: 'paragraph'; lines: RichInline[][] }
-  | { type: 'code'; text: string }
-  | { type: 'list'; ordered: boolean; items: RichInline[][] };
+  | { type: "paragraph"; lines: RichInline[][] }
+  | { type: "code"; text: string }
+  | { type: "list"; ordered: boolean; items: RichInline[][] };
 
 export type LinkPreview = {
   url: string;
@@ -390,7 +399,7 @@ export type RoomRemovedEvent = {
 
 export type RoomClosedEvent = {
   roomId: string;
-  reason: 'left' | 'dissolved';
+  reason: "left" | "dissolved";
 };
 
 export type RoomRequestsEvent = {
@@ -459,17 +468,17 @@ export type TeamCount = {
 
 export type RoomHit = Pick<
   Room,
-  | 'id'
-  | 'title'
-  | 'name'
-  | 'type'
-  | 'kind'
-  | 'avatarUrl'
-  | 'lastMessagePreview'
-  | 'canDelete'
-  | 'unreadCount'
-  | 'peerUserId'
-  | 'hidden'
+  | "id"
+  | "title"
+  | "name"
+  | "type"
+  | "kind"
+  | "avatarUrl"
+  | "lastMessagePreview"
+  | "canDelete"
+  | "unreadCount"
+  | "peerUserId"
+  | "hidden"
 >;
 
 export type MessageHit = {
@@ -480,7 +489,7 @@ export type MessageHit = {
   createdAt: string;
   roomTitle: string;
   roomAvatarUrl: string;
-  roomKind: 'direct' | 'group';
+  roomKind: "direct" | "group";
   peerUserId: string | null;
   canDelete: boolean;
 };
@@ -535,7 +544,15 @@ export type MailItem = {
   seen: boolean;
 };
 
-export type DocKind = 'doc' | 'sheet' | 'slides' | 'form' | 'mind' | 'folder' | 'board' | 'flow';
+export type DocKind =
+  | "doc"
+  | "sheet"
+  | "slides"
+  | "form"
+  | "mind"
+  | "folder"
+  | "board"
+  | "flow";
 
 export type DocItem = {
   id: string;

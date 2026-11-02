@@ -40,8 +40,14 @@ import type { EmployeeProfile } from "./types";
 
 interface Props {
   profile: EmployeeProfile;
+  canUpdate?: boolean;
+  canReadSensitive?: boolean;
+  canUpdateSensitive?: boolean;
+  saveLoading?: boolean;
   onBack: () => void;
-  onSave: (next: EmployeeProfile) => void;
+  onSave: (
+    patch: Partial<EmployeeProfile> & { id: string },
+  ) => void | Promise<void>;
 }
 
 const TAB_KEYS = [
@@ -53,11 +59,81 @@ const TAB_KEYS = [
   "other",
 ] as const;
 
-export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
+type TabKey = (typeof TAB_KEYS)[number];
+
+const TAB_FIELDS: Record<TabKey, (keyof EmployeeProfile)[]> = {
+  work: [
+    "startDate",
+    "employeeCode",
+    "employeeSeq",
+    "contractType",
+    "jobTitle",
+    "specialtyPosition",
+    "department",
+    "departmentGroup",
+    "managementBlockCode",
+    "directManagerName",
+    "employmentStatus",
+  ],
+  personal: [
+    "fullName",
+    "gender",
+    "dateOfBirth",
+    "phone",
+    "email",
+    "maritalStatus",
+    "ethnicity",
+    "religion",
+    "address",
+    "permanentAddress",
+  ],
+  education: ["educationLevel", "schoolName"],
+  identity: [
+    "citizenIdNumber",
+    "citizenIdIssuedPlace",
+    "socialInsuranceNumber",
+  ],
+  family: ["emergencyContact", "guardianFather", "guardianMother"],
+  other: ["bankAccount", "vehicles"],
+};
+
+const SENSITIVE_TABS: TabKey[] = ["identity", "other"];
+
+const ALL_TAB_FIELD_NAMES = [
+  ...new Set(TAB_KEYS.flatMap((key) => TAB_FIELDS[key])),
+] as (keyof EmployeeProfile)[];
+
+const SAVE_VALIDATE_NAMES: (keyof EmployeeProfile)[] = [
+  "employeeCode",
+  "fullName",
+];
+
+function stripSensitivePatch(
+  patch: Partial<EmployeeProfile>,
+): Partial<EmployeeProfile> {
+  const next = { ...patch };
+  for (const tab of SENSITIVE_TABS) {
+    for (const key of TAB_FIELDS[tab]) {
+      delete next[key];
+    }
+  }
+  delete next.bankAccount;
+  return next;
+}
+
+export function EmployeeDetailView({
+  profile,
+  canUpdate = false,
+  canReadSensitive = false,
+  canUpdateSensitive = false,
+  saveLoading = false,
+  onBack,
+  onSave,
+}: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
   const [form] = Form.useForm<EmployeeProfile>();
-  const [activeTab, setActiveTab] = useState<(typeof TAB_KEYS)[number]>("work");
+  const [activeTab, setActiveTab] = useState<TabKey>("work");
 
   useEffect(() => {
     setDraft(profile);
@@ -72,14 +148,21 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
   }
 
   function saveEdit() {
-    form
-      .validateFields()
-      .then((values) => {
-        const next = { ...draft, ...values };
-        setDraft(next);
-        onSave(next);
+    void form
+      .validateFields(SAVE_VALIDATE_NAMES)
+      .then(async () => {
+        const values = form.getFieldsValue(true);
+        let patch = Object.fromEntries(
+          ALL_TAB_FIELD_NAMES.map((key) => [key, values[key]]),
+        ) as Partial<EmployeeProfile>;
+        if (!canUpdateSensitive) {
+          patch = stripSensitivePatch(patch);
+        }
+        await onSave({ id: profile.id, ...patch });
+        const merged = { ...profile, ...patch } as EmployeeProfile;
+        setDraft(merged);
+        form.setFieldsValue(merged);
         setEditing(false);
-        message.success("Đã lưu (demo — chưa gửi lên server).");
       })
       .catch(() => message.warning("Kiểm tra lại các trường bắt buộc."));
   }
@@ -126,11 +209,11 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
             {editing ? (
               <>
                 <Button onClick={cancelEdit}>Hủy</Button>
-                <Button type="primary" onClick={saveEdit}>
+                <Button type="primary" loading={saveLoading} onClick={saveEdit}>
                   Lưu thay đổi
                 </Button>
               </>
-            ) : (
+            ) : canUpdate ? (
               <Button
                 type="primary"
                 icon={<EditOutlined />}
@@ -138,7 +221,7 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
               >
                 Chỉnh sửa
               </Button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -157,7 +240,7 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
       >
         <Tabs
           activeKey={activeTab}
-          onChange={(key) => setActiveTab(key as (typeof TAB_KEYS)[number])}
+          onChange={(key) => setActiveTab(key as TabKey)}
           className="hr-detail-tabs"
           items={TAB_KEYS.map((key) => ({
             key,
@@ -165,30 +248,34 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
           }))}
         />
         <div className="hr-detail-tab-scroll">
-          <div className="hr-tab-panel">
-            {tabContent(activeTab, data, editing, form, orgDepartments)}
-          </div>
+          {editing ? (
+            TAB_KEYS.map((key) => (
+              <div
+                key={key}
+                className="hr-tab-panel"
+                hidden={activeTab !== key}
+              >
+                {tabContent(key, data, editing, form, orgDepartments, {
+                  canReadSensitive,
+                  canUpdateSensitive,
+                })}
+              </div>
+            ))
+          ) : (
+            <div className="hr-tab-panel">
+              {tabContent(activeTab, data, editing, form, orgDepartments, {
+                canReadSensitive,
+                canUpdateSensitive,
+              })}
+            </div>
+          )}
         </div>
       </Form>
-
-      {editing ? (
-        <footer className="hr-edit-footer">
-          <Typography.Text type="secondary">
-            Tab: {tabLabel(activeTab)}
-          </Typography.Text>
-          <div>
-            <Button onClick={cancelEdit}>Hủy</Button>
-            <Button type="primary" onClick={saveEdit}>
-              Lưu thay đổi
-            </Button>
-          </div>
-        </footer>
-      ) : null}
     </main>
   );
 }
 
-function tabLabel(key: (typeof TAB_KEYS)[number]) {
+function tabLabel(key: TabKey) {
   switch (key) {
     case "work":
       return "Công việc";
@@ -206,27 +293,46 @@ function tabLabel(key: (typeof TAB_KEYS)[number]) {
 }
 
 function tabContent(
-  key: (typeof TAB_KEYS)[number],
+  key: TabKey,
   data: EmployeeProfile,
   editing: boolean,
   _form: ReturnType<typeof Form.useForm<EmployeeProfile>>[0],
   orgDepartments: OrgDepartment[],
+  access: { canReadSensitive: boolean; canUpdateSensitive: boolean },
 ) {
   switch (key) {
     case "work":
       return (
-        <WorkTab data={data} editing={editing} orgDepartments={orgDepartments} />
+        <WorkTab
+          data={data}
+          editing={editing}
+          orgDepartments={orgDepartments}
+        />
       );
     case "personal":
       return <PersonalTab data={data} editing={editing} />;
     case "education":
       return <EducationTab data={data} editing={editing} />;
     case "identity":
-      return <IdentityTab data={data} editing={editing} />;
+      return (
+        <IdentityTab
+          data={data}
+          editing={editing}
+          canReadSensitive={access.canReadSensitive}
+          canUpdateSensitive={access.canUpdateSensitive}
+        />
+      );
     case "family":
       return <FamilyTab data={data} editing={editing} />;
     default:
-      return <OtherTab data={data} editing={editing} />;
+      return (
+        <OtherTab
+          data={data}
+          editing={editing}
+          canReadSensitive={access.canReadSensitive}
+          canUpdateSensitive={access.canUpdateSensitive}
+        />
+      );
   }
 }
 
@@ -483,10 +589,22 @@ function EducationTab({
 function IdentityTab({
   data,
   editing,
+  canReadSensitive,
+  canUpdateSensitive,
 }: {
   data: EmployeeProfile;
   editing: boolean;
+  canReadSensitive: boolean;
+  canUpdateSensitive: boolean;
 }) {
+  if (!canReadSensitive) {
+    return (
+      <Typography.Text type="secondary">
+        Cần quyền «Xem thông tin nhạy cảm» để xem giấy tờ và BHXH.
+      </Typography.Text>
+    );
+  }
+  const canEdit = editing && canUpdateSensitive;
   return (
     <>
       <HrSensitiveBanner />
@@ -495,7 +613,7 @@ function IdentityTab({
         title="Giấy tờ & bảo hiểm"
         subtitle="CCCD và số sổ BHXH"
       >
-        {editing ? (
+        {canEdit ? (
           <HrFieldGrid>
             <Form.Item name="citizenIdNumber" label="Số CCCD">
               <Input />
@@ -584,7 +702,7 @@ function FamilyTab({
       </HrSubBlock>
       <HrSubBlock title="Thông tin con cái">
         {editing ? (
-          <Form.Item name="vehicles" label="Ghi chú con cái (demo text)">
+          <Form.Item label="Ghi chú con cái">
             <Input.TextArea rows={2} placeholder={childText} disabled />
           </Form.Item>
         ) : (
@@ -629,10 +747,22 @@ function FamilyTab({
 function OtherTab({
   data,
   editing,
+  canReadSensitive,
+  canUpdateSensitive,
 }: {
   data: EmployeeProfile;
   editing: boolean;
+  canReadSensitive: boolean;
+  canUpdateSensitive: boolean;
 }) {
+  if (!canReadSensitive) {
+    return (
+      <Typography.Text type="secondary">
+        Cần quyền «Xem thông tin nhạy cảm» để xem ngân hàng lương.
+      </Typography.Text>
+    );
+  }
+  const canEdit = editing && canUpdateSensitive;
   return (
     <>
       <HrSensitiveBanner />
@@ -642,7 +772,7 @@ function OtherTab({
         subtitle="Ngân hàng lương và phương tiện di chuyển"
       >
         <HrSubBlock title="Tài khoản ngân hàng">
-          {editing ? (
+          {canEdit ? (
             <HrFieldGrid>
               <Form.Item name={["bankAccount", "bankName"]} label="Ngân hàng">
                 <Input />

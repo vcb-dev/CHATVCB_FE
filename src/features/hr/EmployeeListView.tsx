@@ -4,11 +4,11 @@ import {
   Avatar,
   Button,
   Input,
+  message,
   Select,
   Table,
   Tag,
   Typography,
-  message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useMemo, useState } from "react";
@@ -16,10 +16,19 @@ import type { EmployeeProfile } from "./types";
 
 interface Props {
   employees: EmployeeProfile[];
+  canCreate?: boolean;
   onOpen: (id: string) => void;
+  onCreate?: () => void;
+  canExport?: boolean;
 }
 
-export function EmployeeListView({ employees, onOpen }: Props) {
+export function EmployeeListView({
+  employees,
+  canCreate,
+  onOpen,
+  onCreate,
+  canExport,
+}: Props) {
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState<string | null>(null);
   const [contract, setContract] = useState<string | null>(null);
@@ -145,22 +154,21 @@ export function EmployeeListView({ employees, onOpen }: Props) {
         <div>
           <Typography.Text className="hr-eyebrow">HRM</Typography.Text>
           <h1>Nhân sự</h1>
-          <p>Quản lý hồ sơ nhân viên — dữ liệu demo để xem giao diện.</p>
+          <p>Quản lý hồ sơ nhân viên.</p>
         </div>
         <div className="hr-page-actions">
           <Button
+            disabled={!canExport}
             icon={<ExportOutlined />}
             onClick={() => message.info("Export sẽ kết nối API sau.")}
           >
             Export
           </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => message.info("Thêm nhân viên sẽ kết nối API sau.")}
-          >
-            Thêm nhân viên
-          </Button>
+          {canCreate ? (
+            <Button type="primary" icon={<PlusOutlined />} onClick={onCreate}>
+              Thêm nhân viên
+            </Button>
+          ) : null}
         </div>
       </header>
 

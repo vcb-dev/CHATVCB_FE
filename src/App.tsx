@@ -60,6 +60,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const onUserRefreshed = (event: Event) => {
+      const detail = (event as CustomEvent<User>).detail;
+      if (detail) {
+        setUser(detail);
+      }
+    };
+    window.addEventListener('chatvcb:user-refreshed', onUserRefreshed);
+    return () => window.removeEventListener('chatvcb:user-refreshed', onUserRefreshed);
+  }, []);
+
+  useEffect(() => {
     if (!user && !meet && !sheet) {
       void import('@/features/chat/ChatPage');
     }

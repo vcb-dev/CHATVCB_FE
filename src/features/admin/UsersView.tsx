@@ -1,13 +1,18 @@
 import { P, can } from '@/lib/access';
 import type { User } from '@/types';
 import { PlusOutlined } from '@ant-design/icons';
-import { Button, Form, Input, Modal, Select, Table, Tag, message } from 'antd';
+import { Button, Modal, Table, Tag, message } from 'antd';
 import { useState } from 'react';
-import { UserAccessDrawer } from './components/UserAccessDrawer';
+import { UserEditModal } from './components/UserEditModal';
 import { UserFormModal } from './components/UserFormModal';
 import { useAdminMutations } from './hooks/useAdminMutations';
 import { useAdminUsersQuery, useCatalogQuery, useRolesQuery } from './hooks/useAdminQueries';
 import type { AdminUser } from './types';
+import {
+  allPermissionKeys,
+  overridesFromEffective,
+  permissionsFromRoles,
+} from './userPermissionPersonalization';
 
 interface UsersViewProps {
   user: User;
@@ -20,10 +25,12 @@ export function UsersView({ user }: UsersViewProps) {
   const mutations = useAdminMutations();
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
-  const [roleTarget, setRoleTarget] = useState<AdminUser | null>(null);
-  const [accessTarget, setAccessTarget] = useState<AdminUser | null>(null);
-  const [roleIds, setRoleIds] = useState<string[]>([]);
-  const [editForm] = Form.useForm<{ name: string; team: string }>();
+
+  const canAssignRole = can(user, P.users.assignRole);
+  const editLoading =
+    mutations.updateUser.isPending ||
+    mutations.setUserRoles.isPending ||
+    mutations.setUserPermissions.isPending;
 
   function showTempPassword(password: string) {
     Modal.info({
@@ -37,7 +44,7 @@ export function UsersView({ user }: UsersViewProps) {
       <div className="dept-hero">
         <section className="dept-hero-main">
           <h1>Tài khoản</h1>
-          <p>Tạo, khóa, gán role và chỉnh quyền riêng từng người.</p>
+          <p>Tạo tài khoản, gán role và cá nhân hoá quyền trong màn Sửa.</p>
         </section>
       </div>
       {can(user, P.users.create) ? (
@@ -80,36 +87,12 @@ export function UsersView({ user }: UsersViewProps) {
           },
           {
             title: '',
-            width: 280,
+            width: 220,
             render: (_, row) => (
               <div className="admin-row-actions">
                 {can(user, P.users.update) ? (
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={() => {
-                      setEditing(row);
-                      editForm.setFieldsValue({ name: row.name, team: row.team });
-                    }}
-                  >
+                  <Button type="link" size="small" onClick={() => setEditing(row)}>
                     Sửa
-                  </Button>
-                ) : null}
-                {can(user, P.users.assignRole) ? (
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={() => {
-                      setRoleTarget(row);
-                      setRoleIds(row.roles.map((role) => role.id));
-                    }}
-                  >
-                    Role
-                  </Button>
-                ) : null}
-                {can(user, P.users.assignRole) ? (
-                  <Button type="link" size="small" onClick={() => setAccessTarget(row)}>
-                    Quyền
                   </Button>
                 ) : null}
                 {can(user, P.users.resetPassword) ? (
@@ -177,63 +160,43 @@ export function UsersView({ user }: UsersViewProps) {
         }}
       />
 
-      <Modal
-        title={editing ? `Sửa ${editing.name}` : 'Sửa'}
+      <UserEditModal
         open={Boolean(editing)}
-        confirmLoading={mutations.updateUser.isPending}
-        onCancel={() => setEditing(null)}
-        onOk={() => {
-          if (!editing) return;
-          void editForm.validateFields().then(async (values) => {
-            await mutations.updateUser.mutateAsync({ id: editing.id, ...values });
-            setEditing(null);
-          });
-        }}
-        destroyOnHidden
-      >
-        <Form form={editForm} layout="vertical">
-          <Form.Item name="name" label="Họ tên" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="team" label="Team">
-            <Input />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
-        title={roleTarget ? `Role: ${roleTarget.name}` : 'Role'}
-        open={Boolean(roleTarget)}
-        confirmLoading={mutations.setUserRoles.isPending}
-        onCancel={() => setRoleTarget(null)}
-        onOk={() => {
-          if (!roleTarget) return;
-          void mutations.setUserRoles
-            .mutateAsync({ id: roleTarget.id, roleIds })
-            .then(() => setRoleTarget(null));
-        }}
-        destroyOnHidden
-      >
-        <Select
-          mode="multiple"
-          style={{ width: '100%' }}
-          value={roleIds}
-          options={roles.map((role) => ({ value: role.id, label: role.name }))}
-          onChange={setRoleIds}
-        />
-      </Modal>
-
-      <UserAccessDrawer
-        user={accessTarget}
+        user={editing}
+        roles={roles}
         groups={groups}
-        confirmLoading={mutations.setUserPermissions.isPending}
-        onClose={() => setAccessTarget(null)}
-        onSave={async (items) => {
-          if (!accessTarget) return;
-          await mutations.setUserPermissions.mutateAsync({
-            id: accessTarget.id,
-            items,
+        canAssignRole={canAssignRole}
+        confirmLoading={editLoading}
+        onClose={() => setEditing(null)}
+        onSubmit={async (values) => {
+          if (!editing) return;
+          await mutations.updateUser.mutateAsync({
+            id: editing.id,
+            name: values.name,
+            team: values.team,
           });
+          if (canAssignRole) {
+            await mutations.setUserRoles.mutateAsync({
+              id: editing.id,
+              roleIds: values.roleIds,
+            });
+            const rolePerms = permissionsFromRoles(
+              values.roleIds,
+              roles,
+              groups,
+            );
+            const items = overridesFromEffective(
+              rolePerms,
+              values.effectivePermissions,
+              allPermissionKeys(groups),
+            );
+            await mutations.setUserPermissions.mutateAsync({
+              id: editing.id,
+              items,
+            });
+          }
+          message.success('Đã lưu tài khoản.');
+          setEditing(null);
         }}
       />
     </main>

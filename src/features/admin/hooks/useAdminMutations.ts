@@ -111,7 +111,6 @@ export function useAdminMutations() {
       mutationFn: ({ id, roleIds }: { id: string; roleIds: string[] }) =>
         api.setAdminUserRoles(id, roleIds),
       onSuccess: async () => {
-        message.success("Đã gán role.");
         await invalidate();
       },
       onError,
@@ -125,7 +124,6 @@ export function useAdminMutations() {
         items: { permission: string; effect: "allow" | "deny" }[];
       }) => api.setAdminUserPermissions(id, items),
       onSuccess: async () => {
-        message.success("Đã lưu quyền riêng.");
         await invalidate();
       },
       onError,

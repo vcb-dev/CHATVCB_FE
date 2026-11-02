@@ -1,4 +1,5 @@
 import { AdminRole, AdminUser, UserAccess } from "@/features/admin/types";
+import type { EmployeeProfile } from "@/features/hr/types";
 import type {
   ChatFile,
   ChatMessage,
@@ -928,6 +929,30 @@ export const api = {
     return request<UserAccess>(`/admin/users/${id}/permissions`, {
       method: "PUT",
       body: JSON.stringify({ items }),
+    });
+  },
+
+  employees() {
+    return request<EmployeeProfile[]>("/employees");
+  },
+  employee(id: string) {
+    return request<EmployeeProfile>(`/employees/${id}`);
+  },
+  createEmployee(
+    body: Partial<EmployeeProfile> & { password?: string; roleIds?: string[] },
+  ) {
+    return request<EmployeeProfile & { temporaryPassword?: string }>(
+      "/employees",
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    );
+  },
+  updateEmployee(id: string, body: Partial<EmployeeProfile>) {
+    return request<EmployeeProfile>(`/employees/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
     });
   },
 };

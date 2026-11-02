@@ -43,8 +43,9 @@ interface Props {
   canUpdate?: boolean;
   canReadSensitive?: boolean;
   canUpdateSensitive?: boolean;
+  saveLoading?: boolean;
   onBack: () => void;
-  onSave: (next: EmployeeProfile) => void;
+  onSave: (next: EmployeeProfile) => void | Promise<void>;
 }
 
 const TAB_KEYS = [
@@ -61,6 +62,7 @@ export function EmployeeDetailView({
   canUpdate = false,
   canReadSensitive = false,
   canUpdateSensitive = false,
+  saveLoading = false,
   onBack,
   onSave,
 }: Props) {
@@ -82,14 +84,13 @@ export function EmployeeDetailView({
   }
 
   function saveEdit() {
-    form
+    void form
       .validateFields()
-      .then((values) => {
+      .then(async (values) => {
         const next = { ...draft, ...values };
+        await onSave(next);
         setDraft(next);
-        onSave(next);
         setEditing(false);
-        message.success("Đã lưu (demo — chưa gửi lên server).");
       })
       .catch(() => message.warning("Kiểm tra lại các trường bắt buộc."));
   }
@@ -136,7 +137,7 @@ export function EmployeeDetailView({
             {editing ? (
               <>
                 <Button onClick={cancelEdit}>Hủy</Button>
-                <Button type="primary" onClick={saveEdit}>
+                <Button type="primary" loading={saveLoading} onClick={saveEdit}>
                   Lưu thay đổi
                 </Button>
               </>
@@ -191,7 +192,7 @@ export function EmployeeDetailView({
           </Typography.Text>
           <div>
             <Button onClick={cancelEdit}>Hủy</Button>
-            <Button type="primary" onClick={saveEdit}>
+            <Button type="primary" loading={saveLoading} onClick={saveEdit}>
               Lưu thay đổi
             </Button>
           </div>

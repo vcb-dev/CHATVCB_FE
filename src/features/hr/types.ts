@@ -32,11 +32,14 @@ export interface EmployeeProfile {
   contractType: string;
   jobTitle: string;
   directManagerName: string;
+  managerId?: string | null;
   employmentStatus: string;
   cardColor: string;
   managementBlockCode: string;
   department: string;
+  departmentId?: string | null;
   departmentGroup: string;
+  departmentGroupId?: string | null;
   specialtyPosition: string;
   gender: string;
   dateOfBirth: string;

@@ -5,7 +5,7 @@ import { api } from '@/api/client';
 import type { User } from '@/types';
 
 type Props = {
-  onLoggedIn: (payload: { token: string; user: User }) => void;
+  onLoggedIn: (payload: { user: User }) => void;
 };
 
 type FormValues = {

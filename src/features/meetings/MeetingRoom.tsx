@@ -12,7 +12,7 @@ import { Avatar, Button, Input, Popover, Tooltip, message } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { api, fileSrc } from '@/api/client';
 import { openCamera } from './meet';
-import { connectSocket } from '@/api/socket';
+import { closeSocket, connectSocket } from '@/api/socket';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { Meeting, User } from '@/types';
 
@@ -94,13 +94,12 @@ export function MeetingRoom({
   }, [chat, chatOpen]);
 
   useEffect(() => {
-    const token = localStorage.getItem('chatvcb.token');
-    if (!token || startedRef.current) {
+    if (startedRef.current) {
       return;
     }
     startedRef.current = true;
     let closed = false;
-    const socket = connectSocket(token);
+    const socket = connectSocket();
     socketRef.current = socket;
 
     function bindLocal(stream: MediaStream) {
@@ -250,7 +249,7 @@ export function MeetingRoom({
       startedRef.current = false;
       socket.removeAllListeners();
       socket.emit('meeting.leave');
-      socket.disconnect();
+      closeSocket(socket);
       socketRef.current = null;
       for (const pc of pcsRef.current.values()) {
         pc.close();

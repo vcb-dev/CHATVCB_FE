@@ -12,7 +12,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { Socket } from 'socket.io-client';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
-import { connectSocket } from '@/api/socket';
+import { closeSocket, connectSocket } from '@/api/socket';
 import { notifyIncoming } from '@/lib/notify';
 import type {
   AgentPendingEvent,
@@ -68,10 +68,6 @@ export function useChatSocket(options: Options) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const token = localStorage.getItem('chatvcb.token');
-    if (!token) {
-      return;
-    }
     const {
       roomIdRef,
       isViewingChat,
@@ -84,7 +80,7 @@ export function useChatSocket(options: Options) {
       setPins,
       setMembers,
     } = latestRef.current;
-    const socket = connectSocket(token);
+    const socket = connectSocket();
     socketRef.current = socket;
     const typingTimers = typingTimersRef.current;
 
@@ -361,7 +357,7 @@ export function useChatSocket(options: Options) {
         });
     });
     return () => {
-      socket.disconnect();
+      closeSocket(socket);
       socketRef.current = null;
       for (const timer of typingTimers.values()) {
         window.clearTimeout(timer);

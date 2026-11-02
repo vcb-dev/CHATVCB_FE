@@ -36,28 +36,18 @@ import type {
   TeamCount,
   User,
 } from "@/types";
+import { API_URL, authHeaders, authedFetch, setCsrf } from "./session";
 
-const API_URL = (import.meta.env.VITE_APP_URL ?? "/api").replace(/\/$/, "");
-
-function authHeader(): HeadersInit {
-  const token = localStorage.getItem("chatvcb.token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+type AuthSession = { user: User; csrfToken?: string };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await authedFetch(`${API_URL}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...authHeader(),
       ...init?.headers,
     },
   });
-  if (response.status === 401) {
-    localStorage.removeItem("chatvcb.token");
-    localStorage.removeItem("chatvcb.user");
-    window.dispatchEvent(new CustomEvent("chatvcb:unauthorized"));
-  }
   if (!response.ok) {
     throw new Error(await errorMessage(response));
   }
@@ -65,6 +55,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     return undefined as T;
   }
   return response.json() as Promise<T>;
+}
+
+async function keepCsrf<T extends { csrfToken?: string }>(pending: Promise<T>) {
+  const body = await pending;
+  if (body.csrfToken) {
+    setCsrf(body.csrfToken);
+  }
+  return body;
 }
 
 async function errorMessage(response: Response) {
@@ -91,9 +89,8 @@ async function uploadChatFile(
 ): Promise<ChatFile> {
   const body = new FormData();
   body.append('file', blob, filename);
-  const response = await fetch(`${API_URL}/rooms/${roomId}/${path}`, {
+  const response = await authedFetch(`${API_URL}/rooms/${roomId}/${path}`, {
     method: 'POST',
-    headers: authHeader(),
     body,
   });
   if (!response.ok) {
@@ -118,19 +115,34 @@ export function fileSrc(url: string) {
 
 export const api = {
   login(email: string, password: string) {
-    return request<{ token: string; user: User }>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
+    return keepCsrf(
+      request<AuthSession>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      }),
+    );
   },
   register(name: string, email: string, password: string) {
-    return request<{ token: string; user: User }>("/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ name, email, password }),
-    });
+    return keepCsrf(
+      request<AuthSession>("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ name, email, password }),
+      }),
+    );
+  },
+  session() {
+    return keepCsrf(request<AuthSession>("/auth/session"));
+  },
+  async logout() {
+    await request<void>("/auth/logout", { method: "POST" });
+    setCsrf(null);
   },
   me() {
     return request<User>("/auth/me");
+  },
+  async socketToken() {
+    const { token } = await request<{ token: string }>("/auth/socket-token");
+    return token;
   },
   updateProfile(payload: {
     name?: string;
@@ -138,23 +150,24 @@ export const api = {
     password?: string;
     currentPassword?: string;
   }) {
-    return request<{ token: string; user: User }>("/auth/me", {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    });
+    return keepCsrf(
+      request<AuthSession>("/auth/me", {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+    );
   },
   async uploadMyAvatar(file: File) {
     const body = new FormData();
     body.append("file", file);
-    const response = await fetch(`${API_URL}/auth/me/avatar`, {
+    const response = await authedFetch(`${API_URL}/auth/me/avatar`, {
       method: "POST",
-      headers: authHeader(),
       body,
     });
     if (!response.ok) {
       throw new Error(await errorMessage(response));
     }
-    return response.json() as Promise<{ token: string; user: User }>;
+    return response.json() as Promise<{ user: User }>;
   },
   async rooms(cursor?: string, limit = 50): Promise<RoomsPage> {
     const params = new URLSearchParams();
@@ -394,9 +407,8 @@ export const api = {
   async uploadRoomAvatar(roomId: string, file: File) {
     const body = new FormData();
     body.append("file", file);
-    const response = await fetch(`${API_URL}/rooms/${roomId}/avatar`, {
+    const response = await authedFetch(`${API_URL}/rooms/${roomId}/avatar`, {
       method: "POST",
-      headers: authHeader(),
       body,
     });
     if (!response.ok) {
@@ -506,9 +518,8 @@ export const api = {
   async uploadImage(roomId: string, file: File) {
     const body = new FormData();
     body.append("file", file);
-    const response = await fetch(`${API_URL}/rooms/${roomId}/images`, {
+    const response = await authedFetch(`${API_URL}/rooms/${roomId}/images`, {
       method: "POST",
-      headers: authHeader(),
       body,
     });
     if (!response.ok) {
@@ -544,13 +555,10 @@ export const api = {
     return request<Meeting>(`/meetings/${id}/end`, { method: "POST" });
   },
   closeMeetingOnExit(id: string, asHost: boolean) {
-    const token = localStorage.getItem("chatvcb.token");
-    if (!token) {
-      return;
-    }
     void fetch(`${API_URL}/meetings/${id}/${asHost ? "end" : "leave"}`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
+      headers: authHeaders(),
       keepalive: true,
     });
   },

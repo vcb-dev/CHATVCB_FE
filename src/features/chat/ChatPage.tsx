@@ -64,7 +64,7 @@ import { isDirectRoom } from './utils/rooms';
 type Props = {
   user: User;
   onLogout: () => void;
-  onUserUpdate: (payload: { token: string; user: User }) => void;
+  onUserUpdate: (payload: { user: User }) => void;
 };
 
 export function ChatPage({ user, onLogout, onUserUpdate }: Props) {

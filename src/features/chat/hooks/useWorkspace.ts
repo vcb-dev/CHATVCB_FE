@@ -8,7 +8,8 @@ export type Workspace =
   | 'docs'
   | 'meetings'
   | 'hr'
-  | 'departments';
+  | 'departments'
+  | 'admin';
 
 const WORKSPACE_IDS: Workspace[] = [
   'messenger',
@@ -18,6 +19,7 @@ const WORKSPACE_IDS: Workspace[] = [
   'meetings',
   'hr',
   'departments',
+  'admin',
 ];
 
 function asWorkspace(value?: string | null): Workspace | null {

@@ -28,6 +28,8 @@ import {
   DepartmentGroupFormModal,
   type DepartmentGroupFormValues,
 } from "./components/DepartmentGroupFormModal";
+import { P, can } from "@/lib/access";
+import type { User } from "@/types";
 import { useDepartmentGroupMutations } from "./hooks/useDepartmentGroupMutations";
 import { useDepartmentMutations } from "./hooks/useDepartmentMutations";
 import { useDepartmentsQuery } from "./hooks/useDepartmentsQuery";
@@ -54,7 +56,10 @@ function statusLabel(status: OrgUnitStatus) {
   return status === "active" ? "Đang hoạt động" : "Ngưng";
 }
 
-export function DepartmentsGroupsView() {
+export function DepartmentsGroupsView({ user }: { user: User }) {
+  const canCreate = can(user, P.departments.create);
+  const canUpdate = can(user, P.departments.update);
+  const canDelete = can(user, P.departments.delete);
   const {
     data: departments = [],
     isPending,
@@ -180,6 +185,9 @@ export function DepartmentsGroupsView() {
 
   const collapseItems: CollapseProps["items"] = filtered.map((dept) =>
     departmentPanel(dept, {
+      canCreate,
+      canUpdate,
+      canDelete,
       onAddGroup: () => setGroupModal({ mode: "create", department: dept }),
       onEdit: () => setModal({ mode: "edit", department: dept }),
       onDelete: () => confirmDelete(dept),
@@ -273,16 +281,18 @@ export function DepartmentsGroupsView() {
             { value: "members-desc", label: "Nhiều thành viên" },
           ]}
         />
-        <div className="dept-toolbar-actions">
-          <Button
-            type="primary"
-            className="dept-primary"
-            icon={<PlusOutlined />}
-            onClick={() => setModal({ mode: "create" })}
-          >
-            Phòng ban
-          </Button>
-        </div>
+        {canCreate ? (
+          <div className="dept-toolbar-actions">
+            <Button
+              type="primary"
+              className="dept-primary"
+              icon={<PlusOutlined />}
+              onClick={() => setModal({ mode: "create" })}
+            >
+              Phòng ban
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <Spin spinning={isPending}>
@@ -290,7 +300,9 @@ export function DepartmentsGroupsView() {
           {!isPending && filtered.length === 0 ? (
             <div className="dept-empty">
               {departments.length === 0
-                ? "Chưa có phòng ban. Bấm «Phòng ban» để thêm."
+                ? canCreate
+                  ? "Chưa có phòng ban. Bấm «Phòng ban» để thêm."
+                  : "Chưa có phòng ban."
                 : "Không có phòng ban phù hợp bộ lọc."}
             </div>
           ) : (
@@ -336,6 +348,9 @@ export function DepartmentsGroupsView() {
 function departmentPanel(
   dept: OrgDepartment,
   actions: {
+    canCreate: boolean;
+    canUpdate: boolean;
+    canDelete: boolean;
     onAddGroup: () => void;
     onEdit: () => void;
     onDelete: () => void;
@@ -371,30 +386,36 @@ function departmentPanel(
           onKeyDown={(e) => e.stopPropagation()}
           role="presentation"
         >
-          <Button
-            size="small"
-            type="link"
-            className="dept-link"
-            icon={<PlusOutlined />}
-            onClick={actions.onAddGroup}
-          >
-            Nhóm
-          </Button>
-          <Button
-            size="small"
-            type="text"
-            aria-label="Sửa phòng ban"
-            icon={<EditOutlined />}
-            onClick={actions.onEdit}
-          />
-          <Button
-            size="small"
-            type="text"
-            danger
-            aria-label="Xóa phòng ban"
-            icon={<DeleteOutlined />}
-            onClick={actions.onDelete}
-          />
+          {actions.canCreate ? (
+            <Button
+              size="small"
+              type="link"
+              className="dept-link"
+              icon={<PlusOutlined />}
+              onClick={actions.onAddGroup}
+            >
+              Nhóm
+            </Button>
+          ) : null}
+          {actions.canUpdate ? (
+            <Button
+              size="small"
+              type="text"
+              aria-label="Sửa phòng ban"
+              icon={<EditOutlined />}
+              onClick={actions.onEdit}
+            />
+          ) : null}
+          {actions.canDelete ? (
+            <Button
+              size="small"
+              type="text"
+              danger
+              aria-label="Xóa phòng ban"
+              icon={<DeleteOutlined />}
+              onClick={actions.onDelete}
+            />
+          ) : null}
         </div>
       </div>
     ),
@@ -436,29 +457,35 @@ function departmentPanel(
                   </td>
                   <td>
                     <div className="dept-row-actions">
-                      <Button
-                        type="link"
-                        size="small"
-                        className="dept-link"
-                        onClick={demoMembersAction}
-                      >
-                        + Thành viên
-                      </Button>
-                      <Button
-                        type="text"
-                        size="small"
-                        aria-label="Sửa nhóm"
-                        icon={<EditOutlined />}
-                        onClick={() => actions.onEditGroup(group)}
-                      />
-                      <Button
-                        type="text"
-                        size="small"
-                        danger
-                        aria-label="Xóa nhóm"
-                        icon={<DeleteOutlined />}
-                        onClick={() => actions.onDeleteGroup(group)}
-                      />
+                      {actions.canUpdate ? (
+                        <Button
+                          type="link"
+                          size="small"
+                          className="dept-link"
+                          onClick={demoMembersAction}
+                        >
+                          + Thành viên
+                        </Button>
+                      ) : null}
+                      {actions.canUpdate ? (
+                        <Button
+                          type="text"
+                          size="small"
+                          aria-label="Sửa nhóm"
+                          icon={<EditOutlined />}
+                          onClick={() => actions.onEditGroup(group)}
+                        />
+                      ) : null}
+                      {actions.canDelete ? (
+                        <Button
+                          type="text"
+                          size="small"
+                          danger
+                          aria-label="Xóa nhóm"
+                          icon={<DeleteOutlined />}
+                          onClick={() => actions.onDeleteGroup(group)}
+                        />
+                      ) : null}
                     </div>
                   </td>
                 </tr>

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { message as antMessage } from 'antd';
+import { AdminPage } from '@/features/admin/AdminPage';
 import { ContactsPage } from '@/features/contacts/ContactsPage';
 import { DocsPage } from '@/features/docs/DocsPage';
 import { EmailPage } from '@/features/email/EmailPage';
 import { DepartmentsPage } from '@/features/departments/DepartmentsPage';
 import { HrPage } from '@/features/hr/HrPage';
+import { P, can, canAny } from '@/lib/access';
 import { MeetingsPage } from '@/features/meetings/MeetingsPage';
 import { ProfileDrawer } from '@/features/profile/ProfileDrawer';
 import { UserProfileModal } from '@/features/profile/UserProfileModal';
@@ -87,6 +89,21 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
 
   const { changeAvatar } = useMyProfile(user, onUserUpdate);
   const { workspace, setWorkspace, isViewingChat } = useWorkspace();
+  const accessLoaded = Array.isArray(user.permissions);
+  const canOpenAdmin = canAny(user, [P.roles.read, P.users.read]);
+  const canOpenDepartments = can(user, P.departments.read);
+
+  useEffect(() => {
+    if (!accessLoaded) {
+      return;
+    }
+    if (workspace === 'admin' && !canOpenAdmin) {
+      setWorkspace('messenger');
+    }
+    if (workspace === 'departments' && !canOpenDepartments) {
+      setWorkspace('messenger');
+    }
+  }, [accessLoaded, workspace, canOpenAdmin, canOpenDepartments, setWorkspace]);
   const roomList = useRoomList({ isViewingChat, setError });
   const { rooms, room, roomId } = roomList;
   const { setBlocked } = useBlockUser({ setRooms: roomList.setRooms });
@@ -348,7 +365,9 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       ) : workspace === 'hr' ? (
         <HrPage />
       ) : workspace === 'departments' ? (
-        <DepartmentsPage />
+        <DepartmentsPage user={user} />
+      ) : workspace === 'admin' ? (
+        <AdminPage user={user} />
       ) : (
         <MeetingsPage user={user} />
       )}

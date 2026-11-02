@@ -1,3 +1,7 @@
+import { fileSrc } from '@/api/client';
+import { P, can, canAny } from '@/lib/access';
+import { avatarColor, initials } from '@/lib/avatar';
+import type { User } from '@/types';
 import {
   ApartmentOutlined,
   ContactsOutlined,
@@ -5,13 +9,11 @@ import {
   LogoutOutlined,
   MailOutlined,
   MessageOutlined,
+  SafetyOutlined,
   TeamOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
 import { Avatar } from 'antd';
-import { fileSrc } from '@/api/client';
-import { avatarColor, initials } from '@/lib/avatar';
-import type { User } from '@/types';
 import type { Workspace } from '../hooks/useWorkspace';
 
 const WORKSPACES: { id: Workspace; label: string; icon: typeof MessageOutlined }[] = [
@@ -22,6 +24,7 @@ const WORKSPACES: { id: Workspace; label: string; icon: typeof MessageOutlined }
   { id: 'meetings', label: 'Cuộc họp', icon: VideoCameraOutlined },
   { id: 'hr', label: 'Nhân sự', icon: TeamOutlined },
   { id: 'departments', label: 'Phòng ban', icon: ApartmentOutlined },
+  { id: 'admin', label: 'Phân quyền', icon: SafetyOutlined },
 ];
 
 export function NavRail(props: {
@@ -32,11 +35,20 @@ export function NavRail(props: {
   onLogout: () => void;
 }) {
   const { user } = props;
+  const items = WORKSPACES.filter((item) => {
+    if (item.id === 'admin') {
+      return canAny(user, [P.roles.read, P.users.read]);
+    }
+    if (item.id === 'departments') {
+      return can(user, P.departments.read);
+    }
+    return true;
+  });
   return (
     <nav className="nav-rail">
       <div className="nav-rail-brand">C</div>
       <div className="nav-rail-items">
-        {WORKSPACES.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon;
           return (
             <button

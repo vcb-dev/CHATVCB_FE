@@ -1,5 +1,4 @@
-import { Spin } from 'antd';
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { api } from '@/api/client';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { MeetingSession } from '@/features/meetings/MeetingSession';
 import { parseMeetHash } from '@/features/meetings/meet';
@@ -8,6 +7,8 @@ import { SheetSession } from '@/features/docs/SheetSession';
 import { queryClient } from '@/lib/queryClient';
 import { AppTheme } from '@/theme/AppTheme';
 import type { User } from '@/types';
+import { Spin } from 'antd';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 
 const ChatPage = lazy(async () => {
   const mod = await import('@/features/chat/ChatPage');
@@ -49,6 +50,16 @@ export default function App() {
       window.removeEventListener('hashchange', onHash);
       window.removeEventListener('chatvcb:unauthorized', onUnauthorized);
     };
+  }, []);
+
+  useEffect(() => {
+    if (!localStorage.getItem('chatvcb.token')) {
+      return;
+    }
+    void api.me().then((next) => {
+      localStorage.setItem('chatvcb.user', JSON.stringify(next));
+      setUser(next);
+    });
   }, []);
 
   useEffect(() => {

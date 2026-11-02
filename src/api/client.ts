@@ -530,10 +530,29 @@ export const api = {
   listMeetings() {
     return request<{ upcoming: Meeting[]; history: Meeting[] }>("/meetings");
   },
+  getMeetingByCode(code: string) {
+    return request<Meeting>(
+      `/meetings/code/${encodeURIComponent(code.trim())}`,
+    );
+  },
   createMeeting(payload?: { title?: string; scheduledAt?: string }) {
     return request<Meeting>("/meetings", {
       method: "POST",
       body: JSON.stringify(payload ?? {}),
+    });
+  },
+  updateMeeting(
+    id: string,
+    payload: { title?: string; scheduledAt?: string },
+  ) {
+    return request<Meeting>(`/meetings/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteMeeting(id: string) {
+    return request<{ ok: boolean }>(`/meetings/${id}`, {
+      method: "DELETE",
     });
   },
   joinMeeting(code: string) {

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { message as antMessage } from 'antd';
+import { api } from '@/api/client';
 import { ContactsPage } from '@/features/contacts/ContactsPage';
 import { DocsPage } from '@/features/docs/DocsPage';
 import { EmailPage } from '@/features/email/EmailPage';
 import { DepartmentsPage } from '@/features/departments/DepartmentsPage';
 import { HrPage } from '@/features/hr/HrPage';
 import { MeetingsPage } from '@/features/meetings/MeetingsPage';
+import { openMeetTab } from '@/features/meetings/meet';
 import { ProfileDrawer } from '@/features/profile/ProfileDrawer';
 import { UserProfileModal } from '@/features/profile/UserProfileModal';
 import { useMyProfile } from '@/features/profile/hooks/useMyProfile';
@@ -217,6 +219,28 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     return isDirect ? isPeerOnline : isGroupOnline;
   }
 
+  async function startRoomMeeting() {
+    if (!room) {
+      return;
+    }
+    try {
+      const title = isDirect
+        ? `Cuộc họp với ${room.title || room.name}`
+        : `Họp ${room.title || room.name}`;
+      const created = await api.createMeeting({ title: title.slice(0, 80) });
+      await composer.sendRich({
+        type: 'meeting',
+        code: created.code,
+        title: created.title,
+      });
+      openMeetTab(created.code);
+    } catch (err) {
+      void antMessage.error(
+        err instanceof Error ? err.message : 'Không tạo được cuộc họp.',
+      );
+    }
+  }
+
   return (
     <div className={`app-shell module-${workspace}`}>
       <NavRail
@@ -271,6 +295,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               setRightPane('search');
               setGroupOverlay(true);
             }}
+            onStartMeeting={
+              room && !room.isCloud && !locked && !room.blockedByMe
+                ? () => void startRoomMeeting()
+                : undefined
+            }
           />
           <PinBar pins={chat.pins} onJump={chat.jumpToMessage} />
           <MessageList

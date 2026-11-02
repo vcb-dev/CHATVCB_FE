@@ -274,7 +274,8 @@ export type ChatMessage = {
 export type RichPayload =
   | { type: 'sticker'; id: string }
   | { type: 'location'; lat: number; lng: number; label?: string }
-  | { type: 'card'; userId: string };
+  | { type: 'card'; userId: string }
+  | { type: 'meeting'; code: string; title: string };
 
 export type PageMeta = {
   hasMore: boolean;
@@ -502,7 +503,18 @@ export type Meeting = {
   startedAt: string | null;
   endedAt: string | null;
   createdAt: string;
+  isLive?: boolean;
   participants: { id: string; name: string; avatarUrl?: string }[];
+};
+
+export type MeetingPeer = {
+  socketId: string;
+  userId: string;
+  name: string;
+  avatarUrl?: string;
+  micOn: boolean;
+  camOn: boolean;
+  sharing: boolean;
 };
 
 export type MailAccount = {

@@ -5,6 +5,7 @@ import {
   departmentSelectOptions,
   groupSelectOptionsForDepartment,
 } from "@/features/departments/utils/departmentSelect";
+import { fileSrc } from "@/api/client";
 import { avatarColor, initials } from "@/lib/avatar";
 import { CONSTANTS_ROLE } from "@/lib/common";
 import {
@@ -192,6 +193,7 @@ export function EmployeeDetailView({
         <div className="hr-detail-hero-inner">
           <Avatar
             size={72}
+            src={data.avatarUrl ? fileSrc(data.avatarUrl) : undefined}
             style={{
               background: avatarColor(data.fullName),
               color: "#fff",

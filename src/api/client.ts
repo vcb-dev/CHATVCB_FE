@@ -79,6 +79,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+/** Gửi multipart; không tự đặt Content-Type để trình duyệt thêm boundary. */
+async function uploadForm<T>(path: string, body: FormData): Promise<T> {
+  const response = await authedFetch(`${API_URL}${path}`, { method: "POST", body });
+  if (!response.ok) {
+    throw new ApiError(await errorMessage(response), response.status);
+  }
+  return response.json() as Promise<T>;
+}
+
 async function keepCsrf<T extends { csrfToken?: string }>(pending: Promise<T>) {
   const body = await pending;
   if (body.csrfToken) {
@@ -705,17 +714,10 @@ export const api = {
   deleteNewsPost(id: string) {
     return request<void>(`/news/posts/${id}`, { method: "DELETE" });
   },
-  async uploadNewsImage(postId: string, file: File) {
+  uploadNewsImage(postId: string, file: File) {
     const body = new FormData();
     body.append("file", file, file.name);
-    const response = await authedFetch(`${API_URL}/news/posts/${postId}/images`, {
-      method: "POST",
-      body,
-    });
-    if (!response.ok) {
-      throw new ApiError(await errorMessage(response), response.status);
-    }
-    return response.json() as Promise<NewsImage>;
+    return uploadForm<NewsImage>(`/news/posts/${postId}/images`, body);
   },
   newsImageFromGallery(postId: string, photoId: string) {
     return request<NewsImage>(`/news/posts/${postId}/images/from-gallery`, {
@@ -767,7 +769,7 @@ export const api = {
     }
     return request<GalleryPhotoPage>(`/gallery/photos/mine?${params.toString()}`);
   },
-  async submitGalleryPhoto(blob: Blob, filename: string, input: GalleryPhotoInput) {
+  submitGalleryPhoto(blob: Blob, filename: string, input: GalleryPhotoInput) {
     const body = new FormData();
     if (input.albumId) {
       body.append("albumId", input.albumId);
@@ -779,14 +781,7 @@ export const api = {
       body.append("visibility", input.visibility);
     }
     body.append("file", blob, filename);
-    const response = await authedFetch(`${API_URL}/gallery/photos`, {
-      method: "POST",
-      body,
-    });
-    if (!response.ok) {
-      throw new Error(await errorMessage(response));
-    }
-    return response.json() as Promise<GalleryPhoto>;
+    return uploadForm<GalleryPhoto>("/gallery/photos", body);
   },
   submitGalleryPhotoFromChat(imageId: string, input: GalleryPhotoInput) {
     return request<GalleryPhoto>("/gallery/photos/from-chat", {

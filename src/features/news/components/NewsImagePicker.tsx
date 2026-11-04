@@ -2,8 +2,9 @@ import { UploadOutlined } from '@ant-design/icons';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Alert, Button, Empty, Modal, Select, Spin, Tabs } from 'antd';
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { api, ApiError } from '@/api/client';
+import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
+import { apiErrorText } from '@/lib/errors';
 import { ACCEPT_IMAGES, imageFileError } from '@/lib/image';
 import type { NewsImage } from '@/types';
 
@@ -76,9 +77,7 @@ export function NewsImagePicker(props: {
     try {
       props.onPicked(await action());
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : 'Không tải được ảnh. Kiểm tra kết nối rồi thử lại.',
-      );
+      setError(apiErrorText(err, 'Không tải được ảnh. Kiểm tra kết nối rồi thử lại.'));
       setRetry(() => () => void run(action));
     } finally {
       setBusy(false);

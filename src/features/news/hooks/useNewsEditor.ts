@@ -3,14 +3,11 @@ import { message } from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
+import { apiErrorText } from '@/lib/errors';
 import type { NewsBlock, NewsImage, NewsPost } from '@/types';
 
 export type EditorBlock = NewsBlock & { key: string };
 export type EditorProblem = 'conflict' | 'gone' | null;
-
-function failureText(err: unknown): string {
-  return err instanceof ApiError ? err.message : 'Không lưu được bài. Kiểm tra kết nối rồi thử lại.';
-}
 
 export function useNewsEditor(postId: string) {
   const queryClient = useQueryClient();
@@ -42,7 +39,7 @@ export function useNewsEditor(postId: string) {
     } else if (err instanceof ApiError && err.status === 404) {
       setProblem('gone');
     } else {
-      void message.error(failureText(err));
+      void message.error(apiErrorText(err, 'Không lưu được bài. Kiểm tra kết nối rồi thử lại.'));
     }
   }, []);
 

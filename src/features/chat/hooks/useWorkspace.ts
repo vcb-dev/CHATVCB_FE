@@ -74,10 +74,8 @@ export function useWorkspace() {
       proceed();
       return;
     }
-    confirmDiscard(() => {
-      leaveBlockedRef.current = false;
-      proceed();
-    });
+    // Không tự tắt cờ: rời thất bại (đăng xuất lỗi) thì màn vẫn còn nội dung; màn tự tắt khi unmount
+    confirmDiscard(proceed);
   }, []);
 
   const setWorkspace = useCallback(

@@ -403,6 +403,72 @@
   font-size: 13px;
 }
 
+.hr-doc-slot .hr-doc-frame {
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+
+.hr-doc-drop {
+  cursor: pointer;
+  background: #f7f9ff;
+  border-color: #b8c4f0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.hr-doc-drop:hover {
+  background: #eef2ff;
+  border-color: #4f6ef7;
+}
+
+.hr-doc-drop strong {
+  color: #1d2b64;
+  font-size: 14px;
+}
+
+.hr-doc-drop-icon {
+  font-size: 28px;
+  color: #8a94b8;
+}
+
+.hr-doc-drop:hover .hr-doc-drop-icon {
+  color: #4f6ef7;
+}
+
+.hr-doc-card {
+  position: relative;
+  margin-top: 8px;
+  aspect-ratio: 1.58;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e4e6eb;
+  background: #f0f2f5;
+}
+
+.hr-doc-card .ant-image,
+.hr-doc-card .hr-doc-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.hr-doc-replace {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.hr-doc-replace:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
 .hr-card-swatch {
   display: flex;
   align-items: center;

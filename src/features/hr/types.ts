@@ -70,6 +70,7 @@ export type EmployeeListRow = Pick<
   | "id"
   | "fullName"
   | "email"
+  | "avatarUrl"
   | "employeeCode"
   | "department"
   | "departmentGroup"

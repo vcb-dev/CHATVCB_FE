@@ -1209,6 +1209,11 @@ export const api = {
       },
     );
   },
+  uploadCitizenId(id: string, side: "front" | "back", file: File) {
+    const body = new FormData();
+    body.append("file", file);
+    return uploadForm<{ url: string }>(`/employees/${id}/citizen-id/${side}`, body);
+  },
   updateEmployee(id: string, body: Partial<EmployeeProfile>) {
     return request<EmployeeProfile>(`/employees/${id}`, {
       method: "PATCH",

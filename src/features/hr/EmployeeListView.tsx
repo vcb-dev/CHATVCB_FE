@@ -1,3 +1,4 @@
+import { fileSrc } from "@/api/client";
 import { avatarColor, initials } from "@/lib/avatar";
 import { ExportOutlined, PlusOutlined, TeamOutlined } from "@ant-design/icons";
 import {
@@ -87,6 +88,7 @@ export function EmployeeListView({
         >
           <Avatar
             size={40}
+            src={row.avatarUrl ? fileSrc(row.avatarUrl) : undefined}
             style={{
               background: avatarColor(row.fullName),
               color: "#fff",

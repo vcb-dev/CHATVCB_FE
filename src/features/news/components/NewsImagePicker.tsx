@@ -4,8 +4,7 @@ import { Alert, Button, Empty, Modal, Select, Spin, Tabs } from 'antd';
 import { useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { api, ApiError } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
-import { ACCEPT_IMAGES } from '@/features/chat/utils/media';
-import { photoFileError } from '@/features/gallery/utils/photoFiles';
+import { ACCEPT_IMAGES, imageFileError } from '@/lib/image';
 import type { NewsImage } from '@/types';
 
 function LibraryTab(props: { busy: boolean; onPick: (photoId: string) => void }) {
@@ -92,7 +91,7 @@ export function NewsImagePicker(props: {
     if (!file) {
       return;
     }
-    const invalid = photoFileError(file);
+    const invalid = imageFileError(file);
     if (invalid) {
       setError(invalid);
       setRetry(null);

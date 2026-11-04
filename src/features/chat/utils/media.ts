@@ -1,8 +1,7 @@
 import type { ClipboardEvent } from 'react';
 import { fileSrc } from '@/api/client';
+import { ACCEPT_IMAGES } from '@/lib/image';
 import type { ChatMessage, GalleryImage, PendingImage } from '@/types';
-
-export const ACCEPT_IMAGES = 'image/jpeg,image/png,image/gif,image/webp';
 
 const MAX_ALBUM_IMAGES = 20;
 

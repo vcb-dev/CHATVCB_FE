@@ -1,31 +1,16 @@
 import { PictureOutlined } from '@ant-design/icons';
-import { infiniteQueryOptions, useInfiniteQuery } from '@tanstack/react-query';
 import { Button, Empty, Spin } from 'antd';
 import { useMemo } from 'react';
-import { api } from '@/api/client';
-import { queryKeys } from '@/api/queryKeys';
 import { errorText } from '@/lib/errors';
-import { newsDate } from './NewsArticle';
-
-function newsListQuery(kind: 'published' | 'drafts') {
-  return infiniteQueryOptions({
-    queryKey: kind === 'drafts' ? queryKeys.newsDrafts : queryKeys.newsPosts,
-    queryFn: ({ pageParam }) =>
-      kind === 'drafts' ? api.newsDrafts({ cursor: pageParam }) : api.newsPosts({ cursor: pageParam }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => last.nextCursor ?? undefined,
-  });
-}
-
-/** Dùng chung cache với cột "Bài mới khác". */
-export const publishedNewsQuery = newsListQuery('published');
+import { useNewsList } from '../hooks/useNewsList';
+import { newsDate } from '../utils/news';
 
 export function NewsList(props: {
   kind: 'published' | 'drafts';
   onOpen: (id: string) => void;
 }) {
   const drafts = props.kind === 'drafts';
-  const query = useInfiniteQuery(newsListQuery(props.kind));
+  const query = useNewsList(props.kind);
   const posts = useMemo(() => query.data?.pages.flatMap((page) => page.items) ?? [], [query.data]);
 
   if (query.isLoading) {

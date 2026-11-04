@@ -1,13 +1,12 @@
 import { PictureOutlined } from '@ant-design/icons';
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { newsDate } from './NewsArticle';
-import { publishedNewsQuery } from './NewsList';
+import { useNewsList } from '../hooks/useNewsList';
+import { newsDate } from '../utils/news';
 
 const RELATED_MAX = 5;
 
 /** Cột "Bài mới khác" cạnh bài đang đọc; dùng chung cache với danh sách bài đã đăng. */
 export function NewsRelated(props: { currentId: string; onOpen: (id: string) => void }) {
-  const query = useInfiniteQuery(publishedNewsQuery);
+  const query = useNewsList('published');
   const others = (query.data?.pages[0]?.items ?? [])
     .filter((post) => post.id !== props.currentId)
     .slice(0, RELATED_MAX);

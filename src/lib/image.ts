@@ -1,3 +1,19 @@
+export const ACCEPT_IMAGES = 'image/jpeg,image/png,image/gif,image/webp';
+
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+const IMAGE_TYPES = new Set(ACCEPT_IMAGES.split(','));
+
+export function imageFileError(file: { size: number; type: string }): string | null {
+  if (!IMAGE_TYPES.has(file.type)) {
+    return 'Chỉ nhận ảnh JPG, PNG, GIF, WebP.';
+  }
+  if (file.size > IMAGE_MAX_BYTES) {
+    return 'Ảnh tối đa 10 MB.';
+  }
+  return null;
+}
+
 export async function compressImage(file: File, max = 400) {
   if (file.type === 'image/gif' || file.size < 80_000) {
     return file;

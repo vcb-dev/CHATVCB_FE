@@ -4,14 +4,10 @@ import { Button, Input, Modal, Segmented, Select, Spin, message } from 'antd';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { api, fileSrc } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
-import { ACCEPT_IMAGES } from '@/features/chat/utils/media';
 import { errorText } from '@/lib/errors';
+import { ACCEPT_IMAGES, imageFileError } from '@/lib/image';
 import type { GalleryVisibility } from '@/types';
-import {
-  PHOTO_MAX_PER_SEND,
-  PHOTO_SEND_CONCURRENCY,
-  photoFileError,
-} from '../utils/photoFiles';
+import { PHOTO_MAX_PER_SEND, PHOTO_SEND_CONCURRENCY } from '../utils/photoFiles';
 import { runPool } from '../utils/runPool';
 import { CameraCapture } from './CameraCapture';
 
@@ -75,7 +71,7 @@ export function SubmitPhotosModal(props: {
     const room = PHOTO_MAX_PER_SEND - itemsRef.current.length;
     const accepted: SubmitItem[] = [];
     for (const file of files) {
-      const problem = photoFileError(file);
+      const problem = imageFileError(file);
       if (problem) {
         void message.error(`${file.filename}: ${problem}`);
       } else if (accepted.length < room) {

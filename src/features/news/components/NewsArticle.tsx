@@ -1,10 +1,7 @@
 import { Image } from 'antd';
-import { textParts } from '@/features/chat/utils/format';
+import { textParts } from '@/lib/links';
 import type { NewsBlock, NewsCard, NewsImage } from '@/types';
-
-export function newsDate(value: string | null): string {
-  return value ? new Date(value).toLocaleDateString('vi-VN') : 'Nháp';
-}
+import { newsDate } from '../utils/news';
 
 function NewsText({ text }: { text: string }) {
   return (

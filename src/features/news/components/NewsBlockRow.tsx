@@ -2,6 +2,7 @@ import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined } from '@ant-design/
 import { Button, Input } from 'antd';
 import type { NewsImage } from '@/types';
 import type { EditorBlock } from '../hooks/useNewsEditor';
+import { NEWS_LIMITS } from '../utils/news';
 
 const LABELS = { paragraph: 'Đoạn văn', heading: 'Tiêu đề phụ', image: 'Ảnh' };
 
@@ -46,7 +47,7 @@ export function NewsBlockRow(props: {
       {block.type === 'paragraph' ? (
         <Input.TextArea
           value={block.text}
-          maxLength={10000}
+          maxLength={NEWS_LIMITS.paragraph}
           autoSize={{ minRows: 3 }}
           placeholder="Nội dung đoạn văn"
           onChange={(event) => props.onChange(block.key, { text: event.target.value })}
@@ -56,7 +57,7 @@ export function NewsBlockRow(props: {
         <Input
           className="news-block-heading"
           value={block.text}
-          maxLength={200}
+          maxLength={NEWS_LIMITS.heading}
           placeholder="Tiêu đề phụ"
           onChange={(event) => props.onChange(block.key, { text: event.target.value })}
         />
@@ -67,7 +68,7 @@ export function NewsBlockRow(props: {
           <Input
             className="news-block-caption"
             value={block.caption}
-            maxLength={300}
+            maxLength={NEWS_LIMITS.caption}
             placeholder="Chú thích ảnh"
             onChange={(event) => props.onChange(block.key, { caption: event.target.value })}
           />

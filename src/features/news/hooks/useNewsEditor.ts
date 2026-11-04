@@ -6,7 +6,6 @@ import { queryKeys } from '@/api/queryKeys';
 import type { NewsBlock, NewsImage, NewsPost } from '@/types';
 
 export type EditorBlock = NewsBlock & { key: string };
-export type NewBlockType = NewsBlock['type'];
 export type EditorProblem = 'conflict' | 'gone' | null;
 
 function failureText(err: unknown): string {
@@ -47,17 +46,30 @@ export function useNewsEditor(postId: string) {
     }
   }, []);
 
-  const reload = useCallback(async () => {
-    try {
-      apply(await api.newsPost(postId));
-      setProblem(null);
-    } catch (err) {
-      handleFailure(err);
-    }
-  }, [apply, handleFailure, postId]);
+  const reload = useCallback(
+    async (isCancelled: () => boolean = () => false) => {
+      try {
+        const next = await api.newsPost(postId);
+        if (isCancelled()) {
+          return;
+        }
+        apply(next);
+        setProblem(null);
+      } catch (err) {
+        if (!isCancelled()) {
+          handleFailure(err);
+        }
+      }
+    },
+    [apply, handleFailure, postId],
+  );
 
   useEffect(() => {
-    void reload();
+    let cancelled = false;
+    void reload(() => cancelled);
+    return () => {
+      cancelled = true;
+    };
   }, [reload]);
 
   const refreshLists = useCallback(

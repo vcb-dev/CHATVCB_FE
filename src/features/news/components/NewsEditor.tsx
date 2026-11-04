@@ -5,13 +5,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { confirmDiscard } from '@/lib/confirmDiscard';
-import type { NewsBlock, NewsPost } from '@/types';
+import type { NewsPost } from '@/types';
 import { useNewsEditor } from '../hooks/useNewsEditor';
+import { NEWS_LIMITS } from '../utils/news';
 import { NewsArticle } from './NewsArticle';
 import { NewsBlockRow } from './NewsBlockRow';
 import { NewsImagePicker } from './NewsImagePicker';
-
-const MAX_BLOCKS = 100;
 
 function statusText(dirty: boolean, saving: boolean, savedAt: Date | null): string {
   if (saving) {
@@ -31,15 +30,14 @@ export function NewsEditor(props: {
   onClose: () => void;
   onPublished: (post: NewsPost) => void;
 }) {
+  const { postId, onDirtyChange, onClose, onPublished } = props;
   const queryClient = useQueryClient();
-  const editor = useNewsEditor(props.postId);
-  const { postId } = props;
+  const editor = useNewsEditor(postId);
   const savedEmptyRef = useRef(false);
   savedEmptyRef.current = editor.isSavedEmpty;
   const [picker, setPicker] = useState<'cover' | 'block' | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const { dirty, post } = editor;
-  const { onDirtyChange } = props;
 
   useEffect(() => {
     onDirtyChange(dirty);
@@ -75,10 +73,10 @@ export function NewsEditor(props: {
 
   async function finish() {
     if (editor.isSavedEmpty) {
-      await api.deleteNewsPost(props.postId).catch(() => undefined);
+      await api.deleteNewsPost(postId).catch(() => undefined);
       savedEmptyRef.current = false;
     }
-    props.onClose();
+    onClose();
   }
 
   function leave() {
@@ -98,7 +96,7 @@ export function NewsEditor(props: {
       onOk: async () => {
         const published = await editor.publish();
         if (published) {
-          props.onPublished(published);
+          onPublished(published);
         }
       },
     });
@@ -108,7 +106,7 @@ export function NewsEditor(props: {
     return editor.problem === 'gone' ? (
       <div className="news-state">
         <p>Bài không còn tồn tại</p>
-        <Button onClick={props.onClose}>Quay lại</Button>
+        <Button onClick={onClose}>Quay lại</Button>
       </div>
     ) : (
       <Spin className="news-loading" />
@@ -126,7 +124,7 @@ export function NewsEditor(props: {
         <NewsArticle
           title={editor.title.trim()}
           blocks={editor.blocks.filter(
-            (block: NewsBlock) => block.type === 'image' || block.text.trim(),
+            (block) => block.type === 'image' || block.text.trim(),
           )}
           images={editor.images}
           cover={cover}
@@ -138,7 +136,7 @@ export function NewsEditor(props: {
   }
 
   return (
-    <div className="news-editor" data-post-id={props.postId}>
+    <div className="news-editor" data-post-id={postId}>
       <div className="news-editor-toolbar">
         <Button icon={<ArrowLeftOutlined />} onClick={leave}>
           Quay lại
@@ -168,7 +166,7 @@ export function NewsEditor(props: {
           className="news-editor-title"
           size="large"
           value={editor.title}
-          maxLength={200}
+          maxLength={NEWS_LIMITS.title}
           placeholder="Tiêu đề bài viết"
           onChange={(event) => editor.setTitle(event.target.value)}
         />
@@ -191,25 +189,25 @@ export function NewsEditor(props: {
         ))}
         <div className="news-add-block">
           <Button
-            disabled={editor.blocks.length >= MAX_BLOCKS}
+            disabled={editor.blocks.length >= NEWS_LIMITS.blocks}
             onClick={() => editor.addBlock({ type: 'paragraph', text: '' })}
           >
             Đoạn văn
           </Button>
           <Button
-            disabled={editor.blocks.length >= MAX_BLOCKS}
+            disabled={editor.blocks.length >= NEWS_LIMITS.blocks}
             onClick={() => editor.addBlock({ type: 'heading', text: '' })}
           >
             Tiêu đề phụ
           </Button>
-          <Button disabled={editor.blocks.length >= MAX_BLOCKS} onClick={() => setPicker('block')}>
+          <Button disabled={editor.blocks.length >= NEWS_LIMITS.blocks} onClick={() => setPicker('block')}>
             Ảnh
           </Button>
         </div>
       </fieldset>
       {picker ? (
         <NewsImagePicker
-          postId={props.postId}
+          postId={postId}
           onClose={() => setPicker(null)}
           onPicked={(image) => {
             editor.addImage(image);
@@ -243,7 +241,7 @@ export function NewsEditor(props: {
         title="Bài không còn tồn tại"
         closable={false}
         footer={[
-          <Button key="back" type="primary" onClick={props.onClose}>
+          <Button key="back" type="primary" onClick={onClose}>
             Quay lại
           </Button>,
         ]}

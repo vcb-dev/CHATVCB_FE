@@ -473,3 +473,17 @@ export type MailMessage = {
   text: string;
   html: string;
 };
+
+export interface WorkTask {
+  id: string;
+  title: string;
+  notes: string;
+  status: 'open' | 'done';
+  dueAt: string | null;
+  roomId: string;
+  roomName: string;
+  messageId: string | null;
+  creator: { id: string; name: string; avatarUrl: string };
+  assignee: { id: string; name: string; avatarUrl: string };
+  createdAt: string;
+}

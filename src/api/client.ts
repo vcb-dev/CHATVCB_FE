@@ -31,6 +31,7 @@ import type {
   RoomsPage,
   TeamCount,
   User,
+  WorkTask,
 } from "@/types";
 
 const API_URL = (import.meta.env.VITE_APP_URL ?? "/api").replace(/\/$/, "");
@@ -113,6 +114,9 @@ export function fileSrc(url: string) {
 }
 
 export const api = {
+  myTasks(scope: "all" | "assigned" | "created" = "all") {
+    return request<WorkTask[]>(`/tasks/mine?scope=${scope}`);
+  },
   login(email: string, password: string) {
     return request<{ token: string; user: User }>("/auth/login", {
       method: "POST",

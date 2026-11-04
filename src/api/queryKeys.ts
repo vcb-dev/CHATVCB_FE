@@ -10,6 +10,7 @@ export const queryKeys = {
   files: (roomId: string) => ['room-media', roomId, 'files'] as const,
   links: (roomId: string) => ['room-media', roomId, 'links'] as const,
   labels: ['labels'] as const,
+  myTasks: ['my-tasks'] as const,
   user: (userId: string) => ['user', userId] as const,
   contacts: (q: string, team: string) => ['contacts', q, team] as const,
   userTeams: ['user-teams'] as const,

@@ -20,6 +20,7 @@ export const WORKSPACE_REGISTRY: {
   { id: 'docs', label: 'Docs', access: { kind: 'open' } },
   { id: 'meetings', label: 'Cuộc họp', access: { kind: 'open' } },
   { id: 'gallery', label: 'Thư viện ảnh', access: { kind: 'open' } },
+  { id: 'news', label: 'Bản tin', access: { kind: 'open' } },
   { id: 'hr', label: 'Nhân sự', access: { kind: 'permission', permission: P.employees.read } },
   {
     id: 'departments',

@@ -24,6 +24,7 @@ const FALLBACK_LABELS: Record<string, string> = {
   "employees.update_sensitive": "Sửa thông tin nhạy cảm",
   "gallery.review": "Duyệt ảnh, gỡ ảnh và quản lý album",
   "gallery.read_private": "Xem ảnh private trong Thư viện ảnh",
+  "news.publish": "Soạn, đăng, sửa và xóa bản tin",
 };
 
 export function normalizeCatalogGroups(

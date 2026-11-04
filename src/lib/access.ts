@@ -32,6 +32,9 @@ export const P = {
     review: "gallery.review",
     readPrivate: "gallery.read_private",
   },
+  news: {
+    publish: "news.publish",
+  },
 } as const;
 /** Kiểm tra quyền truy cập */
 export function can(

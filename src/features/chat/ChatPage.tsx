@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { message as antMessage } from 'antd';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Modal, message as antMessage } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { AdminPage } from '@/features/admin/AdminPage';
 import { api } from '@/api/client';
@@ -9,6 +9,7 @@ import { DocsPage } from '@/features/docs/DocsPage';
 import { EmailPage } from '@/features/email/EmailPage';
 import { DepartmentsPage } from '@/features/departments/DepartmentsPage';
 import { GalleryPage } from '@/features/gallery/GalleryPage';
+import { NewsPage } from '@/features/news/NewsPage';
 import { SubmitPhotosModal } from '@/features/gallery/components/SubmitPhotosModal';
 import { useGalleryAccess } from '@/features/gallery/hooks/useGalleryAccess';
 import { chatImagesOf } from '@/features/gallery/utils/chatImages';
@@ -101,7 +102,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   }, []);
 
   const { changeAvatar } = useMyProfile(user, onUserUpdate);
-  const { workspace, setWorkspace, isViewingChat } = useWorkspace();
+  const { workspace, setWorkspace, isViewingChat, isViewingNews } = useWorkspace();
   const accessLoaded = Array.isArray(user.permissions);
 
   useEffect(() => {
@@ -117,6 +118,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     queryKey: queryKeys.galleryReviewCount,
     queryFn: () => api.galleryReviewCount(),
     enabled: canReviewGallery,
+  });
+  const newsDirtyRef = useRef(false);
+  const { data: newsUnread } = useQuery({
+    queryKey: queryKeys.newsUnread,
+    queryFn: () => api.newsUnread(),
   });
   const roomList = useRoomList({ isViewingChat, setError });
   const { rooms, room, roomId } = roomList;
@@ -189,6 +195,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     removeRoom: roomList.removeRoom,
     openRoom: openRoomFromNotice,
     isViewingChat,
+    isViewingNews,
     markMessageRead: chat.markMessageRead,
     setMessages: chat.setMessages,
     setPending: chat.setPending,
@@ -272,10 +279,26 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       <NavRail
         workspace={workspace}
         user={user}
-        badges={canReviewGallery ? { gallery: galleryReview?.pending ?? 0 } : undefined}
+        badges={{
+          ...(canReviewGallery ? { gallery: galleryReview?.pending ?? 0 } : {}),
+          news: newsUnread?.count ?? 0,
+        }}
         onSelect={(next) => {
-          setWorkspace(next);
-          setGroupOverlay(false);
+          const go = () => {
+            setWorkspace(next);
+            setGroupOverlay(false);
+          };
+          if (next !== 'news' && newsDirtyRef.current) {
+            Modal.confirm({
+              title: 'Bỏ thay đổi chưa lưu?',
+              okText: 'Bỏ thay đổi',
+              okButtonProps: { danger: true },
+              cancelText: 'Ở lại',
+              onOk: go,
+            });
+            return;
+          }
+          go();
         }}
         onOpenProfile={() => setProfileOpen(true)}
         onLogout={onLogout}
@@ -438,6 +461,8 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         <AdminPage user={user} />
       ) : workspace === 'gallery' ? (
         <GalleryPage />
+      ) : workspace === 'news' ? (
+        <NewsPage user={user} dirtyRef={newsDirtyRef} />
       ) : (
         <MeetingsPage user={user} />
       )}

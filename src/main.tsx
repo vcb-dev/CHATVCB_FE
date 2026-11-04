@@ -4,6 +4,7 @@ import '@/styles/departments.css';
 import '@/styles/gallery.css';
 import '@/styles/hr.css';
 import '@/styles/index.css';
+import '@/styles/news.css';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

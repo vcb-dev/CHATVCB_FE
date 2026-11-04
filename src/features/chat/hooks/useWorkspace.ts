@@ -9,6 +9,7 @@ export type Workspace =
   | 'docs'
   | 'meetings'
   | 'gallery'
+  | 'news'
   | 'hr'
   | 'departments'
   | 'admin';
@@ -21,6 +22,7 @@ const WORKSPACE_IDS: Workspace[] = [
   'docs',
   'meetings',
   'gallery',
+  'news',
   'hr',
   'departments',
   'admin',
@@ -57,5 +59,7 @@ export function useWorkspace() {
     return workspaceRef.current === 'messenger' && isChatVisible();
   }, []);
 
-  return { workspace, setWorkspace, isViewingChat };
+  const isViewingNews = useCallback(() => workspaceRef.current === 'news', []);
+
+  return { workspace, setWorkspace, isViewingChat, isViewingNews };
 }

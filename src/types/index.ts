@@ -592,6 +592,45 @@ export type TaskPreset = {
   assigneeId?: string;
 };
 
+export type NewsBlock =
+  | { type: 'paragraph'; text: string }
+  | { type: 'heading'; text: string }
+  | { type: 'image'; imageId: string; caption: string };
+
+export type NewsImage = {
+  id: string;
+  url: string;
+  displayUrl: string;
+  thumbUrl: string;
+};
+
+export type NewsCard = {
+  id: string;
+  title: string;
+  excerpt: string;
+  cover: NewsImage | null;
+  author: { id: string; name: string; avatarUrl: string } | null;
+  status: 'draft' | 'published';
+  publishedAt: string | null;
+  updatedAt: string;
+};
+
+export type NewsPost = NewsCard & {
+  blocks: NewsBlock[];
+  images: NewsImage[];
+};
+
+export type NewsCardPage = { items: NewsCard[]; nextCursor: string | null };
+
+export type NewsPublishedEvent = { id: string; title: string };
+
+export type NewsPostInput = {
+  title: string;
+  blocks: NewsBlock[];
+  coverImageId: string | null;
+  expectedUpdatedAt: string;
+};
+
 export type GalleryPhotoStatus = 'pending' | 'approved' | 'rejected';
 export type GalleryVisibility = 'public' | 'private';
 

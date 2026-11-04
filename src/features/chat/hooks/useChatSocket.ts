@@ -17,6 +17,7 @@ import { notifyIncoming } from '@/lib/notify';
 import type {
   GalleryPendingEvent,
   GalleryReviewedEvent,
+  NewsPublishedEvent,
   AgentPendingEvent,
   ChatMessage,
   PresenceUser,
@@ -49,6 +50,7 @@ type Options = {
   removeRoom: (roomId: string) => void;
   openRoom: (roomId: string) => void;
   isViewingChat: () => boolean;
+  isViewingNews: () => boolean;
   markMessageRead: (message?: ChatMessage, targetRoomId?: string) => void;
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   setPending: Dispatch<SetStateAction<boolean>>;
@@ -138,6 +140,7 @@ export function useChatSocket(options: Options) {
       // Sự kiện việc lúc mất kết nối không được phát lại
       void queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
       void queryClient.invalidateQueries({ queryKey: queryKeys.galleryLibrary });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.newsLibrary });
       if (roomIdRef.current) {
         socket.emit('join', roomIdRef.current);
       }
@@ -219,6 +222,16 @@ export function useChatSocket(options: Options) {
         // Cùng key nên gửi nhiều ảnh một lúc chỉ hiện một thông báo
         void antMessage.info({ key: 'gallery-pending', content: 'Có ảnh mới chờ duyệt' });
       }
+    });
+
+    socket.on('news.published', ({ title }: NewsPublishedEvent) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.newsPosts });
+      if (latestRef.current.isViewingNews()) {
+        void api.markNewsSeen().catch(() => undefined);
+        return;
+      }
+      void queryClient.invalidateQueries({ queryKey: queryKeys.newsUnread });
+      void antMessage.info({ key: 'news-published', content: `Bản tin mới: ${title}` });
     });
 
     socket.on('gallery.reviewed', ({ status, rejectReason }: GalleryReviewedEvent) => {

@@ -12,6 +12,21 @@ function splitLinkPunct(raw: string): { url: string; punct: string } {
   };
 }
 
+/** Tách văn bản thuần thành phần chữ và phần link http(s), không dựng HTML. */
+export function textParts(text: string): { text: string; href?: string }[] {
+  const parts: { text: string; href?: string }[] = [];
+  let last = 0;
+  for (const match of text.matchAll(LINK)) {
+    const { url, punct } = splitLinkPunct(match[0]);
+    if (!url) continue;
+    if (match.index > last) parts.push({ text: text.slice(last, match.index) });
+    parts.push({ text: url, href: url });
+    last = match.index + match[0].length - punct.length;
+  }
+  if (last < text.length) parts.push({ text: text.slice(last) });
+  return parts;
+}
+
 export function firstLink(text: string): string | null {
   if (!text) return null;
   const regex = new RegExp(LINK.source, LINK.flags);

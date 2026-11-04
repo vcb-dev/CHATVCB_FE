@@ -34,4 +34,10 @@ export const queryKeys = {
   galleryMine: (status: string) => ['gallery-library', 'mine', status] as const,
   galleryReview: ['gallery-library', 'review'] as const,
   galleryReviewCount: ['gallery-library', 'review-count'] as const,
+  newsLibrary: ['news-library'] as const,
+  newsPosts: ['news-library', 'posts'] as const,
+  newsDrafts: ['news-library', 'drafts'] as const,
+  newsPost: (id: string) => ['news-library', 'post', id] as const,
+  newsUnread: ['news-library', 'unread'] as const,
+  newsPickerPhotos: (albumId: string) => ['news-library', 'picker', albumId] as const,
 };

@@ -13,6 +13,10 @@ import type {
   GalleryPhotoInput,
   GalleryPhotoPage,
   GalleryPhotoPatch,
+  NewsCardPage,
+  NewsImage,
+  NewsPost,
+  NewsPostInput,
   GroupSettings,
   InviteInfo,
   JoinRequest,
@@ -48,6 +52,16 @@ import { API_URL, authHeaders, authedFetch, setCsrf } from "./session";
 
 type AuthSession = { user: User; csrfToken?: string };
 
+/** Lỗi kèm mã HTTP, cho nơi cần phân biệt 404 và 409. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await authedFetch(`${API_URL}${path}`, {
     ...init,
@@ -57,7 +71,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!response.ok) {
-    throw new Error(await errorMessage(response));
+    throw new ApiError(await errorMessage(response), response.status);
   }
   if (response.status === 204) {
     return undefined as T;
@@ -647,6 +661,68 @@ export const api = {
       `/mail/accounts/${id}/messages/${encodeURIComponent(uid)}`,
     );
   },
+  newsPosts(query: { cursor?: string }) {
+    const params = new URLSearchParams();
+    if (query.cursor) {
+      params.set("cursor", query.cursor);
+    }
+    return request<NewsCardPage>(`/news/posts?${params.toString()}`);
+  },
+  newsDrafts(query: { cursor?: string }) {
+    const params = new URLSearchParams();
+    if (query.cursor) {
+      params.set("cursor", query.cursor);
+    }
+    return request<NewsCardPage>(`/news/drafts?${params.toString()}`);
+  },
+  newsPost(id: string) {
+    return request<NewsPost>(`/news/posts/${id}`);
+  },
+  newsUnread() {
+    return request<{ count: number }>("/news/unread");
+  },
+  markNewsSeen() {
+    return request<void>("/news/seen", { method: "POST" });
+  },
+  createNewsPost() {
+    return request<NewsPost>("/news/posts", { method: "POST" });
+  },
+  updateNewsPost(id: string, input: NewsPostInput) {
+    return request<NewsPost>(`/news/posts/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+  publishNewsPost(id: string, expectedUpdatedAt: string) {
+    return request<NewsPost>(`/news/posts/${id}/publish`, {
+      method: "POST",
+      body: JSON.stringify({ expectedUpdatedAt }),
+    });
+  },
+  unpublishNewsPost(id: string) {
+    return request<NewsPost>(`/news/posts/${id}/unpublish`, { method: "POST" });
+  },
+  deleteNewsPost(id: string) {
+    return request<void>(`/news/posts/${id}`, { method: "DELETE" });
+  },
+  async uploadNewsImage(postId: string, file: File) {
+    const body = new FormData();
+    body.append("file", file, file.name);
+    const response = await authedFetch(`${API_URL}/news/posts/${postId}/images`, {
+      method: "POST",
+      body,
+    });
+    if (!response.ok) {
+      throw new ApiError(await errorMessage(response), response.status);
+    }
+    return response.json() as Promise<NewsImage>;
+  },
+  newsImageFromGallery(postId: string, photoId: string) {
+    return request<NewsImage>(`/news/posts/${postId}/images/from-gallery`, {
+      method: "POST",
+      body: JSON.stringify({ photoId }),
+    });
+  },
   galleryAccess() {
     return request<GalleryAccess>("/gallery/access");
   },
@@ -668,10 +744,13 @@ export const api = {
   deleteGalleryAlbum(id: string) {
     return request<void>(`/gallery/albums/${id}`, { method: "DELETE" });
   },
-  galleryPhotos(query: { albumId?: string; cursor?: string }) {
+  galleryPhotos(query: { albumId?: string; visibility?: "public"; cursor?: string }) {
     const params = new URLSearchParams();
     if (query.albumId) {
       params.set("albumId", query.albumId);
+    }
+    if (query.visibility) {
+      params.set("visibility", query.visibility);
     }
     if (query.cursor) {
       params.set("cursor", query.cursor);

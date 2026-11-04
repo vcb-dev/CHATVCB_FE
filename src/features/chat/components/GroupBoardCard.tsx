@@ -8,7 +8,7 @@ export function GroupBoardCard(props: {
   countLabel: string;
   emptyText: string;
   hasItems: boolean;
-  onCreate: () => void;
+  onCreate?: () => void;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -24,18 +24,20 @@ export function GroupBoardCard(props: {
           </span>
           <RightOutlined className={open ? 'chev open' : 'chev'} />
         </button>
-        <Button
-          type="text"
-          size="small"
-          icon={<PlusOutlined />}
-          style={{ marginLeft: 8 }}
-          onClick={(e) => {
-            e.stopPropagation();
-            props.onCreate();
-          }}
-        >
-          Tạo
-        </Button>
+        {props.onCreate ? (
+          <Button
+            type="text"
+            size="small"
+            icon={<PlusOutlined />}
+            style={{ marginLeft: 8 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onCreate?.();
+            }}
+          >
+            Tạo
+          </Button>
+        ) : null}
       </div>
 
       {open ? (

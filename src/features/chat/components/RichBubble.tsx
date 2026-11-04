@@ -1,6 +1,7 @@
 import type { ChatMessage, Room } from '@/types';
 import { ContactCard } from './ContactCard';
 import { LocationCard } from './LocationCard';
+import { MeetingCard } from './MeetingCard';
 import { StickerImage } from './StickerImage';
 
 /** Vẽ tin có cấu trúc (`message.rich`). Loại chưa biết thì hiện câu dự phòng BE đã lưu ở `content`. */
@@ -30,6 +31,9 @@ export function RichBubble(props: {
         onOpenRoom={props.onOpenRoom}
       />
     );
+  }
+  if (rich.type === 'meeting') {
+    return <MeetingCard code={rich.code} title={rich.title} />;
   }
   return <p className="rich-fallback">{message.content}</p>;
 }

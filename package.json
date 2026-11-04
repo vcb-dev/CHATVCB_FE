@@ -31,7 +31,8 @@
       ],
       "category": "public.app-category.social-networking",
       "extendInfo": {
-        "NSUserNotificationsUsageDescription": "CHATVCB cần thông báo khi có tin nhắn mới."
+        "NSUserNotificationsUsageDescription": "CHATVCB cần thông báo khi có tin nhắn mới.",
+        "NSCameraUsageDescription": "CHATVCB cần camera để chụp ảnh và họp trực tuyến."
       }
     },
     "win": {

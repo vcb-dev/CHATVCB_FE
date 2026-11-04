@@ -1,4 +1,7 @@
+import { Button, Flex, message as antMessage, Spin, Typography } from 'antd';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { api } from '@/api/client';
+import { SessionExpiredError } from '@/api/session';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { MeetingSession } from '@/features/meetings/MeetingSession';
 import { parseMeetHash } from '@/features/meetings/meet';
@@ -7,33 +10,37 @@ import { SheetSession } from '@/features/docs/SheetSession';
 import { queryClient } from '@/lib/queryClient';
 import { AppTheme } from '@/theme/AppTheme';
 import type { User } from '@/types';
-import { Spin } from 'antd';
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 
 const ChatPage = lazy(async () => {
   const mod = await import('@/features/chat/ChatPage');
   return { default: mod.ChatPage };
 });
 
-function readUser(): User | null {
-  const raw = localStorage.getItem('chatvcb.user');
-  if (!raw) {
-    return null;
-  }
-  try {
-    return JSON.parse(raw) as User;
-  } catch {
-    return null;
-  }
-}
+type Boot = 'loading' | 'ready' | 'offline';
 
 export default function App() {
-  const initialUser = useMemo(() => {
-    return localStorage.getItem('chatvcb.token') ? readUser() : null;
-  }, []);
-  const [user, setUser] = useState<User | null>(initialUser);
+  const [user, setUser] = useState<User | null>(null);
+  const [boot, setBoot] = useState<Boot>('loading');
   const [meet, setMeet] = useState(() => parseMeetHash());
   const [sheet, setSheet] = useState(() => parseSheetHash());
+
+  const loadSession = useCallback(async () => {
+    setBoot('loading');
+    try {
+      const session = await api.session();
+      setUser(session.user);
+      setBoot('ready');
+    } catch (err) {
+      setBoot(err instanceof SessionExpiredError ? 'ready' : 'offline');
+    }
+  }, []);
+
+  useEffect(() => {
+    // Dọn dữ liệu phiên của bản cũ
+    localStorage.removeItem('chatvcb.token');
+    localStorage.removeItem('chatvcb.user');
+    void loadSession();
+  }, [loadSession]);
 
   useEffect(() => {
     const onHash = () => {
@@ -50,16 +57,6 @@ export default function App() {
       window.removeEventListener('hashchange', onHash);
       window.removeEventListener('chatvcb:unauthorized', onUnauthorized);
     };
-  }, []);
-
-  useEffect(() => {
-    if (!localStorage.getItem('chatvcb.token')) {
-      return;
-    }
-    void api.me().then((next) => {
-      localStorage.setItem('chatvcb.user', JSON.stringify(next));
-      setUser(next);
-    });
   }, []);
 
   useEffect(() => {
@@ -81,14 +78,21 @@ export default function App() {
 
   return (
     <AppTheme>
-      {!user ? (
-        <LoginPage
-          onLoggedIn={(next) => {
-            localStorage.setItem('chatvcb.token', next.token);
-            localStorage.setItem('chatvcb.user', JSON.stringify(next.user));
-            setUser(next.user);
-          }}
-        />
+      {boot === 'loading' ? (
+        <div className="login-shell">
+          <Spin size="large" />
+        </div>
+      ) : boot === 'offline' ? (
+        <div className="login-shell">
+          <Flex vertical align="center" gap={12}>
+            <Typography.Text>Không kết nối được máy chủ</Typography.Text>
+            <Button type="primary" onClick={() => void loadSession()}>
+              Thử lại
+            </Button>
+          </Flex>
+        </div>
+      ) : !user ? (
+        <LoginPage onLoggedIn={(next) => setUser(next.user)} />
       ) : (
         <Suspense
           fallback={
@@ -104,16 +108,16 @@ export default function App() {
           ) : (
           <ChatPage
             user={user}
-            onUserUpdate={(next) => {
-              localStorage.setItem('chatvcb.token', next.token);
-              localStorage.setItem('chatvcb.user', JSON.stringify(next.user));
-              setUser(next.user);
-            }}
-            onLogout={() => {
-              localStorage.removeItem('chatvcb.token');
-              localStorage.removeItem('chatvcb.user');
-              queryClient.clear();
-              setUser(null);
+            onUserUpdate={(next) => setUser(next.user)}
+            onLogout={async () => {
+              try {
+                await api.logout();
+                queryClient.clear();
+                setUser(null);
+              } catch {
+                // JS không xóa được cookie httpOnly: báo lỗi thay vì giả vờ đã thoát
+                void antMessage.error('Không đăng xuất được, thử lại.');
+              }
             }}
           />
           )}

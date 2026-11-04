@@ -2,8 +2,8 @@ import { PlusOutlined } from '@ant-design/icons';
 import { Image, Modal } from 'antd';
 import { useRef, type ChangeEvent } from 'react';
 import { fileSrc } from '@/api/client';
+import { ACCEPT_IMAGES } from '@/lib/image';
 import type { GalleryImage } from '@/types';
-import { ACCEPT_IMAGES } from '../utils/media';
 
 export function GalleryModal({
   open,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Form, Input, Modal, message } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
-import { api } from '@/api/client';
+import { api, ApiError } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import type { RoomNote } from '@/types';
 import { errorText } from '@/lib/errors';
@@ -70,7 +70,7 @@ export function NoteModal({
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       message.error(msg);
-      if (msg.includes('Không tìm thấy ghi chú')) {
+      if (err instanceof ApiError && err.status === 404) {
         await queryClient.invalidateQueries({
           queryKey: queryKeys.notes(roomId),
         });

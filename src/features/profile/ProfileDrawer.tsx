@@ -11,7 +11,7 @@ type Props = {
   open: boolean;
   user: User;
   onClose: () => void;
-  onUpdated: (payload: { token: string; user: User }) => void;
+  onUpdated: (payload: { user: User }) => void;
 };
 
 type FormValues = {

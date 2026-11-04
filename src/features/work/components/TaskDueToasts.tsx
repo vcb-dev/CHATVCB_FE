@@ -1,6 +1,6 @@
 import { Button, notification } from 'antd';
 import { useEffect, useRef } from 'react';
-import type { WorkTask } from '@/types';
+import type { Task } from '@/types';
 import { useTaskDueBanners } from '../hooks/useTaskDueBanners';
 
 function span(ms: number) {
@@ -10,18 +10,18 @@ function span(ms: number) {
   return `${Math.floor(minutes / 60)} giờ ${minutes % 60} phút`;
 }
 
-function statusText(task: WorkTask, now: number) {
+function statusText(task: Task, now: number) {
   const left = new Date(task.dueAt as string).getTime() - now;
   if (left < 0) return `Đã quá hạn ${span(-left)}`;
   if (left < 60_000) return 'Hết hạn trong dưới 1 phút';
   return `Còn ${span(left)} là hết hạn`;
 }
 
-const toastKey = (task: WorkTask) => `task-due-${task.id}`;
+const toastKey = (task: Task) => `task-due-${task.id}`;
 
 interface TaskDueToastsProps {
   myId: string;
-  onOpenTask: (task: WorkTask) => void;
+  onOpenTask: (task: Task) => void;
 }
 
 /**

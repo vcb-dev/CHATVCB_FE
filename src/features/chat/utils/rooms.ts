@@ -180,6 +180,8 @@ export function previewOf(
     body = 'Tin nhắn đã được thu hồi';
   } else if (message.rich) {
     body = richLabel(message.rich);
+  } else if (message.task) {
+    body = `Việc: ${message.task.title}`;
   } else if (message.imageId || message.imageUrl) {
     body = 'Hình ảnh';
   } else if (message.fileId || message.fileUrl) {

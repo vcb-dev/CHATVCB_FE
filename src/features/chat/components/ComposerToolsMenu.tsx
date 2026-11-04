@@ -1,5 +1,6 @@
 import {
   BarChartOutlined,
+  CheckSquareOutlined,
   ClockCircleOutlined,
   EnvironmentOutlined,
   FileTextOutlined,
@@ -11,6 +12,7 @@ import type { ToolKind } from '@/types';
 
 export function ComposerToolsMenu(props: {
   isGroup: boolean;
+  canAssign: boolean;
   locked: boolean;
   disabled: boolean;
   onPick: (kind: ToolKind) => void;
@@ -18,6 +20,13 @@ export function ComposerToolsMenu(props: {
   onCard: () => void;
 }) {
   const items: MenuProps['items'] = [];
+  if (props.canAssign) {
+    items.push({
+      key: 'task',
+      icon: <CheckSquareOutlined />,
+      label: 'Giao việc',
+    });
+  }
   if (props.isGroup && !props.locked) {
     items.push({
       key: 'poll',

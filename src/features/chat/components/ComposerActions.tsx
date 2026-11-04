@@ -1,7 +1,7 @@
 import { AppstoreOutlined, PictureOutlined } from '@ant-design/icons';
 import { Button, Tooltip } from 'antd';
 import { useRef, type ChangeEvent } from 'react';
-import { ACCEPT_IMAGES } from '../utils/media';
+import { ACCEPT_IMAGES } from '@/lib/image';
 
 export function ComposerActions({
   disabled,

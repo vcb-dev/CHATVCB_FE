@@ -4,11 +4,14 @@ import { visibleWorkspaces } from '@/lib/workspaces';
 import type { User } from '@/types';
 import {
   ApartmentOutlined,
+  CheckSquareOutlined,
   ContactsOutlined,
   FileTextOutlined,
   LogoutOutlined,
   MailOutlined,
   MessageOutlined,
+  NotificationOutlined,
+  PictureOutlined,
   SafetyOutlined,
   TeamOutlined,
   VideoCameraOutlined,
@@ -21,10 +24,13 @@ const WORKSPACE_ICONS: Record<
   typeof MessageOutlined
 > = {
   messenger: MessageOutlined,
+  tasks: CheckSquareOutlined,
   contacts: ContactsOutlined,
   email: MailOutlined,
   docs: FileTextOutlined,
   meetings: VideoCameraOutlined,
+  gallery: PictureOutlined,
+  news: NotificationOutlined,
   hr: TeamOutlined,
   departments: ApartmentOutlined,
   admin: SafetyOutlined,
@@ -33,6 +39,7 @@ const WORKSPACE_ICONS: Record<
 export function NavRail(props: {
   workspace: Workspace;
   user: User;
+  badges?: Partial<Record<Workspace, number>>;
   onSelect: (workspace: Workspace) => void;
   onOpenProfile: () => void;
   onLogout: () => void;
@@ -44,6 +51,7 @@ export function NavRail(props: {
       <div className="nav-rail-items">
         {items.map((item) => {
           const Icon = WORKSPACE_ICONS[item.id];
+          const badge = props.badges?.[item.id] ?? 0;
           return (
             <button
               key={item.id}
@@ -55,6 +63,7 @@ export function NavRail(props: {
             >
               <Icon />
               <span>{item.label}</span>
+              {badge > 0 ? <b className="nav-rail-badge">{badge > 99 ? '99+' : badge}</b> : null}
             </button>
           );
         })}

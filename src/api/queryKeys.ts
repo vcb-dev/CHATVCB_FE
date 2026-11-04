@@ -1,4 +1,4 @@
-import type { RoomMessageSearch } from '@/types';
+import type { MyTasksQuery, RoomMessageSearch } from '@/types';
 
 export const queryKeys = {
   rooms: ['rooms'] as const,
@@ -10,7 +10,6 @@ export const queryKeys = {
   files: (roomId: string) => ['room-media', roomId, 'files'] as const,
   links: (roomId: string) => ['room-media', roomId, 'links'] as const,
   labels: ['labels'] as const,
-  myTasks: ['my-tasks'] as const,
   user: (userId: string) => ['user', userId] as const,
   contacts: (q: string, team: string) => ['contacts', q, team] as const,
   userTeams: ['user-teams'] as const,
@@ -21,4 +20,24 @@ export const queryKeys = {
   inviteInfo: (token: string) => ['invite-info', token] as const,
   reminders: (roomId: string) => ['reminders', roomId] as const,
   notes: (roomId: string) => ['notes', roomId] as const,
+  tasks: ['tasks'] as const,
+  roomTasks: (roomId: string) => ['tasks', 'room', roomId] as const,
+  taskLists: ['tasks', 'mine'] as const,
+  myTasks: (query: MyTasksQuery) => ['tasks', 'mine', query] as const,
+  myTaskRooms: ['tasks', 'mine', 'rooms'] as const,
+  taskPeople: ['taskPeople'] as const,
+  plannedTasks: (query: MyTasksQuery) => ['tasks', 'mine', 'planned', query] as const,
+  galleryLibrary: ['gallery-library'] as const,
+  galleryAccess: ['gallery-library', 'access'] as const,
+  galleryAlbums: ['gallery-library', 'albums'] as const,
+  galleryPhotos: (albumId: string) => ['gallery-library', 'photos', albumId] as const,
+  galleryMine: (status: string) => ['gallery-library', 'mine', status] as const,
+  galleryReview: ['gallery-library', 'review'] as const,
+  galleryReviewCount: ['gallery-library', 'review-count'] as const,
+  newsLibrary: ['news-library'] as const,
+  newsPosts: ['news-library', 'posts'] as const,
+  newsDrafts: ['news-library', 'drafts'] as const,
+  newsPost: (id: string) => ['news-library', 'post', id] as const,
+  newsUnread: ['news-library', 'unread'] as const,
+  newsPickerPhotos: (albumId: string) => ['news-library', 'picker', albumId] as const,
 };

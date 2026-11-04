@@ -13,20 +13,73 @@ const CAMERA = {
   },
 } as const;
 
-const CAMERA_ONLY = {
-  video: CAMERA.video,
-  audio: false as const,
+export type MediaDeviceList = {
+  mics: MediaDeviceInfo[];
+  cams: MediaDeviceInfo[];
 };
 
-export async function openCamera(withAudio = true) {
-  const stream = await navigator.mediaDevices.getUserMedia(withAudio ? CAMERA : CAMERA_ONLY);
+export async function listMediaDevices(): Promise<MediaDeviceList> {
+  if (!navigator.mediaDevices?.enumerateDevices) {
+    return { mics: [], cams: [] };
+  }
+  try {
+    const all = await navigator.mediaDevices.enumerateDevices();
+    return {
+      mics: all.filter((d) => d.kind === 'audioinput'),
+      cams: all.filter((d) => d.kind === 'videoinput'),
+    };
+  } catch {
+    return { mics: [], cams: [] };
+  }
+}
+
+export async function openCamera(
+  withAudio = true,
+  opts?: { audioDeviceId?: string; videoDeviceId?: string },
+) {
+  const audioConstraint = withAudio
+    ? {
+        ...CAMERA.audio,
+        ...(opts?.audioDeviceId ? { deviceId: { exact: opts.audioDeviceId } } : {}),
+      }
+    : (false as const);
+  const videoConstraint = {
+    ...CAMERA.video,
+    ...(opts?.videoDeviceId ? { deviceId: { exact: opts.videoDeviceId } } : {}),
+  };
+
+  let stream: MediaStream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: audioConstraint,
+      video: videoConstraint,
+    });
+  } catch (err) {
+    if (!withAudio) {
+      throw err;
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: videoConstraint,
+      });
+    } catch {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: audioConstraint,
+        video: false,
+      });
+    }
+  }
+
   const video = stream.getVideoTracks()[0];
   if (video) {
-    await video.applyConstraints({
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
-      frameRate: { ideal: 30 },
-    }).catch(() => undefined);
+    await video
+      .applyConstraints({
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30 },
+      })
+      .catch(() => undefined);
   }
   return stream;
 }

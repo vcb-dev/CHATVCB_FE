@@ -8,6 +8,7 @@ import type { ChatMessage, Room, RoomRead } from '@/types';
 import { isVoice } from '../utils/attachments';
 import { canEdit } from '../utils/edit';
 import type { Delivery } from '../utils/seen';
+import { chatImagesOf } from '@/features/gallery/utils/chatImages';
 import { canForward } from '../utils/forward';
 import { isStickerText } from '../utils/stickers';
 import { DeliveryStatus } from './DeliveryStatus';
@@ -22,6 +23,7 @@ import { ReadStatus } from './ReadStatus';
 import { RichText } from './RichText';
 import { SeenAvatars } from './SeenAvatars';
 import { SeenBubble } from './SeenBubble';
+import { TaskCard } from './TaskCard';
 import { VoiceBubble } from './VoiceBubble';
 import { firstLink } from '../utils/format';
 import { inviteTokenOf } from '../utils/invite';
@@ -73,7 +75,8 @@ function MessageRowView(props: Props) {
   const hasFile = Boolean(message.fileUrl && !message.recalled);
   const isPoll = Boolean(message.poll && !message.recalled);
   const isRich = Boolean(message.rich && !message.recalled);
-  const hasText = Boolean(message.content && !message.recalled) && !isPoll && !isRich;
+  const isTask = Boolean(message.task && !message.recalled);
+  const hasText = Boolean(message.content && !message.recalled) && !isPoll && !isRich && !isTask;
   const sticker =
     (!hasImage && !album && !hasFile && hasText && isStickerText(message.content)) ||
     message.rich?.type === 'sticker';
@@ -124,6 +127,9 @@ function MessageRowView(props: Props) {
                 ...(canForward(message) ? [{ key: 'forward', label: 'Chuyển tiếp' }] : []),
                 ...(props.canSaveToCloud && canForward(message)
                   ? [{ key: 'saveCloud', label: 'Lưu vào Cloud' }]
+                  : []),
+                ...(chatImagesOf(message).length
+                  ? [{ key: 'shareLibrary', label: 'Đưa lên thư viện' }]
                   : []),
                 ...(hasText ? [{ key: 'copy', label: 'Sao chép tin nhắn' }] : []),
                 ...(canEdit(message, props.userId) ? [{ key: 'edit', label: 'Sửa tin nhắn' }] : []),
@@ -226,7 +232,9 @@ function MessageRowView(props: Props) {
                           onOpenRoom={props.onOpenRoom}
                         />
                       ) : null}
-                      {isPoll ? (
+                      {isTask ? (
+                        <TaskCard message={message} userId={props.userId} />
+                      ) : isPoll ? (
                         <PollCard
                           message={message}
                           userId={props.userId}

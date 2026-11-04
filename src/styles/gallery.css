@@ -1,0 +1,461 @@
+/* Thư viện ảnh — features/gallery */
+.gallery-page {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  background: #f0f2f5;
+  padding: 20px 28px 40px;
+}
+
+.gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.gallery-header h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.gallery-album-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.gallery-album-bar h2 {
+  margin: 0;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.gallery-grid-albums {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.gallery-album-card {
+  position: relative;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.gallery-album-open {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  border: 0;
+  padding: 0 0 10px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.gallery-album-open strong,
+.gallery-album-open small {
+  padding: 0 12px;
+  overflow-wrap: anywhere;
+}
+
+.gallery-album-open strong {
+  margin-top: 8px;
+}
+
+.gallery-album-open small {
+  color: #65676b;
+}
+
+.gallery-album-cover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  background: #e4e6eb;
+  color: #8a8d91;
+  font-size: 36px;
+}
+
+.gallery-album-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gallery-album-tools {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+}
+
+.gallery-grid-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.gallery-photo-cell {
+  position: relative;
+}
+
+.gallery-photo-save.ant-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.gallery-photo-cell:hover .gallery-photo-save,
+.gallery-photo-save:focus-visible {
+  opacity: 1;
+}
+
+/* Màn cảm ứng không có hover nên luôn hiện nút */
+@media (hover: none) {
+  .gallery-photo-save.ant-btn {
+    opacity: 1;
+  }
+}
+
+.gallery-photo {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 0;
+  padding: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e4e6eb;
+  cursor: pointer;
+}
+
+.gallery-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gallery-photo-tags {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.gallery-photo-tags .ant-tag {
+  margin: 0;
+}
+
+.gallery-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.gallery-viewer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px;
+}
+
+.gallery-viewer-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  background: #111;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.gallery-viewer-stage img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+.gallery-viewer-prev,
+.gallery-viewer-next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.gallery-viewer-prev {
+  left: 10px;
+}
+
+.gallery-viewer-next {
+  right: 10px;
+}
+
+.gallery-viewer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.gallery-viewer-owner {
+  color: #65676b;
+}
+
+.gallery-viewer-caption {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.gallery-reject-reason {
+  color: #cf1322;
+  overflow-wrap: anywhere;
+}
+
+.gallery-viewer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nav-rail-btn {
+  position: relative;
+}
+
+.nav-rail-badge {
+  position: absolute;
+  top: 4px;
+  right: 10px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #f5222d;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .gallery-page {
+    padding: 14px 12px 28px;
+  }
+
+  .gallery-viewer {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gallery-photo-reason {
+  max-width: 100%;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gallery-submit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.gallery-submit .ant-segmented {
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+.gallery-submit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.gallery-submit-item,
+.gallery-submit-add {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.gallery-submit-item {
+  background: #e4e6eb;
+}
+
+.gallery-submit-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gallery-submit-item.done img {
+  opacity: 0.6;
+}
+
+.gallery-submit-spin {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.gallery-submit-state {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 11px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gallery-submit-state.failed {
+  background: #cf1322;
+}
+
+.gallery-submit-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+}
+
+.gallery-submit-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px dashed #bcc0c4;
+  background: #fff;
+  color: #65676b;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.gallery-review-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 12px;
+}
+
+.gallery-review-card {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.gallery-review-thumb {
+  align-self: start;
+  aspect-ratio: 1;
+  border: 0;
+  padding: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e4e6eb;
+  cursor: pointer;
+}
+
+.gallery-review-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gallery-review-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.gallery-review-body small {
+  color: #65676b;
+  overflow-wrap: anywhere;
+}
+
+.gallery-review-body p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.gallery-review-body .ant-segmented {
+  align-self: flex-start;
+}
+
+.gallery-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .gallery-review-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gallery-review-card {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+}
+
+.gallery-camera {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 120px;
+}
+
+.gallery-camera video,
+.gallery-camera img {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #111;
+}

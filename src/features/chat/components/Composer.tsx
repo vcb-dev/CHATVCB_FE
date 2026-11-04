@@ -17,6 +17,7 @@ import type {
   RoomMember,
   ToolKind,
 } from '@/types';
+import { canAssignTask } from '@/lib/tasks';
 import { buildMentionOptions, mentionOpen, mentionsAllowed } from '../utils/mentions';
 import { filesFromClipboard } from '../utils/media';
 import { isDirectRoom } from '../utils/rooms';
@@ -216,6 +217,7 @@ export function Composer(props: {
                 />
                 <ComposerToolsMenu
                   isGroup={Boolean(room && !isDirectRoom(room) && !room.isCloud)}
+                  canAssign={Boolean(room && canAssignTask(room))}
                   locked={Boolean(props.locked)}
                   disabled={props.disabled}
                   onPick={(kind) => props.onTool?.(kind)}

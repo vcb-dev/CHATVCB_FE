@@ -9,10 +9,8 @@ import {
   LinkOutlined,
   LogoutOutlined,
   PictureOutlined,
-  PlusOutlined,
   PushpinOutlined,
   RightOutlined,
-  TeamOutlined,
 } from '@ant-design/icons';
 import { Avatar, Button, Input, Modal, Switch, Typography, message } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -32,10 +30,10 @@ import { MuteDurationModal } from './MuteDurationModal';
 import { GroupInviteCard } from './GroupInviteCard';
 import { GroupSettingsCard } from './GroupSettingsCard';
 import { GroupRemindersCard } from './GroupRemindersCard';
+import { GroupTasksCard } from './GroupTasksCard';
 import { GroupNotesCard } from './GroupNotesCard';
 import { JoinRequestsCard } from './JoinRequestsCard';
-import { MemberActions } from './MemberActions';
-import { RoleTag } from './RoleTag';
+import { GroupMembersCard } from './GroupMembersCard';
 import type { ChatFile, ChatMessage, DirectoryUser, GalleryImage, Reminder, Room, RoomLink, RoomMember, RoomNote } from '@/types';
 
 const EMPTY_PHOTOS: GalleryImage[] = [];
@@ -86,6 +84,7 @@ type Props = {
   onCreateReminder: () => void;
   onOpenNote: (note: RoomNote) => void;
   onCreateNote: () => void;
+  onCreateTask: () => void;
 };
 
 export function GroupDrawer({
@@ -105,6 +104,7 @@ export function GroupDrawer({
   onCreateReminder,
   onOpenNote,
   onCreateNote,
+  onCreateTask,
 }: Props) {
   const [name, setName] = useState(room?.name ?? '');
   const [editingName, setEditingName] = useState(false);
@@ -458,71 +458,22 @@ export function GroupDrawer({
           ) : null}
 
           {isGroup ? (
-            <div className="group-card">
-              <button type="button" className="group-row" onClick={() => toggle('members')}>
-                <span className="group-ico">
-                  <TeamOutlined />
-                </span>
-                <span className="group-row-text">
-                  <strong>Thành viên</strong>
-                  <small>{members.length} người</small>
-                </span>
-                <RightOutlined className={openSection === 'members' ? 'chev open' : 'chev'} />
-              </button>
-              {openSection === 'members' ? (
-                <div className="group-list">
-                  {canAddMember ? (
-                    <button
-                      type="button"
-                      className="group-member group-add-btn"
-                      onClick={() => setAddMemberOpen(true)}
-                    >
-                      <span className="group-file-ico">
-                        <PlusOutlined />
-                      </span>
-                      <span className="group-member-info">
-                        <strong>{isSuggestMember ? 'Đề xuất thành viên' : 'Thêm thành viên'}</strong>
-                      </span>
-                    </button>
-                  ) : null}
-                  {members.map((item) => (
-                    <div key={item.id} className="group-member-wrap">
-                      <button
-                        type="button"
-                        className="group-member"
-                        onClick={() => {
-                          setNickUser(item);
-                          setNickValue(item.nickname || '');
-                        }}
-                      >
-                        <Avatar
-                          size={40}
-                          src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
-                          style={{ background: avatarColor(item.displayName || item.name) }}
-                        >
-                          {initials(item.displayName || item.name)}
-                        </Avatar>
-                        <span className="group-member-info">
-                          <strong>
-                            {item.displayName || item.name}
-                            <RoleTag role={item.role} />
-                          </strong>
-                          <small>@{item.handle}</small>
-                        </span>
-                        <RightOutlined className="chev" />
-                      </button>
-                      <MemberActions
-                        room={room}
-                        member={item}
-                        currentUserId={currentUserId}
-                        onMembersUpdated={onMembersUpdated}
-                        onRemove={handleRemoveMember}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+            <GroupMembersCard
+              key={room.id}
+              room={room}
+              members={members}
+              currentUserId={currentUserId}
+              open={openSection === 'members'}
+              onToggle={() => toggle('members')}
+              addLabel={canAddMember ? (isSuggestMember ? 'Đề xuất thành viên' : 'Thêm thành viên') : null}
+              onAdd={() => setAddMemberOpen(true)}
+              onPick={(member) => {
+                setNickUser(member);
+                setNickValue(member.nickname || '');
+              }}
+              onMembersUpdated={onMembersUpdated}
+              onRemove={handleRemoveMember}
+            />
           ) : null}
 
           {isGroup && room ? (
@@ -531,6 +482,18 @@ export function GroupDrawer({
               <GroupInviteCard room={room} />
               <JoinRequestsCard room={room} onMembersUpdated={onMembersUpdated} />
             </>
+          ) : null}
+
+          {room && !room.isCloud ? (
+            <GroupTasksCard
+              room={room}
+              onCreate={onCreateTask}
+              onOpen={(task) => {
+                if (task.messageId) {
+                  onJumpMessage(task.messageId, task.createdAt);
+                }
+              }}
+            />
           ) : null}
 
           {room ? (

@@ -1,4 +1,8 @@
-import { CloudOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  CloudOutlined,
+  SearchOutlined,
+  VideoCameraOutlined,
+} from '@ant-design/icons';
 import { Avatar, Badge, Button, Tooltip } from 'antd';
 import { fileSrc } from '@/api/client';
 import { avatarColor, initials } from '@/lib/avatar';
@@ -13,6 +17,7 @@ export function ChatHeader(props: {
   onlineMembersCount: number;
   onToggleInfo: () => void;
   onSearch: () => void;
+  onStartMeeting?: () => void;
 }) {
   const { room, isDirect, isPeerOnline, membersCount, onlineMembersCount } = props;
   const isCloud = room?.isCloud ?? false;
@@ -68,16 +73,30 @@ export function ChatHeader(props: {
           </small>
         </div>
       </button>
-      <Tooltip title="Tìm trong cuộc trò chuyện">
-        <Button
-          type="text"
-          shape="circle"
-          icon={<SearchOutlined />}
-          aria-label="Tìm trong cuộc trò chuyện"
-          onClick={props.onSearch}
-          disabled={!room}
-        />
-      </Tooltip>
+      <div className="chat-head-actions">
+        {!isCloud && props.onStartMeeting ? (
+          <Tooltip title="Bắt đầu cuộc họp">
+            <Button
+              type="text"
+              shape="circle"
+              icon={<VideoCameraOutlined />}
+              aria-label="Bắt đầu cuộc họp"
+              onClick={props.onStartMeeting}
+              disabled={!room}
+            />
+          </Tooltip>
+        ) : null}
+        <Tooltip title="Tìm trong cuộc trò chuyện">
+          <Button
+            type="text"
+            shape="circle"
+            icon={<SearchOutlined />}
+            aria-label="Tìm trong cuộc trò chuyện"
+            onClick={props.onSearch}
+            disabled={!room}
+          />
+        </Tooltip>
+      </div>
     </header>
   );
 }

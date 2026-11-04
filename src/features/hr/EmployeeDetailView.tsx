@@ -1,13 +1,20 @@
+import { useAdminUsersQuery } from "@/features/admin/hooks/useAdminQueries";
 import { useDepartmentsQuery } from "@/features/departments/hooks/useDepartmentsQuery";
 import type { OrgDepartment } from "@/features/departments/types";
 import {
   departmentSelectOptions,
   groupSelectOptionsForDepartment,
 } from "@/features/departments/utils/departmentSelect";
+import { fileSrc } from "@/api/client";
 import { avatarColor, initials } from "@/lib/avatar";
+import { CONSTANTS_ROLE } from "@/lib/common";
 import {
   ArrowLeftOutlined,
   BankOutlined,
+  CameraOutlined,
+  CloudUploadOutlined,
+  LoadingOutlined,
+  PictureOutlined,
   EditOutlined,
   IdcardOutlined,
   ReadOutlined,
@@ -18,6 +25,7 @@ import {
 import {
   Avatar,
   Button,
+  Image,
   Form,
   Input,
   Select,
@@ -26,9 +34,11 @@ import {
   Typography,
   message,
 } from "antd";
-import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState, type ChangeEvent } from "react";
+import { employeeKeys } from "./queries/employeeKeys";
+import { uploadCitizenId } from "./services/employeesApi";
 import {
-  HrDocPlaceholder,
   HrField,
   HrFieldGrid,
   HrPersonRow,
@@ -40,8 +50,14 @@ import type { EmployeeProfile } from "./types";
 
 interface Props {
   profile: EmployeeProfile;
+  canUpdate?: boolean;
+  canReadSensitive?: boolean;
+  canUpdateSensitive?: boolean;
+  saveLoading?: boolean;
   onBack: () => void;
-  onSave: (next: EmployeeProfile) => void;
+  onSave: (
+    patch: Partial<EmployeeProfile> & { id: string },
+  ) => void | Promise<void>;
 }
 
 const TAB_KEYS = [
@@ -53,11 +69,80 @@ const TAB_KEYS = [
   "other",
 ] as const;
 
-export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
+type TabKey = (typeof TAB_KEYS)[number];
+
+const TAB_FIELDS: Record<TabKey, (keyof EmployeeProfile)[]> = {
+  work: [
+    "startDate",
+    "employeeCode",
+    "contractType",
+    "jobTitle",
+    "specialtyPosition",
+    "department",
+    "departmentGroup",
+    "managementBlockCode",
+    "directManagerName",
+    "employmentStatus",
+  ],
+  personal: [
+    "fullName",
+    "gender",
+    "dateOfBirth",
+    "phone",
+    "email",
+    "maritalStatus",
+    "ethnicity",
+    "religion",
+    "address",
+    "permanentAddress",
+  ],
+  education: ["educationLevel", "schoolName"],
+  identity: [
+    "citizenIdNumber",
+    "citizenIdIssuedPlace",
+    "socialInsuranceNumber",
+  ],
+  family: ["emergencyContact", "guardianFather", "guardianMother"],
+  other: ["bankAccount", "vehicles"],
+};
+
+const SENSITIVE_TABS: TabKey[] = ["identity", "other"];
+
+const ALL_TAB_FIELD_NAMES = [
+  ...new Set(TAB_KEYS.flatMap((key) => TAB_FIELDS[key])),
+] as (keyof EmployeeProfile)[];
+
+const SAVE_VALIDATE_NAMES: (keyof EmployeeProfile)[] = [
+  "employeeCode",
+  "fullName",
+];
+
+function stripSensitivePatch(
+  patch: Partial<EmployeeProfile>,
+): Partial<EmployeeProfile> {
+  const next = { ...patch };
+  for (const tab of SENSITIVE_TABS) {
+    for (const key of TAB_FIELDS[tab]) {
+      delete next[key];
+    }
+  }
+  delete next.bankAccount;
+  return next;
+}
+
+export function EmployeeDetailView({
+  profile,
+  canUpdate = false,
+  canReadSensitive = false,
+  canUpdateSensitive = false,
+  saveLoading = false,
+  onBack,
+  onSave,
+}: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
   const [form] = Form.useForm<EmployeeProfile>();
-  const [activeTab, setActiveTab] = useState<(typeof TAB_KEYS)[number]>("work");
+  const [activeTab, setActiveTab] = useState<TabKey>("work");
 
   useEffect(() => {
     setDraft(profile);
@@ -72,14 +157,21 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
   }
 
   function saveEdit() {
-    form
-      .validateFields()
-      .then((values) => {
-        const next = { ...draft, ...values };
-        setDraft(next);
-        onSave(next);
+    void form
+      .validateFields(SAVE_VALIDATE_NAMES)
+      .then(async () => {
+        const values = form.getFieldsValue(true);
+        let patch = Object.fromEntries(
+          ALL_TAB_FIELD_NAMES.map((key) => [key, values[key]]),
+        ) as Partial<EmployeeProfile>;
+        if (!canUpdateSensitive) {
+          patch = stripSensitivePatch(patch);
+        }
+        await onSave({ id: profile.id, ...patch });
+        const merged = { ...profile, ...patch } as EmployeeProfile;
+        setDraft(merged);
+        form.setFieldsValue(merged);
         setEditing(false);
-        message.success("Đã lưu (demo — chưa gửi lên server).");
       })
       .catch(() => message.warning("Kiểm tra lại các trường bắt buộc."));
   }
@@ -101,6 +193,7 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
         <div className="hr-detail-hero-inner">
           <Avatar
             size={72}
+            src={data.avatarUrl ? fileSrc(data.avatarUrl) : undefined}
             style={{
               background: avatarColor(data.fullName),
               color: "#fff",
@@ -126,11 +219,11 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
             {editing ? (
               <>
                 <Button onClick={cancelEdit}>Hủy</Button>
-                <Button type="primary" onClick={saveEdit}>
+                <Button type="primary" loading={saveLoading} onClick={saveEdit}>
                   Lưu thay đổi
                 </Button>
               </>
-            ) : (
+            ) : canUpdate ? (
               <Button
                 type="primary"
                 icon={<EditOutlined />}
@@ -138,7 +231,7 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
               >
                 Chỉnh sửa
               </Button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -157,7 +250,7 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
       >
         <Tabs
           activeKey={activeTab}
-          onChange={(key) => setActiveTab(key as (typeof TAB_KEYS)[number])}
+          onChange={(key) => setActiveTab(key as TabKey)}
           className="hr-detail-tabs"
           items={TAB_KEYS.map((key) => ({
             key,
@@ -165,30 +258,34 @@ export function EmployeeDetailView({ profile, onBack, onSave }: Props) {
           }))}
         />
         <div className="hr-detail-tab-scroll">
-          <div className="hr-tab-panel">
-            {tabContent(activeTab, data, editing, form, orgDepartments)}
-          </div>
+          {editing ? (
+            TAB_KEYS.map((key) => (
+              <div
+                key={key}
+                className="hr-tab-panel"
+                hidden={activeTab !== key}
+              >
+                {tabContent(key, data, editing, form, orgDepartments, {
+                  canReadSensitive,
+                  canUpdateSensitive,
+                })}
+              </div>
+            ))
+          ) : (
+            <div className="hr-tab-panel">
+              {tabContent(activeTab, data, editing, form, orgDepartments, {
+                canReadSensitive,
+                canUpdateSensitive,
+              })}
+            </div>
+          )}
         </div>
       </Form>
-
-      {editing ? (
-        <footer className="hr-edit-footer">
-          <Typography.Text type="secondary">
-            Tab: {tabLabel(activeTab)}
-          </Typography.Text>
-          <div>
-            <Button onClick={cancelEdit}>Hủy</Button>
-            <Button type="primary" onClick={saveEdit}>
-              Lưu thay đổi
-            </Button>
-          </div>
-        </footer>
-      ) : null}
     </main>
   );
 }
 
-function tabLabel(key: (typeof TAB_KEYS)[number]) {
+function tabLabel(key: TabKey) {
   switch (key) {
     case "work":
       return "Công việc";
@@ -206,27 +303,46 @@ function tabLabel(key: (typeof TAB_KEYS)[number]) {
 }
 
 function tabContent(
-  key: (typeof TAB_KEYS)[number],
+  key: TabKey,
   data: EmployeeProfile,
   editing: boolean,
   _form: ReturnType<typeof Form.useForm<EmployeeProfile>>[0],
   orgDepartments: OrgDepartment[],
+  access: { canReadSensitive: boolean; canUpdateSensitive: boolean },
 ) {
   switch (key) {
     case "work":
       return (
-        <WorkTab data={data} editing={editing} orgDepartments={orgDepartments} />
+        <WorkTab
+          data={data}
+          editing={editing}
+          orgDepartments={orgDepartments}
+        />
       );
     case "personal":
       return <PersonalTab data={data} editing={editing} />;
     case "education":
       return <EducationTab data={data} editing={editing} />;
     case "identity":
-      return <IdentityTab data={data} editing={editing} />;
+      return (
+        <IdentityTab
+          data={data}
+          editing={editing}
+          canReadSensitive={access.canReadSensitive}
+          canUpdateSensitive={access.canUpdateSensitive}
+        />
+      );
     case "family":
       return <FamilyTab data={data} editing={editing} />;
     default:
-      return <OtherTab data={data} editing={editing} />;
+      return (
+        <OtherTab
+          data={data}
+          editing={editing}
+          canReadSensitive={access.canReadSensitive}
+          canUpdateSensitive={access.canUpdateSensitive}
+        />
+      );
   }
 }
 
@@ -241,6 +357,39 @@ function WorkTab({
 }) {
   const form = Form.useFormInstance<EmployeeProfile>();
   const departmentWatch = Form.useWatch("department", form);
+  const { data: adminUsers = [] } = useAdminUsersQuery();
+  const leaderOptions = adminUsers
+    .filter((u) =>
+      u.roles.some((r) =>
+        r.name.toLowerCase().includes(CONSTANTS_ROLE.LEADER.toLowerCase()),
+      ),
+    )
+    .map((u) => ({ value: u.name, label: u.name }));
+  if (
+    data.managementBlockCode &&
+    !leaderOptions.some((o) => o.value === data.managementBlockCode)
+  ) {
+    leaderOptions.push({
+      value: data.managementBlockCode,
+      label: data.managementBlockCode,
+    });
+  }
+  const managerRoles: string[] = [
+    CONSTANTS_ROLE.MANAGER,
+    CONSTANTS_ROLE.BOD,
+  ];
+  const managerOptions = adminUsers
+    .filter((u) => u.roles.some((r) => managerRoles.includes(r.name)))
+    .map((u) => ({ value: u.name, label: u.name }));
+  if (
+    data.directManagerName &&
+    !managerOptions.some((o) => o.value === data.directManagerName)
+  ) {
+    managerOptions.push({
+      value: data.directManagerName,
+      label: data.directManagerName,
+    });
+  }
   const departmentGroupOptions = groupSelectOptionsForDepartment(
     orgDepartments,
     departmentWatch ?? data.department,
@@ -261,7 +410,6 @@ function WorkTab({
           <HrFieldGrid>
             <HrField label="Ngày bắt đầu làm việc" value={data.startDate} />
             <HrField label="Mã nhân viên" value={data.employeeCode} highlight />
-            <HrField label="Mã định danh NV" value={data.employeeSeq} />
             <HrField label="Loại hợp đồng" value={data.contractType} />
             <HrField label="Vị trí (HĐ)" value={data.jobTitle} />
             <HrField label="Vị trí chuyên môn" value={data.specialtyPosition} />
@@ -270,10 +418,7 @@ function WorkTab({
               label="Nhóm (theo phòng ban)"
               value={data.departmentGroup}
             />
-            <HrField
-              label="Mã khối theo quản lý"
-              value={data.managementBlockCode}
-            />
+            <HrField label="Trưởng nhóm" value={data.managementBlockCode} />
             <HrField
               label="Tình trạng làm việc"
               value={data.employmentStatus}
@@ -296,9 +441,6 @@ function WorkTab({
           >
             <Input />
           </Form.Item>
-          <Form.Item name="employeeSeq" label="Mã định danh NV">
-            <Input disabled title="Chỉ HR — readonly demo" />
-          </Form.Item>
           <Form.Item name="contractType" label="Loại hợp đồng">
             <Select
               options={[
@@ -312,7 +454,13 @@ function WorkTab({
             />
           </Form.Item>
           <Form.Item name="jobTitle" label="Vị trí (HĐ)">
-            <Input />
+            <Select
+              allowClear
+              options={[
+                { value: "Fulltime", label: "Fulltime" },
+                { value: "Parttime", label: "Parttime" },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="specialtyPosition" label="Vị trí chuyên môn">
             <Input />
@@ -340,11 +488,23 @@ function WorkTab({
               }
             />
           </Form.Item>
-          <Form.Item name="managementBlockCode" label="Mã khối theo quản lý">
-            <Input />
+          <Form.Item name="managementBlockCode" label="Trưởng nhóm">
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              options={leaderOptions}
+              placeholder="Chọn trưởng nhóm"
+            />
           </Form.Item>
           <Form.Item name="directManagerName" label="Quản lý trực tiếp">
-            <Input />
+            <Select
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              options={managerOptions}
+              placeholder="Chọn quản lý trực tiếp"
+            />
           </Form.Item>
           <Form.Item name="employmentStatus" label="Tình trạng làm việc">
             <Select
@@ -399,7 +559,13 @@ function PersonalTab({
             <Input type="email" />
           </Form.Item>
           <Form.Item name="maritalStatus" label="Tình trạng hôn nhân">
-            <Input />
+            <Select
+              allowClear
+              options={[
+                { value: "Đã kết hôn", label: "Đã kết hôn" },
+                { value: "Chưa kết hôn", label: "Chưa kết hôn" },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="ethnicity" label="Dân tộc">
             <Input />
@@ -483,10 +649,22 @@ function EducationTab({
 function IdentityTab({
   data,
   editing,
+  canReadSensitive,
+  canUpdateSensitive,
 }: {
   data: EmployeeProfile;
   editing: boolean;
+  canReadSensitive: boolean;
+  canUpdateSensitive: boolean;
 }) {
+  if (!canReadSensitive) {
+    return (
+      <Typography.Text type="secondary">
+        Cần quyền «Xem thông tin nhạy cảm» để xem giấy tờ và BHXH.
+      </Typography.Text>
+    );
+  }
+  const canEdit = editing && canUpdateSensitive;
   return (
     <>
       <HrSensitiveBanner />
@@ -495,7 +673,7 @@ function IdentityTab({
         title="Giấy tờ & bảo hiểm"
         subtitle="CCCD và số sổ BHXH"
       >
-        {editing ? (
+        {canEdit ? (
           <HrFieldGrid>
             <Form.Item name="citizenIdNumber" label="Số CCCD">
               <Input />
@@ -518,11 +696,105 @@ function IdentityTab({
           </HrFieldGrid>
         )}
         <div className="hr-doc-row">
-          <HrDocPlaceholder label="Mặt trước CCCD" />
-          <HrDocPlaceholder label="Mặt sau CCCD" />
+          <CitizenIdSlot
+            label="Mặt trước CCCD"
+            userId={data.id}
+            side="front"
+            url={data.citizenIdFrontUrl}
+            canUpload={canUpdateSensitive && !editing}
+          />
+          <CitizenIdSlot
+            label="Mặt sau CCCD"
+            userId={data.id}
+            side="back"
+            url={data.citizenIdBackUrl}
+            canUpload={canUpdateSensitive && !editing}
+          />
         </div>
       </HrSectionCard>
     </>
+  );
+}
+
+function CitizenIdSlot({
+  label,
+  userId,
+  side,
+  url,
+  canUpload,
+}: {
+  label: string;
+  userId: string;
+  side: "front" | "back";
+  url?: string;
+  canUpload: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [uploading, setUploading] = useState(false);
+
+  async function onPick(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      message.warning("Chỉ chấp nhận file ảnh.");
+      return;
+    }
+    setUploading(true);
+    try {
+      await uploadCitizenId(userId, side, file);
+      await queryClient.invalidateQueries({ queryKey: employeeKeys.all });
+      message.success("Đã tải ảnh lên.");
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Tải ảnh thất bại.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const input = (
+    <input
+      type="file"
+      accept="image/*"
+      hidden
+      disabled={uploading}
+      onChange={onPick}
+    />
+  );
+
+  return (
+    <div className="hr-doc-slot">
+      <span className="hr-field-label">{label}</span>
+      {url ? (
+        <div className="hr-doc-card">
+          <Image src={url} alt={label} className="hr-doc-img" />
+          {canUpload ? (
+            <label className="hr-doc-replace">
+              {input}
+              <CameraOutlined /> {uploading ? "Đang tải..." : "Đổi ảnh"}
+            </label>
+          ) : null}
+        </div>
+      ) : canUpload ? (
+        <label className="hr-doc-frame hr-doc-drop">
+          {input}
+          {uploading ? (
+            <LoadingOutlined />
+          ) : (
+            <>
+              <CloudUploadOutlined className="hr-doc-drop-icon" />
+              <strong>Tải ảnh lên</strong>
+              <span>JPG, PNG · tối đa 8MB</span>
+            </>
+          )}
+        </label>
+      ) : (
+        <div className="hr-doc-frame">
+          <PictureOutlined className="hr-doc-drop-icon" />
+          <span>Chưa tải ảnh</span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -533,21 +805,11 @@ function FamilyTab({
   data: EmployeeProfile;
   editing: boolean;
 }) {
-  const childText =
-    data.children.length === 0
-      ? "Chưa khai báo"
-      : data.children
-          .map(
-            (c, i) =>
-              `Con ${i + 1}: ${c.fullName}${c.dateOfBirth ? ` (${c.dateOfBirth})` : ""}`,
-          )
-          .join("\n");
-
   return (
     <HrSectionCard
       icon={<TeamOutlined />}
       title="Gia đình & liên hệ"
-      subtitle="Con cái, khẩn cấp và người giám hộ"
+      subtitle="Liên hệ khẩn cấp và người giám hộ"
     >
       <HrSubBlock title="Liên hệ khẩn cấp">
         {editing ? (
@@ -580,15 +842,6 @@ function FamilyTab({
               value={data.emergencyContact.phone}
             />
           </HrFieldGrid>
-        )}
-      </HrSubBlock>
-      <HrSubBlock title="Thông tin con cái">
-        {editing ? (
-          <Form.Item name="vehicles" label="Ghi chú con cái (demo text)">
-            <Input.TextArea rows={2} placeholder={childText} disabled />
-          </Form.Item>
-        ) : (
-          <HrField label="Danh sách" value={childText} wide />
         )}
       </HrSubBlock>
       <HrSubBlock title="Người giám hộ">
@@ -629,10 +882,22 @@ function FamilyTab({
 function OtherTab({
   data,
   editing,
+  canReadSensitive,
+  canUpdateSensitive,
 }: {
   data: EmployeeProfile;
   editing: boolean;
+  canReadSensitive: boolean;
+  canUpdateSensitive: boolean;
 }) {
+  if (!canReadSensitive) {
+    return (
+      <Typography.Text type="secondary">
+        Cần quyền «Xem thông tin nhạy cảm» để xem ngân hàng lương.
+      </Typography.Text>
+    );
+  }
+  const canEdit = editing && canUpdateSensitive;
   return (
     <>
       <HrSensitiveBanner />
@@ -642,7 +907,7 @@ function OtherTab({
         subtitle="Ngân hàng lương và phương tiện di chuyển"
       >
         <HrSubBlock title="Tài khoản ngân hàng">
-          {editing ? (
+          {canEdit ? (
             <HrFieldGrid>
               <Form.Item name={["bankAccount", "bankName"]} label="Ngân hàng">
                 <Input />

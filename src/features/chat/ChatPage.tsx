@@ -1,15 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
 import { message as antMessage } from 'antd';
+import { useQuery } from '@tanstack/react-query';
+import { AdminPage } from '@/features/admin/AdminPage';
+import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
 import { ContactsPage } from '@/features/contacts/ContactsPage';
 import { DocsPage } from '@/features/docs/DocsPage';
 import { EmailPage } from '@/features/email/EmailPage';
 import { DepartmentsPage } from '@/features/departments/DepartmentsPage';
+import { GalleryPage } from '@/features/gallery/GalleryPage';
+import { NewsPage } from '@/features/news/NewsPage';
+import { SubmitPhotosModal } from '@/features/gallery/components/SubmitPhotosModal';
+import { useGalleryAccess } from '@/features/gallery/hooks/useGalleryAccess';
+import { chatImagesOf } from '@/features/gallery/utils/chatImages';
 import { HrPage } from '@/features/hr/HrPage';
+import { canAccessWorkspace } from '@/lib/workspaces';
 import { MeetingsPage } from '@/features/meetings/MeetingsPage';
+import { openMeetTab } from '@/features/meetings/meet';
 import { ProfileDrawer } from '@/features/profile/ProfileDrawer';
 import { UserProfileModal } from '@/features/profile/UserProfileModal';
 import { useMyProfile } from '@/features/profile/hooks/useMyProfile';
-import type { ChatMessage, Room, User } from '@/types';
+import { TasksPage } from '@/features/tasks/TasksPage';
+import type { ChatMessage, Room, TaskPreset, User } from '@/types';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatSidebar } from './components/ChatSidebar';
 import { Composer } from './components/Composer';
@@ -27,6 +39,7 @@ import { PinBar } from './components/PinBar';
 import { SelectionBar } from './components/SelectionBar';
 import { PollCreateModal } from './components/PollCreateModal';
 import { ReminderModal } from './components/ReminderModal';
+import { TaskModal } from './components/TaskModal';
 import { TypingIndicator } from './components/TypingIndicator';
 import { parseJoinHash } from './utils/invite';
 import { canEditItem } from './utils/rooms';
@@ -37,6 +50,7 @@ import { useChatSocket } from './hooks/useChatSocket';
 import { useComposer } from './hooks/useComposer';
 import { useMessageActions } from './hooks/useMessageActions';
 import { useMessageSelection } from './hooks/useMessageSelection';
+import { useOpenTask } from './hooks/useOpenTask';
 import { useRoomList } from './hooks/useRoomList';
 import { useRoomPrefs } from './hooks/useRoomPrefs';
 import { useRoomTools } from './hooks/useRoomTools';
@@ -61,7 +75,7 @@ import { isDirectRoom } from './utils/rooms';
 type Props = {
   user: User;
   onLogout: () => void;
-  onUserUpdate: (payload: { token: string; user: User }) => void;
+  onUserUpdate: (payload: { user: User }) => void;
 };
 
 export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
@@ -70,7 +84,9 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [groupOverlay, setGroupOverlay] = useState(false);
   const [rightPane, setRightPane] = useState<'info' | 'search'>('info');
   const [forwarding, setForwarding] = useState<ChatMessage[]>([]);
+  const [sharingImages, setSharingImages] = useState<{ id: string; url: string }[]>([]);
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const [assigning, setAssigning] = useState<TaskPreset | null>(null);
   const [cardPickerOpen, setCardPickerOpen] = useState(false);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
@@ -86,7 +102,28 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   }, []);
 
   const { changeAvatar } = useMyProfile(user, onUserUpdate);
-  const { workspace, setWorkspace, isViewingChat } = useWorkspace();
+  const { workspace, setWorkspace, isViewingChat, isViewingNews, confirmLeave, setLeaveBlocked } =
+    useWorkspace();
+  const accessLoaded = Array.isArray(user.permissions);
+
+  useEffect(() => {
+    if (!accessLoaded) {
+      return;
+    }
+    if (!canAccessWorkspace(user, workspace)) {
+      setWorkspace('messenger');
+    }
+  }, [accessLoaded, workspace, user, setWorkspace]);
+  const { canReview: canReviewGallery } = useGalleryAccess();
+  const { data: galleryReview } = useQuery({
+    queryKey: queryKeys.galleryReviewCount,
+    queryFn: () => api.galleryReviewCount(),
+    enabled: canReviewGallery,
+  });
+  const { data: newsUnread } = useQuery({
+    queryKey: queryKeys.newsUnread,
+    queryFn: () => api.newsUnread(),
+  });
   const roomList = useRoomList({ isViewingChat, setError });
   const { rooms, room, roomId } = roomList;
   const { setBlocked } = useBlockUser({ setRooms: roomList.setRooms });
@@ -143,6 +180,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setPins: chat.setPins,
     onReply: composer.setReplyTo,
     onForward: (message) => setForwarding([message]),
+    onShareToLibrary: (message) => setSharingImages(chatImagesOf(message)),
     onEdit: composer.startEdit,
     onSelect: selection.start,
     onSavedToCloud: chat.handleForwarded,
@@ -157,6 +195,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     removeRoom: roomList.removeRoom,
     openRoom: openRoomFromNotice,
     isViewingChat,
+    isViewingNews,
     markMessageRead: chat.markMessageRead,
     setMessages: chat.setMessages,
     setPending: chat.setPending,
@@ -167,10 +206,27 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setMembers: chat.setMembers,
   });
   useTypingSignal({ roomId, draft: composer.draft, emitTyping });
+  const onAssigned = (created: ChatMessage) => {
+    if (created.roomId === roomId) {
+      chat.appendMessage(created);
+    }
+  };
+
+  const openTask = useOpenTask({
+    roomId,
+    workspace,
+    messagesLoaded: chat.messagesLoaded,
+    setWorkspace,
+    findRoom: roomList.findRoom,
+    openRoom: roomList.openRoom,
+    jumpToMessage: chat.jumpToMessage,
+  });
 
   useEffect(() => {
     setGroupOverlay(false);
     setRightPane('info');
+    // Việc giao theo phòng đang mở: để modal mở qua phòng khác là tạo nhầm phòng
+    tools.setToolModal((current) => (current === 'task' ? null : current));
   }, [roomId]);
 
   const isDirect = Boolean(room && isDirectRoom(room));
@@ -196,17 +252,43 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     return isDirect ? isPeerOnline : isGroupOnline;
   }
 
+  async function startRoomMeeting() {
+    if (!room) {
+      return;
+    }
+    try {
+      const title = isDirect
+        ? `Cuộc họp với ${room.title || room.name}`
+        : `Họp ${room.title || room.name}`;
+      const created = await api.createMeeting({ title: title.slice(0, 80) });
+      await composer.sendRich({
+        type: 'meeting',
+        code: created.code,
+        title: created.title,
+      });
+      openMeetTab(created.code);
+    } catch (err) {
+      void antMessage.error(
+        err instanceof Error ? err.message : 'Không tạo được cuộc họp.',
+      );
+    }
+  }
+
   return (
     <div className={`app-shell module-${workspace}`}>
       <NavRail
         workspace={workspace}
         user={user}
+        badges={{
+          ...(canReviewGallery ? { gallery: galleryReview?.pending ?? 0 } : {}),
+          news: newsUnread?.count ?? 0,
+        }}
         onSelect={(next) => {
           setWorkspace(next);
           setGroupOverlay(false);
         }}
         onOpenProfile={() => setProfileOpen(true)}
-        onLogout={onLogout}
+        onLogout={() => confirmLeave(onLogout)}
       />
 
       {workspace === 'messenger' ? (
@@ -250,6 +332,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
               setRightPane('search');
               setGroupOverlay(true);
             }}
+            onStartMeeting={
+              room && !room.isCloud && !locked && !room.blockedByMe
+                ? () => void startRoomMeeting()
+                : undefined
+            }
           />
           <PinBar pins={chat.pins} onJump={chat.jumpToMessage} />
           <MessageList
@@ -335,6 +422,14 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           />
           <DropOverlay visible={drop.dragging} />
         </main>
+      ) : workspace === 'tasks' ? (
+        <TasksPage
+          userId={user.id}
+          onOpenTask={(task) => void openTask(task)}
+          rooms={rooms}
+          onAssign={(preset) => setAssigning(preset ?? {})}
+          onAssigned={onAssigned}
+        />
       ) : workspace === 'contacts' ? (
         <ContactsPage
           onlineUserIds={onlineUserIds}
@@ -346,12 +441,24 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       ) : workspace === 'docs' ? (
         <DocsPage user={user} />
       ) : workspace === 'hr' ? (
-        <HrPage />
+        <HrPage user={user} />
       ) : workspace === 'departments' ? (
-        <DepartmentsPage />
+        <DepartmentsPage user={user} />
+      ) : workspace === 'admin' ? (
+        <AdminPage user={user} />
+      ) : workspace === 'gallery' ? (
+        <GalleryPage />
+      ) : workspace === 'news' ? (
+        <NewsPage user={user} onDirtyChange={setLeaveBlocked} />
       ) : (
         <MeetingsPage user={user} />
       )}
+
+      <SubmitPhotosModal
+        open={sharingImages.length > 0}
+        chatImages={sharingImages}
+        onClose={() => setSharingImages([])}
+      />
 
       <ForwardModal
         messages={forwarding}
@@ -390,6 +497,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onCreateReminder={() => tools.setToolModal('reminder')}
             onOpenNote={tools.setOpenNote}
             onCreateNote={() => tools.setToolModal('note')}
+            onCreateTask={() => tools.setToolModal('task')}
           />
         )
       ) : null}
@@ -461,6 +569,28 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           tools.setToolModal(null);
           tools.setOpenNote(null);
         }}
+      />
+      <TaskModal
+        open={tools.toolModal === 'task'}
+        roomId={roomId}
+        members={chat.members}
+        currentUserId={user.id}
+        isDirect={isDirect}
+        task={null}
+        onClose={() => tools.setToolModal(null)}
+        onCreated={chat.appendMessage}
+      />
+      <TaskModal
+        open={Boolean(assigning)}
+        roomId=""
+        members={[]}
+        currentUserId={user.id}
+        isDirect={false}
+        task={null}
+        rooms={rooms}
+        preset={assigning ?? undefined}
+        onClose={() => setAssigning(null)}
+        onCreated={onAssigned}
       />
     </div>
   );

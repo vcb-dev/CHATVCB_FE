@@ -1,0 +1,35 @@
+.admin-matrix {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-matrix-group h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.admin-matrix-group .ant-checkbox-group {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-matrix-group .ant-checkbox-wrapper {
+  align-items: flex-start;
+  line-height: 1.35;
+}
+
+.admin-matrix-group .ant-checkbox + span {
+  white-space: normal;
+}
+
+.admin-field-label {
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #65676b;
+}
+
+.admin-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 4px;
+}

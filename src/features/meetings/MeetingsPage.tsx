@@ -1,11 +1,13 @@
 import {
   CalendarOutlined,
+  DeleteOutlined,
+  EditOutlined,
   FileTextOutlined,
   UserAddOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
-import { Input, Modal, Typography, message } from 'antd';
-import { useCallback, useEffect, useState } from 'react';
+import { Button, Input, Modal, Select, Tooltip, Typography, message } from 'antd';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/api/client';
 import { openMeetTab } from './meet';
 import type { Meeting, User } from '@/types';
@@ -26,6 +28,11 @@ function formatWhen(value?: string | null) {
   });
 }
 
+function toLocalInput(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export function MeetingsPage({ user }: Props) {
   const [upcoming, setUpcoming] = useState<Meeting[]>([]);
   const [history, setHistory] = useState<Meeting[]>([]);
@@ -33,8 +40,9 @@ export function MeetingsPage({ user }: Props) {
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
   const [scheduleTitle, setScheduleTitle] = useState('');
-  const [scheduleAt, setScheduleAt] = useState<string>('');
+  const [scheduleInput, setScheduleInput] = useState('');
   const [notesOpen, setNotesOpen] = useState<Meeting | null>(null);
   const [notes, setNotes] = useState('');
 
@@ -63,6 +71,18 @@ export function MeetingsPage({ user }: Props) {
     };
   }, [load]);
 
+  const allMeetings = useMemo(() => {
+    const seen = new Set<string>();
+    const list: Meeting[] = [];
+    for (const item of [...upcoming, ...history]) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        list.push(item);
+      }
+    }
+    return list;
+  }, [upcoming, history]);
+
   function joinByCode() {
     const code = joinCode.trim();
     if (!code) {
@@ -74,24 +94,73 @@ export function MeetingsPage({ user }: Props) {
     openMeetTab(code);
   }
 
+  function openCreateSchedule() {
+    setEditingMeeting(null);
+    setScheduleTitle('');
+    setScheduleInput('');
+    setScheduleOpen(true);
+  }
+
+  function openEditSchedule(item: Meeting) {
+    setEditingMeeting(item);
+    setScheduleTitle(item.title);
+    const baseDate = item.scheduledAt || item.startedAt;
+    setScheduleInput(baseDate ? toLocalInput(new Date(baseDate)) : '');
+    setScheduleOpen(true);
+  }
+
   async function saveSchedule() {
-    if (!scheduleAt) {
+    if (!scheduleInput) {
       message.warning('Chọn thời gian họp.');
       return;
     }
+    const picked = new Date(scheduleInput);
+    if (Number.isNaN(picked.getTime()) || picked.getTime() < Date.now() - 60_000) {
+      message.warning('Thời gian họp phải ở tương lai.');
+      return;
+    }
+    const iso = picked.toISOString();
     try {
-      await api.createMeeting({
-        title: scheduleTitle.trim() || 'Cuộc họp đã lên lịch',
-        scheduledAt: scheduleAt,
-      });
+      if (editingMeeting) {
+        await api.updateMeeting(editingMeeting.id, {
+          title: scheduleTitle.trim() || editingMeeting.title,
+          scheduledAt: iso,
+        });
+        message.success('Đã cập nhật lịch họp.');
+      } else {
+        await api.createMeeting({
+          title: scheduleTitle.trim() || 'Cuộc họp đã lên lịch',
+          scheduledAt: iso,
+        });
+        message.success('Đã lên lịch.');
+      }
       setScheduleOpen(false);
+      setEditingMeeting(null);
       setScheduleTitle('');
-      setScheduleAt('');
-      message.success('Đã lên lịch.');
+      setScheduleInput('');
       void load();
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không lên lịch được.');
     }
+  }
+
+  function confirmDeleteSchedule(item: Meeting) {
+    Modal.confirm({
+      title: 'Hủy cuộc họp này?',
+      content: `Cuộc họp "${item.title}" sẽ bị xóa khỏi danh sách.`,
+      okText: 'Hủy lịch',
+      okButtonProps: { danger: true },
+      cancelText: 'Đóng',
+      onOk: async () => {
+        try {
+          await api.deleteMeeting(item.id);
+          message.success('Đã hủy cuộc họp.');
+          void load();
+        } catch (err) {
+          message.error(err instanceof Error ? err.message : 'Không hủy được cuộc họp.');
+        }
+      },
+    });
   }
 
   async function saveNotes() {
@@ -109,8 +178,12 @@ export function MeetingsPage({ user }: Props) {
   }
 
   const q = query.trim().toLowerCase();
-  const upcomingView = upcoming.filter((item) => !q || item.title.toLowerCase().includes(q) || item.code.includes(q));
-  const historyView = history.filter((item) => !q || item.title.toLowerCase().includes(q) || item.code.includes(q));
+  const upcomingView = upcoming.filter(
+    (item) => !q || item.title.toLowerCase().includes(q) || item.code.includes(q),
+  );
+  const historyView = history.filter(
+    (item) => !q || item.title.toLowerCase().includes(q) || item.code.includes(q),
+  );
 
   return (
     <main className="meet-page">
@@ -139,7 +212,7 @@ export function MeetingsPage({ user }: Props) {
             </span>
             <strong>Tham gia</strong>
           </button>
-          <button type="button" className="meet-card peach" onClick={() => setScheduleOpen(true)}>
+          <button type="button" className="meet-card peach" onClick={openCreateSchedule}>
             <span className="meet-ico">
               <CalendarOutlined />
             </span>
@@ -149,7 +222,7 @@ export function MeetingsPage({ user }: Props) {
             type="button"
             className="meet-card violet"
             onClick={() => {
-              const target = history[0] || upcoming[0];
+              const target = allMeetings[0];
               if (!target) {
                 message.info('Chưa có cuộc họp để ghi biên bản.');
                 return;
@@ -169,22 +242,78 @@ export function MeetingsPage({ user }: Props) {
           <div className="meet-panel">
             <div className="meet-panel-head">Sắp diễn ra</div>
             {upcomingView.length ? (
-              upcomingView.map((item) => (
-                <button key={item.id} type="button" className="meet-row" onClick={() => openMeetTab(item.code)}>
-                  <span className="meet-row-ico">
-                    <VideoCameraOutlined />
-                  </span>
-                  <span className="meet-row-body">
-                    <strong>{item.title}</strong>
-                    <small>
-                      {formatWhen(item.scheduledAt || item.startedAt)} · ID {item.code}
-                    </small>
-                  </span>
-                  <em className={item.startedAt && !item.endedAt ? 'live' : ''}>
-                    {item.endedAt ? 'Đã xong' : item.startedAt ? 'Đang họp' : 'Sắp họp'}
-                  </em>
-                </button>
-              ))
+              upcomingView.map((item) => {
+                const isLive = Boolean(item.isLive || (item.startedAt && !item.endedAt));
+                const isHost = item.hostId === user.id;
+                return (
+                  <div
+                    key={item.id}
+                    role="button"
+                    tabIndex={0}
+                    className="meet-row"
+                    onClick={() => openMeetTab(item.code)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openMeetTab(item.code);
+                      }
+                    }}
+                  >
+                    <span className="meet-row-ico">
+                      <VideoCameraOutlined />
+                    </span>
+                    <span className="meet-row-body">
+                      <strong>{item.title}</strong>
+                      <small>
+                        {formatWhen(item.scheduledAt || item.startedAt)} · ID {item.code}
+                      </small>
+                    </span>
+                    <em className={isLive ? 'live' : ''}>
+                      {item.endedAt ? 'Đã xong' : isLive ? 'Đang họp' : 'Sắp họp'}
+                    </em>
+                    <span
+                      className="meet-row-actions"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Tooltip title="Biên bản">
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<FileTextOutlined />}
+                          aria-label="Biên bản"
+                          onClick={() => {
+                            setNotesOpen(item);
+                            setNotes(item.notes || '');
+                          }}
+                        />
+                      </Tooltip>
+                      {isHost ? (
+                        <>
+                          <Tooltip title="Sửa lịch">
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<EditOutlined />}
+                              aria-label="Sửa lịch"
+                              onClick={() => openEditSchedule(item)}
+                            />
+                          </Tooltip>
+                          <Tooltip title="Hủy lịch">
+                            <Button
+                              type="text"
+                              size="small"
+                              danger
+                              icon={<DeleteOutlined />}
+                              aria-label="Hủy lịch"
+                              onClick={() => confirmDeleteSchedule(item)}
+                            />
+                          </Tooltip>
+                        </>
+                      ) : null}
+                    </span>
+                  </div>
+                );
+              })
             ) : (
               <p className="meet-empty">Chưa có cuộc họp sắp tới</p>
             )}
@@ -221,7 +350,13 @@ export function MeetingsPage({ user }: Props) {
         </section>
       </div>
 
-      <Modal title="Tham gia cuộc họp" open={joinOpen} onCancel={() => setJoinOpen(false)} onOk={joinByCode} okText="Mở tab họp">
+      <Modal
+        title="Tham gia cuộc họp"
+        open={joinOpen}
+        onCancel={() => setJoinOpen(false)}
+        onOk={joinByCode}
+        okText="Mở tab họp"
+      >
         <Input
           size="large"
           placeholder="Nhập mã họp"
@@ -231,7 +366,16 @@ export function MeetingsPage({ user }: Props) {
         />
       </Modal>
 
-      <Modal title="Lên lịch cuộc họp" open={scheduleOpen} onCancel={() => setScheduleOpen(false)} onOk={() => void saveSchedule()} okText="Tạo lịch">
+      <Modal
+        title={editingMeeting ? 'Sửa lịch cuộc họp' : 'Lên lịch cuộc họp'}
+        open={scheduleOpen}
+        onCancel={() => {
+          setScheduleOpen(false);
+          setEditingMeeting(null);
+        }}
+        onOk={() => void saveSchedule()}
+        okText={editingMeeting ? 'Lưu thay đổi' : 'Tạo lịch'}
+      >
         <Input
           size="large"
           placeholder="Tên cuộc họp"
@@ -242,9 +386,9 @@ export function MeetingsPage({ user }: Props) {
         <Input
           type="datetime-local"
           size="large"
-          onChange={(event) => {
-            setScheduleAt(event.target.value ? new Date(event.target.value).toISOString() : '');
-          }}
+          value={scheduleInput}
+          min={toLocalInput(new Date(Date.now() + 60_000))}
+          onChange={(event) => setScheduleInput(event.target.value)}
         />
       </Modal>
 
@@ -255,10 +399,32 @@ export function MeetingsPage({ user }: Props) {
         onOk={() => void saveNotes()}
         okText="Lưu"
       >
-        <Typography.Paragraph type="secondary">
-          {notesOpen ? `ID ${notesOpen.code}` : ''}
+        {allMeetings.length > 1 ? (
+          <Select
+            style={{ width: '100%', marginBottom: 10 }}
+            value={notesOpen?.id}
+            onChange={(id) => {
+              const found = allMeetings.find((m) => m.id === id);
+              if (found) {
+                setNotesOpen(found);
+                setNotes(found.notes || '');
+              }
+            }}
+            options={allMeetings.map((m) => ({
+              value: m.id,
+              label: `${m.title} · ID ${m.code} (${formatWhen(m.scheduledAt || m.startedAt || m.createdAt)})`,
+            }))}
+          />
+        ) : null}
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 8 }}>
+          {notesOpen ? `ID ${notesOpen.code} · Chủ phòng: ${notesOpen.hostName}` : ''}
         </Typography.Paragraph>
-        <Input.TextArea rows={8} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ghi chú cuộc họp" />
+        <Input.TextArea
+          rows={8}
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Ghi chú cuộc họp"
+        />
       </Modal>
     </main>
   );

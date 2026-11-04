@@ -8,6 +8,7 @@ export function canForward(message: ChatMessage): boolean {
   return (
     !message.recalled &&
     !message.poll &&
+    !message.task &&
     Boolean(message.rich || message.content.trim() || message.imageUrl || message.fileUrl) &&
     !isVoice(message)
   );

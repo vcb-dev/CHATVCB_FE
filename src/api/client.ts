@@ -1,10 +1,22 @@
+import { AdminRole, AdminUser, UserAccess } from "@/features/admin/types";
+import type { EmployeeProfile } from "@/features/hr/types";
 import type {
   ChatFile,
   ChatMessage,
   ConversationLabel,
   DirectoryUser,
   DocItem,
+  GalleryAccess,
+  GalleryAlbum,
   GalleryImage,
+  GalleryPhoto,
+  GalleryPhotoInput,
+  GalleryPhotoPage,
+  GalleryPhotoPatch,
+  NewsCardPage,
+  NewsImage,
+  NewsPost,
+  NewsPostInput,
   GroupSettings,
   InviteInfo,
   JoinRequest,
@@ -15,6 +27,8 @@ import type {
   MailMessage,
   Meeting,
   MessagesPage,
+  MyTasksQuery,
+  PlannedTask,
   Reminder,
   RichPayload,
   Room,
@@ -27,38 +41,59 @@ import type {
   RoomRead,
   RoomSearch,
   RoomsPage,
+  Task,
+  TaskFrequency,
+  TaskRoom,
+  TaskStatus,
   TeamCount,
   User,
 } from "@/types";
+import { API_URL, authHeaders, authedFetch, setCsrf } from "./session";
 
-const API_URL = (import.meta.env.VITE_APP_URL ?? "/api").replace(/\/$/, "");
+type AuthSession = { user: User; csrfToken?: string };
 
-function authHeader(): HeadersInit {
-  const token = localStorage.getItem("chatvcb.token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+/** Lỗi kèm mã HTTP, cho nơi cần phân biệt 404 và 409. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await authedFetch(`${API_URL}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...authHeader(),
       ...init?.headers,
     },
   });
-  if (response.status === 401) {
-    localStorage.removeItem("chatvcb.token");
-    localStorage.removeItem("chatvcb.user");
-    window.dispatchEvent(new CustomEvent("chatvcb:unauthorized"));
-  }
   if (!response.ok) {
-    throw new Error(await errorMessage(response));
+    throw new ApiError(await errorMessage(response), response.status);
   }
   if (response.status === 204) {
     return undefined as T;
   }
   return response.json() as Promise<T>;
+}
+
+/** Gửi multipart; không tự đặt Content-Type để trình duyệt thêm boundary. */
+async function uploadForm<T>(path: string, body: FormData): Promise<T> {
+  const response = await authedFetch(`${API_URL}${path}`, { method: "POST", body });
+  if (!response.ok) {
+    throw new ApiError(await errorMessage(response), response.status);
+  }
+  return response.json() as Promise<T>;
+}
+
+async function keepCsrf<T extends { csrfToken?: string }>(pending: Promise<T>) {
+  const body = await pending;
+  if (body.csrfToken) {
+    setCsrf(body.csrfToken);
+  }
+  return body;
 }
 
 async function errorMessage(response: Response) {
@@ -79,15 +114,14 @@ async function errorMessage(response: Response) {
 
 async function uploadChatFile(
   roomId: string,
-  path: 'files' | 'voice',
+  path: "files" | "voice",
   blob: Blob,
   filename: string,
 ): Promise<ChatFile> {
   const body = new FormData();
-  body.append('file', blob, filename);
-  const response = await fetch(`${API_URL}/rooms/${roomId}/${path}`, {
-    method: 'POST',
-    headers: authHeader(),
+  body.append("file", blob, filename);
+  const response = await authedFetch(`${API_URL}/rooms/${roomId}/${path}`, {
+    method: "POST",
     body,
   });
   if (!response.ok) {
@@ -112,19 +146,34 @@ export function fileSrc(url: string) {
 
 export const api = {
   login(email: string, password: string) {
-    return request<{ token: string; user: User }>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
+    return keepCsrf(
+      request<AuthSession>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      }),
+    );
   },
   register(name: string, email: string, password: string) {
-    return request<{ token: string; user: User }>("/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ name, email, password }),
-    });
+    return keepCsrf(
+      request<AuthSession>("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ name, email, password }),
+      }),
+    );
+  },
+  session() {
+    return keepCsrf(request<AuthSession>("/auth/session"));
+  },
+  async logout() {
+    await request<void>("/auth/logout", { method: "POST" });
+    setCsrf(null);
   },
   me() {
     return request<User>("/auth/me");
+  },
+  async socketToken() {
+    const { token } = await request<{ token: string }>("/auth/socket-token");
+    return token;
   },
   updateProfile(payload: {
     name?: string;
@@ -132,23 +181,24 @@ export const api = {
     password?: string;
     currentPassword?: string;
   }) {
-    return request<{ token: string; user: User }>("/auth/me", {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    });
+    return keepCsrf(
+      request<AuthSession>("/auth/me", {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+    );
   },
   async uploadMyAvatar(file: File) {
     const body = new FormData();
     body.append("file", file);
-    const response = await fetch(`${API_URL}/auth/me/avatar`, {
+    const response = await authedFetch(`${API_URL}/auth/me/avatar`, {
       method: "POST",
-      headers: authHeader(),
       body,
     });
     if (!response.ok) {
       throw new Error(await errorMessage(response));
     }
-    return response.json() as Promise<{ token: string; user: User }>;
+    return response.json() as Promise<{ user: User }>;
   },
   async rooms(cursor?: string, limit = 50): Promise<RoomsPage> {
     const params = new URLSearchParams();
@@ -205,13 +255,15 @@ export const api = {
     params: RoomMessageSearch & { cursor?: string },
   ): Promise<MessagesPage> {
     const sp = new URLSearchParams();
-    if (params.q) sp.set('q', params.q);
-    if (params.senderId) sp.set('senderId', params.senderId);
-    if (params.from) sp.set('from', params.from);
-    if (params.to) sp.set('to', params.to);
-    if (params.cursor) sp.set('cursor', params.cursor);
+    if (params.q) sp.set("q", params.q);
+    if (params.senderId) sp.set("senderId", params.senderId);
+    if (params.from) sp.set("from", params.from);
+    if (params.to) sp.set("to", params.to);
+    if (params.cursor) sp.set("cursor", params.cursor);
     const qs = sp.toString();
-    return request<MessagesPage>(`/rooms/${roomId}/messages/search${qs ? `?${qs}` : ''}`);
+    return request<MessagesPage>(
+      `/rooms/${roomId}/messages/search${qs ? `?${qs}` : ""}`,
+    );
   },
   sendMessage(
     roomId: string,
@@ -223,8 +275,15 @@ export const api = {
     rich?: RichPayload,
   ) {
     return request<ChatMessage>(`/rooms/${roomId}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({ content, imageId, replyToId, fileId, imageIds, rich }),
+      method: "POST",
+      body: JSON.stringify({
+        content,
+        imageId,
+        replyToId,
+        fileId,
+        imageIds,
+        rich,
+      }),
     });
   },
   reactMessage(roomId: string, messageId: string, emoji: string) {
@@ -237,10 +296,10 @@ export const api = {
     );
   },
   uploadFile(roomId: string, file: File): Promise<ChatFile> {
-    return uploadChatFile(roomId, 'files', file, file.name);
+    return uploadChatFile(roomId, "files", file, file.name);
   },
   uploadVoice(roomId: string, blob: Blob, filename: string): Promise<ChatFile> {
-    return uploadChatFile(roomId, 'voice', blob, filename);
+    return uploadChatFile(roomId, "voice", blob, filename);
   },
   async download(url: string): Promise<Blob> {
     const response = await fetch(fileSrc(url));
@@ -255,25 +314,28 @@ export const api = {
   users(q?: string, team?: string) {
     const params = new URLSearchParams();
     if (q?.trim()) {
-      params.set('q', q.trim());
+      params.set("q", q.trim());
     }
     if (team) {
-      params.set('team', team);
+      params.set("team", team);
     }
     const query = params.toString();
-    return request<DirectoryUser[]>(`/users${query ? `?${query}` : ''}`);
+    return request<DirectoryUser[]>(`/users${query ? `?${query}` : ""}`);
   },
   userTeams() {
-    return request<TeamCount[]>('/users/teams');
+    return request<TeamCount[]>("/users/teams");
   },
   blockUser(id: string) {
-    return request<{ ok: boolean }>(`/users/${id}/block`, { method: 'POST' });
+    return request<{ ok: boolean }>(`/users/${id}/block`, { method: "POST" });
   },
   unblockUser(id: string) {
-    return request<{ ok: boolean }>(`/users/${id}/block`, { method: 'DELETE' });
+    return request<{ ok: boolean }>(`/users/${id}/block`, { method: "DELETE" });
   },
   user(id: string) {
     return request<DirectoryUser>(`/users/${id}`);
+  },
+  room(roomId: string) {
+    return request<Room>(`/rooms/${roomId}`);
   },
   searchRooms(q: string) {
     return request<RoomSearch>(
@@ -293,8 +355,8 @@ export const api = {
     });
   },
   cloudRoom(): Promise<Room> {
-    return request<Room>('/rooms/cloud', {
-      method: 'POST',
+    return request<Room>("/rooms/cloud", {
+      method: "POST",
     });
   },
   addRoomMember(roomId: string, userId: string) {
@@ -308,21 +370,28 @@ export const api = {
       method: "DELETE",
     });
   },
-  setMemberRole(roomId: string, userId: string, role: 'admin' | 'member'): Promise<RoomMember[]> {
+  setMemberRole(
+    roomId: string,
+    userId: string,
+    role: "admin" | "member",
+  ): Promise<RoomMember[]> {
     return request<RoomMember[]>(`/rooms/${roomId}/members/${userId}/role`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify({ role }),
     });
   },
   transferOwner(roomId: string, userId: string): Promise<RoomMember[]> {
     return request<RoomMember[]>(`/rooms/${roomId}/owner`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({ userId }),
     });
   },
-  updatePermissions(roomId: string, patch: Partial<GroupSettings>): Promise<Room> {
+  updatePermissions(
+    roomId: string,
+    patch: Partial<GroupSettings>,
+  ): Promise<Room> {
     return request<Room>(`/rooms/${roomId}/permissions`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(patch),
     });
   },
@@ -331,12 +400,12 @@ export const api = {
   },
   resetInvite(roomId: string): Promise<{ token: string }> {
     return request<{ token: string }>(`/rooms/${roomId}/invite`, {
-      method: 'POST',
+      method: "POST",
     });
   },
   disableInvite(roomId: string): Promise<void> {
     return request<void>(`/rooms/${roomId}/invite`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   },
   inviteInfo(token: string): Promise<InviteInfo> {
@@ -344,12 +413,12 @@ export const api = {
   },
   joinByInvite(token: string): Promise<JoinResult> {
     return request<JoinResult>(`/invites/${token}/join`, {
-      method: 'POST',
+      method: "POST",
     });
   },
   requestMember(roomId: string, userId: string): Promise<{ ok: boolean }> {
     return request<{ ok: boolean }>(`/rooms/${roomId}/join-requests`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({ userId }),
     });
   },
@@ -357,13 +426,16 @@ export const api = {
     return request<JoinRequest[]>(`/rooms/${roomId}/join-requests`);
   },
   approveRequest(roomId: string, userId: string): Promise<RoomMember[]> {
-    return request<RoomMember[]>(`/rooms/${roomId}/join-requests/${userId}/approve`, {
-      method: 'POST',
-    });
+    return request<RoomMember[]>(
+      `/rooms/${roomId}/join-requests/${userId}/approve`,
+      {
+        method: "POST",
+      },
+    );
   },
   rejectRequest(roomId: string, userId: string): Promise<void> {
     return request<void>(`/rooms/${roomId}/join-requests/${userId}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   },
   deleteRoom(roomId: string) {
@@ -373,7 +445,7 @@ export const api = {
   },
   leaveRoom(roomId: string) {
     return request<void>(`/rooms/${roomId}/leave`, {
-      method: 'POST',
+      method: "POST",
     });
   },
   updateRoom(roomId: string, name: string) {
@@ -385,9 +457,8 @@ export const api = {
   async uploadRoomAvatar(roomId: string, file: File) {
     const body = new FormData();
     body.append("file", file);
-    const response = await fetch(`${API_URL}/rooms/${roomId}/avatar`, {
+    const response = await authedFetch(`${API_URL}/rooms/${roomId}/avatar`, {
       method: "POST",
-      headers: authHeader(),
       body,
     });
     if (!response.ok) {
@@ -403,34 +474,40 @@ export const api = {
   },
   muteRoom(roomId: string, muted: boolean, minutes?: number) {
     return request<RoomMute>(`/rooms/${roomId}/mute`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify({ muted, ...(minutes != null ? { minutes } : {}) }),
     });
   },
-  updateRoomPrefs(roomId: string, patch: Partial<Omit<RoomPrefs, 'roomId'>>) {
+  updateRoomPrefs(roomId: string, patch: Partial<Omit<RoomPrefs, "roomId">>) {
     return request<RoomPrefs>(`/rooms/${roomId}/prefs`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(patch),
     });
   },
   labels(): Promise<ConversationLabel[]> {
-    return request<ConversationLabel[]>('/labels');
+    return request<ConversationLabel[]>("/labels");
   },
-  createLabel(input: { name: string; color: string }): Promise<ConversationLabel> {
-    return request<ConversationLabel>('/labels', {
-      method: 'POST',
+  createLabel(input: {
+    name: string;
+    color: string;
+  }): Promise<ConversationLabel> {
+    return request<ConversationLabel>("/labels", {
+      method: "POST",
       body: JSON.stringify(input),
     });
   },
-  updateLabel(id: string, input: Partial<{ name: string; color: string }>): Promise<ConversationLabel> {
+  updateLabel(
+    id: string,
+    input: Partial<{ name: string; color: string }>,
+  ): Promise<ConversationLabel> {
     return request<ConversationLabel>(`/labels/${id}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(input),
     });
   },
   deleteLabel(id: string): Promise<void> {
     return request<void>(`/labels/${id}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   },
   links(roomId: string) {
@@ -455,7 +532,7 @@ export const api = {
   },
   editMessage(roomId: string, messageId: string, content: string) {
     return request<ChatMessage>(`/rooms/${roomId}/messages/${messageId}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify({ content }),
     });
   },
@@ -497,9 +574,8 @@ export const api = {
   async uploadImage(roomId: string, file: File) {
     const body = new FormData();
     body.append("file", file);
-    const response = await fetch(`${API_URL}/rooms/${roomId}/images`, {
+    const response = await authedFetch(`${API_URL}/rooms/${roomId}/images`, {
       method: "POST",
-      headers: authHeader(),
       body,
     });
     if (!response.ok) {
@@ -510,10 +586,29 @@ export const api = {
   listMeetings() {
     return request<{ upcoming: Meeting[]; history: Meeting[] }>("/meetings");
   },
+  getMeetingByCode(code: string) {
+    return request<Meeting>(
+      `/meetings/code/${encodeURIComponent(code.trim())}`,
+    );
+  },
   createMeeting(payload?: { title?: string; scheduledAt?: string }) {
     return request<Meeting>("/meetings", {
       method: "POST",
       body: JSON.stringify(payload ?? {}),
+    });
+  },
+  updateMeeting(
+    id: string,
+    payload: { title?: string; scheduledAt?: string },
+  ) {
+    return request<Meeting>(`/meetings/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+  deleteMeeting(id: string) {
+    return request<{ ok: boolean }>(`/meetings/${id}`, {
+      method: "DELETE",
     });
   },
   joinMeeting(code: string) {
@@ -535,13 +630,10 @@ export const api = {
     return request<Meeting>(`/meetings/${id}/end`, { method: "POST" });
   },
   closeMeetingOnExit(id: string, asHost: boolean) {
-    const token = localStorage.getItem("chatvcb.token");
-    if (!token) {
-      return;
-    }
     void fetch(`${API_URL}/meetings/${id}/${asHost ? "end" : "leave"}`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
+      headers: authHeaders(),
       keepalive: true,
     });
   },
@@ -577,6 +669,153 @@ export const api = {
     return request<MailMessage>(
       `/mail/accounts/${id}/messages/${encodeURIComponent(uid)}`,
     );
+  },
+  newsPosts(query: { cursor?: string }) {
+    const params = new URLSearchParams();
+    if (query.cursor) {
+      params.set("cursor", query.cursor);
+    }
+    return request<NewsCardPage>(`/news/posts?${params.toString()}`);
+  },
+  newsDrafts(query: { cursor?: string }) {
+    const params = new URLSearchParams();
+    if (query.cursor) {
+      params.set("cursor", query.cursor);
+    }
+    return request<NewsCardPage>(`/news/drafts?${params.toString()}`);
+  },
+  newsPost(id: string) {
+    return request<NewsPost>(`/news/posts/${id}`);
+  },
+  newsUnread() {
+    return request<{ count: number }>("/news/unread");
+  },
+  markNewsSeen() {
+    return request<void>("/news/seen", { method: "POST" });
+  },
+  createNewsPost() {
+    return request<NewsPost>("/news/posts", { method: "POST" });
+  },
+  updateNewsPost(id: string, input: NewsPostInput) {
+    return request<NewsPost>(`/news/posts/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+  publishNewsPost(id: string, expectedUpdatedAt: string) {
+    return request<NewsPost>(`/news/posts/${id}/publish`, {
+      method: "POST",
+      body: JSON.stringify({ expectedUpdatedAt }),
+    });
+  },
+  unpublishNewsPost(id: string) {
+    return request<NewsPost>(`/news/posts/${id}/unpublish`, { method: "POST" });
+  },
+  deleteNewsPost(id: string) {
+    return request<void>(`/news/posts/${id}`, { method: "DELETE" });
+  },
+  uploadNewsImage(postId: string, file: File) {
+    const body = new FormData();
+    body.append("file", file, file.name);
+    return uploadForm<NewsImage>(`/news/posts/${postId}/images`, body);
+  },
+  newsImageFromGallery(postId: string, photoId: string) {
+    return request<NewsImage>(`/news/posts/${postId}/images/from-gallery`, {
+      method: "POST",
+      body: JSON.stringify({ photoId }),
+    });
+  },
+  galleryAccess() {
+    return request<GalleryAccess>("/gallery/access");
+  },
+  galleryAlbums() {
+    return request<GalleryAlbum[]>("/gallery/albums");
+  },
+  createGalleryAlbum(input: { name: string; description?: string }) {
+    return request<GalleryAlbum>("/gallery/albums", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  updateGalleryAlbum(id: string, input: { name?: string; description?: string }) {
+    return request<GalleryAlbum>(`/gallery/albums/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+  deleteGalleryAlbum(id: string) {
+    return request<void>(`/gallery/albums/${id}`, { method: "DELETE" });
+  },
+  galleryPhotos(query: { albumId?: string; visibility?: "public"; cursor?: string }) {
+    const params = new URLSearchParams();
+    if (query.albumId) {
+      params.set("albumId", query.albumId);
+    }
+    if (query.visibility) {
+      params.set("visibility", query.visibility);
+    }
+    if (query.cursor) {
+      params.set("cursor", query.cursor);
+    }
+    return request<GalleryPhotoPage>(`/gallery/photos?${params.toString()}`);
+  },
+  myGalleryPhotos(query: { status?: string; cursor?: string }) {
+    const params = new URLSearchParams();
+    if (query.status) {
+      params.set("status", query.status);
+    }
+    if (query.cursor) {
+      params.set("cursor", query.cursor);
+    }
+    return request<GalleryPhotoPage>(`/gallery/photos/mine?${params.toString()}`);
+  },
+  submitGalleryPhoto(blob: Blob, filename: string, input: GalleryPhotoInput) {
+    const body = new FormData();
+    if (input.albumId) {
+      body.append("albumId", input.albumId);
+    }
+    if (input.caption) {
+      body.append("caption", input.caption);
+    }
+    if (input.visibility) {
+      body.append("visibility", input.visibility);
+    }
+    body.append("file", blob, filename);
+    return uploadForm<GalleryPhoto>("/gallery/photos", body);
+  },
+  submitGalleryPhotoFromChat(imageId: string, input: GalleryPhotoInput) {
+    return request<GalleryPhoto>("/gallery/photos/from-chat", {
+      method: "POST",
+      body: JSON.stringify({ imageId, ...input }),
+    });
+  },
+  updateGalleryPhoto(id: string, patch: GalleryPhotoPatch) {
+    return request<GalleryPhoto>(`/gallery/photos/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+  },
+  deleteGalleryPhoto(id: string) {
+    return request<void>(`/gallery/photos/${id}`, { method: "DELETE" });
+  },
+  galleryReviewPhotos(cursor?: string) {
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    return request<GalleryPhotoPage>(`/gallery/review/photos${query}`);
+  },
+  galleryReviewCount() {
+    return request<{ pending: number }>("/gallery/review/count");
+  },
+  approveGalleryPhoto(id: string, input: GalleryPhotoPatch) {
+    return request<GalleryPhoto>(`/gallery/photos/${id}/approve`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  rejectGalleryPhoto(id: string, reason: string) {
+    return request<GalleryPhoto>(`/gallery/photos/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
   },
   googleSheetsStatus() {
     return request<{ ready: boolean; connected: boolean; email: string }>(
@@ -739,26 +978,74 @@ export const api = {
     },
   ) {
     return request<ChatMessage>(`/rooms/${roomId}/polls`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(input),
     });
   },
   votePoll(roomId: string, pollId: string, optionIds: string[]) {
     return request<ChatMessage>(`/rooms/${roomId}/polls/${pollId}/votes`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify({ optionIds }),
     });
   },
   addPollOption(roomId: string, pollId: string, text: string) {
     return request<ChatMessage>(`/rooms/${roomId}/polls/${pollId}/options`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({ text }),
     });
   },
   closePoll(roomId: string, pollId: string) {
     return request<ChatMessage>(`/rooms/${roomId}/polls/${pollId}/close`, {
-      method: 'POST',
+      method: "POST",
     });
+  },
+  createTask(
+    roomId: string,
+    input: {
+      title: string;
+      assigneeId: string;
+      notes?: string;
+      dueAt?: string;
+      repeat?: { frequency: TaskFrequency; endsAt?: string };
+    },
+  ) {
+    return request<ChatMessage>(`/rooms/${roomId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  updateTask(
+    taskId: string,
+    patch: { status?: TaskStatus; title?: string; notes?: string; dueAt?: string | null },
+  ) {
+    return request<ChatMessage>(`/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  },
+  stopTaskSeries(seriesId: string) {
+    return request<{ ok: boolean }>(`/task-series/${seriesId}/stop`, { method: 'POST' });
+  },
+  roomTasks(roomId: string) {
+    return request<Task[]>(`/rooms/${roomId}/tasks`);
+  },
+  myTasks(query: MyTasksQuery) {
+    const params = new URLSearchParams({ scope: query.scope });
+    if (query.from) params.set('from', query.from);
+    if (query.to) params.set('to', query.to);
+    if (query.noDue) params.set('noDue', 'true');
+    return request<Task[]>(`/tasks/mine?${params.toString()}`);
+  },
+  plannedTasks(query: MyTasksQuery) {
+    const params = new URLSearchParams({
+      scope: query.scope,
+      from: query.from ?? '',
+      to: query.to ?? '',
+    });
+    return request<PlannedTask[]>(`/tasks/mine/planned?${params.toString()}`);
+  },
+  myTaskRooms() {
+    return request<TaskRoom[]>('/tasks/mine/rooms');
   },
   reminders(roomId: string) {
     return request<Reminder[]>(`/rooms/${roomId}/reminders`);
@@ -768,7 +1055,7 @@ export const api = {
     input: { title: string; remindAt: string; repeat: string },
   ) {
     return request<Reminder>(`/rooms/${roomId}/reminders`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(input),
     });
   },
@@ -778,13 +1065,13 @@ export const api = {
     input: { title?: string; remindAt?: string; repeat?: string },
   ) {
     return request<Reminder>(`/rooms/${roomId}/reminders/${reminderId}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(input),
     });
   },
   deleteReminder(roomId: string, reminderId: string) {
     return request<void>(`/rooms/${roomId}/reminders/${reminderId}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   },
   notes(roomId: string) {
@@ -792,7 +1079,7 @@ export const api = {
   },
   createNote(roomId: string, input: { title: string; content: string }) {
     return request<RoomNote>(`/rooms/${roomId}/notes`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify(input),
     });
   },
@@ -802,13 +1089,135 @@ export const api = {
     input: { title?: string; content?: string },
   ) {
     return request<RoomNote>(`/rooms/${roomId}/notes/${noteId}`, {
-      method: 'PATCH',
+      method: "PATCH",
       body: JSON.stringify(input),
     });
   },
   deleteNote(roomId: string, noteId: string) {
     return request<void>(`/rooms/${roomId}/notes/${noteId}`, {
-      method: 'DELETE',
+      method: "DELETE",
+    });
+  },
+
+  permissionsCatalog() {
+    return request<
+      {
+        key: string;
+        label: string;
+        items: { key: string; label: string }[];
+      }[]
+    >("/permissions");
+  },
+  roles() {
+    return request<AdminRole[]>("/roles");
+  },
+  createRole(input: {
+    name: string;
+    description?: string;
+    cloneFromRoleId?: string;
+    permissions?: string[];
+  }) {
+    return request<AdminRole>("/roles", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  updateRole(id: string, input: { name?: string; description?: string }) {
+    return request<AdminRole>(`/roles/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+  setRolePermissions(id: string, permissions: string[]) {
+    return request<AdminRole>(`/roles/${id}/permissions`, {
+      method: "PUT",
+      body: JSON.stringify({ permissions }),
+    });
+  },
+  deleteRole(id: string) {
+    return request<void>(`/roles/${id}`, { method: "DELETE" });
+  },
+  adminUsers() {
+    return request<AdminUser[]>("/admin/users");
+  },
+  createAdminUser(input: {
+    name: string;
+    email: string;
+    password?: string;
+    team?: string;
+    roleIds?: string[];
+  }) {
+    return request<
+      AdminUser & {
+        temporaryPassword?: string;
+      }
+    >("/admin/users", { method: "POST", body: JSON.stringify(input) });
+  },
+  updateAdminUser(
+    id: string,
+    input: { name?: string; team?: string; isActive?: boolean },
+  ) {
+    return request<AdminUser>(`/admin/users/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+  deactivateAdminUser(id: string) {
+    return request<AdminUser>(`/admin/users/${id}/deactivate`, {
+      method: "POST",
+    });
+  },
+  resetAdminUserPassword(id: string) {
+    return request<{ temporaryPassword: string }>(
+      `/admin/users/${id}/reset-password`,
+      { method: "POST" },
+    );
+  },
+  adminUserAccess(id: string) {
+    return request<UserAccess>(`/admin/users/${id}/access`);
+  },
+  setAdminUserRoles(id: string, roleIds: string[]) {
+    return request<AdminUser>(`/admin/users/${id}/roles`, {
+      method: "PUT",
+      body: JSON.stringify({ roleIds }),
+    });
+  },
+  setAdminUserPermissions(
+    id: string,
+    items: { permission: string; effect: "allow" | "deny" }[],
+  ) {
+    return request<UserAccess>(`/admin/users/${id}/permissions`, {
+      method: "PUT",
+      body: JSON.stringify({ items }),
+    });
+  },
+
+  employees() {
+    return request<EmployeeProfile[]>("/employees");
+  },
+  employee(id: string) {
+    return request<EmployeeProfile>(`/employees/${id}`);
+  },
+  createEmployee(
+    body: Partial<EmployeeProfile> & { password?: string; roleIds?: string[] },
+  ) {
+    return request<EmployeeProfile & { temporaryPassword?: string }>(
+      "/employees",
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    );
+  },
+  uploadCitizenId(id: string, side: "front" | "back", file: File) {
+    const body = new FormData();
+    body.append("file", file);
+    return uploadForm<{ url: string }>(`/employees/${id}/citizen-id/${side}`, body);
+  },
+  updateEmployee(id: string, body: Partial<EmployeeProfile>) {
+    return request<EmployeeProfile>(`/employees/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
     });
   },
 };

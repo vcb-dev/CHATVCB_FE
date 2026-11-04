@@ -1,16 +1,5 @@
+import { LINK, splitLinkPunct } from '@/lib/links';
 import type { RichBlock, RichInline } from '@/types';
-
-const LINK = /https?:\/\/[^\s<>"']+/g;
-const TRAILING_PUNCT = /[.,;:!?)*~]+$/;
-
-function splitLinkPunct(raw: string): { url: string; punct: string } {
-  const m = raw.match(TRAILING_PUNCT);
-  if (!m) return { url: raw, punct: '' };
-  return {
-    url: raw.slice(0, raw.length - m[0].length),
-    punct: m[0],
-  };
-}
 
 export function firstLink(text: string): string | null {
   if (!text) return null;

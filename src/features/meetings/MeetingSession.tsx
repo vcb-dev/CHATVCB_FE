@@ -30,12 +30,18 @@ export function MeetingSession({ user, code }: Props) {
     }
     let alive = true;
     void api
-      .listMeetings()
-      .then((next) => {
+      .getMeetingByCode(code)
+      .then((found) => {
         if (!alive) {
           return;
         }
-        setSeed([...next.upcoming, ...next.history].find((item) => item.code === code) ?? null);
+        setSeed(found);
+      })
+      .catch(() => {
+        if (!alive) {
+          return;
+        }
+        setSeed(null);
       })
       .finally(() => {
         if (alive) {
@@ -49,16 +55,28 @@ export function MeetingSession({ user, code }: Props) {
 
   async function start(next: LobbyReady) {
     try {
-      const meeting = next.meeting
-        ? await api.joinMeeting(next.meeting.code)
-        : code
-          ? await api.joinMeeting(code)
-          : await api.createMeeting({ title: next.title });
-      next.stream = null;
+      let meeting: Meeting;
+      if (next.meeting) {
+        if (
+          next.meeting.hostId === user.id &&
+          next.title.trim() &&
+          next.title.trim() !== next.meeting.title
+        ) {
+          await api
+            .updateMeeting(next.meeting.id, { title: next.title.trim() })
+            .catch(() => undefined);
+        }
+        meeting = await api.joinMeeting(next.meeting.code);
+      } else if (code) {
+        meeting = await api.joinMeeting(code);
+      } else {
+        meeting = await api.createMeeting({ title: next.title });
+      }
       setSession(next);
       setActive(meeting);
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không vào được cuộc họp.');
+      throw err;
     }
   }
 
@@ -75,8 +93,11 @@ export function MeetingSession({ user, code }: Props) {
       <MeetingRoom
         meeting={active}
         user={user}
+        initialStream={session?.stream ?? null}
         initialMic={session?.micOn ?? true}
         initialCam={session?.camOn ?? true}
+        initialAudioDeviceId={session?.audioDeviceId}
+        initialVideoDeviceId={session?.videoDeviceId}
         onLeave={closeMeetTab}
       />
     );
@@ -87,7 +108,7 @@ export function MeetingSession({ user, code }: Props) {
       user={user}
       meeting={seed ?? undefined}
       onCancel={closeMeetTab}
-      onReady={(next) => void start(next)}
+      onReady={(next) => start(next)}
     />
   );
 }

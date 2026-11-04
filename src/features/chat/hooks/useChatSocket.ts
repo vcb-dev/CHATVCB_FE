@@ -12,9 +12,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { Socket } from 'socket.io-client';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
-import { connectSocket } from '@/api/socket';
+import { closeSocket, connectSocket } from '@/api/socket';
 import { notifyIncoming } from '@/lib/notify';
 import type {
+  GalleryPendingEvent,
+  GalleryReviewedEvent,
+  NewsPublishedEvent,
   AgentPendingEvent,
   ChatMessage,
   PresenceUser,
@@ -26,6 +29,7 @@ import type {
   RoomClosedEvent,
   RoomRefreshEvent,
   RoomRequestsEvent,
+  TaskEvent,
   TypingEvent,
   User,
 } from '@/types';
@@ -46,6 +50,7 @@ type Options = {
   removeRoom: (roomId: string) => void;
   openRoom: (roomId: string) => void;
   isViewingChat: () => boolean;
+  isViewingNews: () => boolean;
   markMessageRead: (message?: ChatMessage, targetRoomId?: string) => void;
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   setPending: Dispatch<SetStateAction<boolean>>;
@@ -67,10 +72,6 @@ export function useChatSocket(options: Options) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const token = localStorage.getItem('chatvcb.token');
-    if (!token) {
-      return;
-    }
     const {
       roomIdRef,
       isViewingChat,
@@ -83,7 +84,7 @@ export function useChatSocket(options: Options) {
       setPins,
       setMembers,
     } = latestRef.current;
-    const socket = connectSocket(token);
+    const socket = connectSocket();
     socketRef.current = socket;
     const typingTimers = typingTimersRef.current;
 
@@ -136,6 +137,10 @@ export function useChatSocket(options: Options) {
     socket.on('connect', () => {
       socket.emit('presence.get');
       socket.emit('inbox.subscribe');
+      // Sự kiện việc lúc mất kết nối không được phát lại
+      void queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.galleryLibrary });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.newsLibrary });
       if (roomIdRef.current) {
         socket.emit('join', roomIdRef.current);
       }
@@ -143,6 +148,9 @@ export function useChatSocket(options: Options) {
     socket.on('message', (message: ChatMessage) => {
       if (message.userId) {
         dropTyping(message.roomId, message.userId);
+      }
+      if (message.task) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.roomTasks(message.roomId) });
       }
       const open = message.roomId === roomIdRef.current;
       if (open) {
@@ -207,6 +215,37 @@ export function useChatSocket(options: Options) {
         return upsertRoom(current, updated);
       });
     });
+    socket.on('gallery.pending', ({ pending, added }: GalleryPendingEvent) => {
+      queryClient.setQueryData(queryKeys.galleryReviewCount, { pending });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.galleryReview });
+      if (added) {
+        // Cùng key nên gửi nhiều ảnh một lúc chỉ hiện một thông báo
+        void antMessage.info({ key: 'gallery-pending', content: 'Có ảnh mới chờ duyệt' });
+      }
+    });
+
+    socket.on('news.published', ({ title }: NewsPublishedEvent) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.newsPosts });
+      if (latestRef.current.isViewingNews()) {
+        void api.markNewsSeen().catch(() => undefined);
+        return;
+      }
+      void queryClient.invalidateQueries({ queryKey: queryKeys.newsUnread });
+      void antMessage.info({ key: 'news-published', content: `Bản tin mới: ${title}` });
+    });
+
+    socket.on('gallery.reviewed', ({ status, rejectReason }: GalleryReviewedEvent) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.galleryLibrary });
+      void antMessage.open({
+        key: 'gallery-reviewed',
+        type: status === 'approved' ? 'success' : 'warning',
+        content:
+          status === 'approved'
+            ? 'Ảnh của bạn đã được duyệt.'
+            : `Ảnh của bạn bị từ chối: ${rejectReason ?? ''}`,
+      });
+    });
+
     socket.on('room.typing', (payload: TypingEvent) => {
       if (payload.userId === latestRef.current.user.id) {
         return;
@@ -254,6 +293,10 @@ export function useChatSocket(options: Options) {
       setReads(payload.reads);
     });
     socket.on('message.updated', (message: ChatMessage) => {
+      // Tin bị thu hồi không còn message.task nhưng việc đã rời danh sách của phòng
+      if (message.task || message.recalled) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.roomTasks(message.roomId) });
+      }
       setMessages((current) =>
         current.map((item) => {
           if (item.id === message.id) {
@@ -318,6 +361,11 @@ export function useChatSocket(options: Options) {
     socket.on('room.notes', (payload: RoomRefreshEvent) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.notes(payload.roomId) });
     });
+    // Tin nhắn đã báo rồi nên ở đây chỉ làm mới danh sách, không thông báo lần nữa
+    socket.on('task', (payload: TaskEvent) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.taskLists });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.roomTasks(payload.task.roomId) });
+    });
     socket.on('room.members', () => {
       const targetRoomId = roomIdRef.current;
       if (!targetRoomId) {
@@ -346,7 +394,7 @@ export function useChatSocket(options: Options) {
         });
     });
     return () => {
-      socket.disconnect();
+      closeSocket(socket);
       socketRef.current = null;
       for (const timer of typingTimers.values()) {
         window.clearTimeout(timer);

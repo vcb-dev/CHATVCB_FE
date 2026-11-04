@@ -1,9 +1,10 @@
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Modal, Spin } from 'antd';
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
+import { confirmDiscard } from '@/lib/confirmDiscard';
 import type { NewsBlock, NewsPost } from '@/types';
 import { useNewsEditor } from '../hooks/useNewsEditor';
 import { NewsArticle } from './NewsArticle';
@@ -26,7 +27,7 @@ function statusText(dirty: boolean, saving: boolean, savedAt: Date | null): stri
 
 export function NewsEditor(props: {
   postId: string;
-  dirtyRef: RefObject<boolean>;
+  onDirtyChange: (dirty: boolean) => void;
   onClose: () => void;
   onPublished: (post: NewsPost) => void;
 }) {
@@ -38,10 +39,10 @@ export function NewsEditor(props: {
   const [picker, setPicker] = useState<'cover' | 'block' | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const { dirty, post } = editor;
-  const { dirtyRef } = props;
+  const { onDirtyChange } = props;
 
   useEffect(() => {
-    dirtyRef.current = dirty;
+    onDirtyChange(dirty);
     if (!dirty) {
       return;
     }
@@ -49,9 +50,9 @@ export function NewsEditor(props: {
     window.addEventListener('beforeunload', warn);
     return () => {
       window.removeEventListener('beforeunload', warn);
-      dirtyRef.current = false;
+      onDirtyChange(false);
     };
-  }, [dirty, dirtyRef]);
+  }, [dirty, onDirtyChange]);
 
   // Rời màn soạn bằng đường khác nút Quay lại (đổi mục, mở thông báo chat) cũng không để lại nháp trống
   useEffect(
@@ -85,13 +86,7 @@ export function NewsEditor(props: {
       void finish();
       return;
     }
-    Modal.confirm({
-      title: 'Bỏ thay đổi chưa lưu?',
-      okText: 'Bỏ thay đổi',
-      okButtonProps: { danger: true },
-      cancelText: 'Ở lại',
-      onOk: finish,
-    });
+    confirmDiscard(finish);
   }
 
   function askPublish() {

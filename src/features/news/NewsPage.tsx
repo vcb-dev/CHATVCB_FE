@@ -1,7 +1,7 @@
 import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Modal, Spin, Tabs, message } from 'antd';
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { P, can } from '@/lib/access';
@@ -109,7 +109,13 @@ function ArticleView(props: {
 type ReadView = { name: 'list' } | { name: 'article'; id: string };
 type View = ReadView | { name: 'editor'; id: string; back: ReadView };
 
-export function NewsPage({ user, dirtyRef }: { user: User; dirtyRef: RefObject<boolean> }) {
+export function NewsPage({
+  user,
+  onDirtyChange,
+}: {
+  user: User;
+  onDirtyChange: (dirty: boolean) => void;
+}) {
   const queryClient = useQueryClient();
   const canPublish = can(user, P.news.publish);
   const [view, setView] = useState<View>({ name: 'list' });
@@ -155,7 +161,7 @@ export function NewsPage({ user, dirtyRef }: { user: User; dirtyRef: RefObject<b
         <NewsEditor
           key={view.id}
           postId={view.id}
-          dirtyRef={dirtyRef}
+          onDirtyChange={onDirtyChange}
           onClose={() => {
             void queryClient.invalidateQueries({ queryKey: queryKeys.newsLibrary });
             setView(view.back);

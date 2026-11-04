@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { confirmDiscard } from '@/lib/confirmDiscard';
 import { isChatVisible } from '@/lib/notify';
 
 export type Workspace =
@@ -33,7 +34,7 @@ function asWorkspace(value?: string | null): Workspace | null {
 }
 
 export function useWorkspace() {
-  const [workspace, setWorkspace] = useState<Workspace>(() => {
+  const [workspace, setWorkspaceState] = useState<Workspace>(() => {
     return (
       asWorkspace(new URLSearchParams(window.location.search).get('workspace')) ||
       asWorkspace(localStorage.getItem('chatvcb.workspace')) ||
@@ -61,5 +62,33 @@ export function useWorkspace() {
 
   const isViewingNews = useCallback(() => workspaceRef.current === 'news', []);
 
-  return { workspace, setWorkspace, isViewingChat, isViewingNews };
+  // Màn đang có nội dung chưa lưu bật cờ này; mọi đường rời khung (đổi mục, mở thông báo, đăng xuất) đều phải hỏi
+  const leaveBlockedRef = useRef(false);
+
+  const setLeaveBlocked = useCallback((blocked: boolean) => {
+    leaveBlockedRef.current = blocked;
+  }, []);
+
+  const confirmLeave = useCallback((proceed: () => void) => {
+    if (!leaveBlockedRef.current) {
+      proceed();
+      return;
+    }
+    confirmDiscard(() => {
+      leaveBlockedRef.current = false;
+      proceed();
+    });
+  }, []);
+
+  const setWorkspace = useCallback(
+    (next: Workspace) => {
+      if (next === workspaceRef.current) {
+        return;
+      }
+      confirmLeave(() => setWorkspaceState(next));
+    },
+    [confirmLeave],
+  );
+
+  return { workspace, setWorkspace, isViewingChat, isViewingNews, confirmLeave, setLeaveBlocked };
 }

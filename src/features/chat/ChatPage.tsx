@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, message as antMessage } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import { message as antMessage } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { AdminPage } from '@/features/admin/AdminPage';
 import { api } from '@/api/client';
@@ -102,7 +102,8 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   }, []);
 
   const { changeAvatar } = useMyProfile(user, onUserUpdate);
-  const { workspace, setWorkspace, isViewingChat, isViewingNews } = useWorkspace();
+  const { workspace, setWorkspace, isViewingChat, isViewingNews, confirmLeave, setLeaveBlocked } =
+    useWorkspace();
   const accessLoaded = Array.isArray(user.permissions);
 
   useEffect(() => {
@@ -119,7 +120,6 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     queryFn: () => api.galleryReviewCount(),
     enabled: canReviewGallery,
   });
-  const newsDirtyRef = useRef(false);
   const { data: newsUnread } = useQuery({
     queryKey: queryKeys.newsUnread,
     queryFn: () => api.newsUnread(),
@@ -284,24 +284,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           news: newsUnread?.count ?? 0,
         }}
         onSelect={(next) => {
-          const go = () => {
-            setWorkspace(next);
-            setGroupOverlay(false);
-          };
-          if (next !== 'news' && newsDirtyRef.current) {
-            Modal.confirm({
-              title: 'Bỏ thay đổi chưa lưu?',
-              okText: 'Bỏ thay đổi',
-              okButtonProps: { danger: true },
-              cancelText: 'Ở lại',
-              onOk: go,
-            });
-            return;
-          }
-          go();
+          setWorkspace(next);
+          setGroupOverlay(false);
         }}
         onOpenProfile={() => setProfileOpen(true)}
-        onLogout={onLogout}
+        onLogout={() => confirmLeave(onLogout)}
       />
 
       {workspace === 'messenger' ? (
@@ -462,7 +449,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       ) : workspace === 'gallery' ? (
         <GalleryPage />
       ) : workspace === 'news' ? (
-        <NewsPage user={user} dirtyRef={newsDirtyRef} />
+        <NewsPage user={user} onDirtyChange={setLeaveBlocked} />
       ) : (
         <MeetingsPage user={user} />
       )}

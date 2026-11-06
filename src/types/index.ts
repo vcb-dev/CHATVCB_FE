@@ -604,25 +604,81 @@ export type NewsImage = {
   thumbUrl: string;
 };
 
+export type NewsReactionKind = 'like' | 'love' | 'haha' | 'wow' | 'sad' | 'angry';
+
+/** Bài kéo từ Page Facebook; `name` là tên Page lúc kéo, `url` là bài gốc */
+export type NewsSource = { kind: 'facebook'; name: string; url: string };
+
+export type NewsUserRef = { id: string; name: string; avatarUrl: string };
+
 export type NewsCard = {
   id: string;
   title: string;
   excerpt: string;
   cover: NewsImage | null;
-  author: { id: string; name: string; avatarUrl: string } | null;
+  author: NewsUserRef | null;
+  source: NewsSource | null;
   status: 'draft' | 'published';
   publishedAt: string | null;
   updatedAt: string;
+  reactions: { total: number; top: NewsReactionKind[] };
+  commentCount: number;
+};
+
+export type NewsReactionSummary = {
+  total: number;
+  counts: Record<NewsReactionKind, number>;
+  top: NewsReactionKind[];
+  mine: NewsReactionKind | null;
 };
 
 export type NewsPost = NewsCard & {
+  reactions: NewsReactionSummary;
   blocks: NewsBlock[];
   images: NewsImage[];
 };
 
 export type NewsCardPage = { items: NewsCard[]; nextCursor: string | null };
 
-export type NewsPublishedEvent = { id: string; title: string };
+export type NewsReactionUser = { kind: NewsReactionKind; user: NewsUserRef };
+
+export type NewsComment = {
+  id: string;
+  postId: string;
+  parentId: string | null;
+  body: string;
+  author: NewsUserRef | null;
+  createdAt: string;
+  editedAt: string | null;
+  replies: NewsComment[];
+};
+
+export type NewsCommentPage = { items: NewsComment[]; nextCursor: string | null };
+
+export type NewsPublishedEvent = { id: string; title: string; source?: string };
+
+export type NewsReactionsEvent = Omit<NewsReactionSummary, 'mine'> & {
+  postId: string;
+  userId: string;
+  kind: NewsReactionKind | null;
+};
+
+export type NewsCommentsEvent = { postId: string; commentCount: number };
+
+export type NewsFacebookStatus = { ready: boolean; webhookReady: boolean };
+
+export type NewsFacebookPage = {
+  id: string;
+  pageId: string;
+  name: string;
+  pictureUrl: string;
+  enabled: boolean;
+  webhookSubscribed: boolean;
+  lastSyncAt: string | null;
+  lastError: string | null;
+  connectedBy: { id: string; name: string } | null;
+  createdAt: string;
+};
 
 export type NewsPostInput = {
   title: string;

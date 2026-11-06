@@ -34,6 +34,7 @@ export const P = {
   },
   news: {
     publish: "news.publish",
+    facebook: "news.facebook",
   },
 } as const;
 /** Kiểm tra quyền truy cập */

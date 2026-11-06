@@ -13,11 +13,14 @@ import type { Socket } from 'socket.io-client';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { closeSocket, connectSocket } from '@/api/socket';
+import { applyNewsCommentCount, applyNewsReactions } from '@/lib/newsCache';
 import { notifyIncoming } from '@/lib/notify';
 import type {
   GalleryPendingEvent,
   GalleryReviewedEvent,
+  NewsCommentsEvent,
   NewsPublishedEvent,
+  NewsReactionsEvent,
   AgentPendingEvent,
   ChatMessage,
   PresenceUser,
@@ -224,14 +227,31 @@ export function useChatSocket(options: Options) {
       }
     });
 
-    socket.on('news.published', ({ title }: NewsPublishedEvent) => {
+    socket.on('news.published', ({ title, source }: NewsPublishedEvent) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.newsPosts });
       if (latestRef.current.isViewingNews()) {
         void api.markNewsSeen().catch(() => undefined);
         return;
       }
       void queryClient.invalidateQueries({ queryKey: queryKeys.newsUnread });
-      void antMessage.info({ key: 'news-published', content: `Bản tin mới: ${title}` });
+      void antMessage.info({
+        key: 'news-published',
+        content: source ? `${source} có bài viết mới: ${title}` : `Bản tin mới: ${title}`,
+      });
+    });
+
+    socket.on('news.reactions', ({ postId, userId, kind, ...summary }: NewsReactionsEvent) => {
+      applyNewsReactions(queryClient, postId, {
+        ...summary,
+        mine: userId === latestRef.current.user.id ? kind : undefined,
+      });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.newsReactionUsers(postId) });
+    });
+
+    socket.on('news.comments', ({ postId, commentCount }: NewsCommentsEvent) => {
+      applyNewsCommentCount(queryClient, postId, commentCount);
+      // Chỉ tải lại khi đang mở đúng bài đó, query không có ai dùng chỉ bị đánh dấu cũ
+      void queryClient.invalidateQueries({ queryKey: queryKeys.newsComments(postId) });
     });
 
     socket.on('gallery.reviewed', ({ status, rejectReason }: GalleryReviewedEvent) => {

@@ -1,6 +1,7 @@
-import { ArrowLeftOutlined, EditOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, EditOutlined, FacebookFilled } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Modal, Spin, Tabs, message } from 'antd';
+import type { TextAreaRef } from 'antd/es/input/TextArea';
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
@@ -8,12 +9,21 @@ import { P, can } from '@/lib/access';
 import { errorText } from '@/lib/errors';
 import type { User } from '@/types';
 import { NewsArticle } from './components/NewsArticle';
+import { NewsComments } from './components/NewsComments';
 import { NewsEditor } from './components/NewsEditor';
+import { NewsFacebookPages } from './components/NewsFacebookPages';
 import { NewsList } from './components/NewsList';
+import { NewsReactionBar } from './components/NewsReactionBar';
 import { NewsRelated } from './components/NewsRelated';
+
+/** BE chuyển về `?workspace=news&facebook=ok|error` sau khi kết nối; useWorkspace xóa query trong effect của trang cha, nên đọc ngay lúc render đầu */
+function facebookReturn(): string | null {
+  return new URLSearchParams(window.location.search).get('facebook');
+}
 
 function ArticleView(props: {
   id: string;
+  user: User;
   canPublish: boolean;
   onBack: () => void;
   onEdit: (id: string) => void;
@@ -26,6 +36,12 @@ function ArticleView(props: {
     retry: (count, error) => !(error instanceof ApiError && error.status === 404) && count < 2,
   });
   const post = query.data;
+  const composerRef = useRef<TextAreaRef>(null);
+
+  function focusComposer() {
+    composerRef.current?.resizableTextArea?.textArea.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    composerRef.current?.focus({ cursor: 'end' });
+  }
 
   function confirmAction(title: string, okText: string, danger: boolean, action: () => Promise<unknown>) {
     Modal.confirm({
@@ -91,14 +107,29 @@ function ArticleView(props: {
       ) : null}
       {post && !query.isError ? (
         <div className="news-reader-layout">
-          <NewsArticle
-            title={post.title}
-            blocks={post.blocks}
-            images={post.images}
-            cover={post.cover}
-            author={post.author}
-            publishedAt={post.publishedAt}
-          />
+          <div className="news-reader-main">
+            <NewsArticle
+              title={post.title}
+              blocks={post.blocks}
+              images={post.images}
+              cover={post.cover}
+              author={post.author}
+              source={post.source}
+              publishedAt={post.publishedAt}
+            />
+            {/* Nháp chưa có ai đọc, cảm xúc và bình luận chỉ mở trên bài đã đăng */}
+            {post.status === 'published' ? (
+              <section className="news-social">
+                <NewsReactionBar post={post} onComment={focusComposer} />
+                <NewsComments
+                  postId={post.id}
+                  me={props.user}
+                  canModerate={props.canPublish}
+                  composerRef={composerRef}
+                />
+              </section>
+            ) : null}
+          </div>
           <NewsRelated currentId={post.id} onOpen={props.onOpenOther} />
         </div>
       ) : null}
@@ -107,7 +138,7 @@ function ArticleView(props: {
 }
 
 type ReadView = { name: 'list' } | { name: 'article'; id: string };
-type View = ReadView | { name: 'editor'; id: string; back: ReadView };
+type View = ReadView | { name: 'editor'; id: string; back: ReadView } | { name: 'facebook' };
 
 export function NewsPage({
   user,
@@ -118,7 +149,10 @@ export function NewsPage({
 }) {
   const queryClient = useQueryClient();
   const canPublish = can(user, P.news.publish);
-  const [view, setView] = useState<View>({ name: 'list' });
+  const canFacebook = can(user, P.news.facebook);
+  const [view, setView] = useState<View>(() =>
+    canFacebook && facebookReturn() ? { name: 'facebook' } : { name: 'list' },
+  );
   const [tab, setTab] = useState('published');
   const [creating, setCreating] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -138,6 +172,19 @@ export function NewsPage({
       })
       .catch(() => undefined);
   }, [queryClient]);
+
+  useEffect(() => {
+    const result = facebookReturn();
+    if (result === 'ok') {
+      const pages = Number(new URLSearchParams(window.location.search).get('pages') ?? 0);
+      void message.success({
+        key: 'facebook-connect',
+        content: pages ? `Đã kết nối ${pages} Page. Bật "Tự đăng" cho Page muốn dùng.` : 'Tài khoản này không quản lý Page nào.',
+      });
+    } else if (result === 'error') {
+      void message.error({ key: 'facebook-connect', content: 'Không kết nối được Facebook. Thử lại.' });
+    }
+  }, []);
 
   function openArticle(id: string) {
     setView({ name: 'article', id });
@@ -175,11 +222,20 @@ export function NewsPage({
     );
   }
 
+  if (view.name === 'facebook') {
+    return (
+      <div className="news-page" ref={pageRef}>
+        <NewsFacebookPages onBack={() => setView({ name: 'list' })} />
+      </div>
+    );
+  }
+
   if (view.name === 'article') {
     return (
       <div className="news-page" ref={pageRef}>
         <ArticleView
           id={view.id}
+          user={user}
           canPublish={canPublish}
           onBack={() => setView({ name: 'list' })}
           onEdit={(id) => setView({ name: 'editor', id, back: { name: 'article', id } })}
@@ -193,11 +249,18 @@ export function NewsPage({
     <div className="news-page">
       <header className="news-header">
         <h1>Bản tin</h1>
-        {canPublish ? (
-          <Button type="primary" loading={creating} onClick={() => void writePost()}>
-            Viết bài
-          </Button>
-        ) : null}
+        <span className="news-header-actions">
+          {canFacebook ? (
+            <Button icon={<FacebookFilled />} onClick={() => setView({ name: 'facebook' })}>
+              Page Facebook
+            </Button>
+          ) : null}
+          {canPublish ? (
+            <Button type="primary" loading={creating} onClick={() => void writePost()}>
+              Viết bài
+            </Button>
+          ) : null}
+        </span>
       </header>
       {canPublish ? (
         <Tabs

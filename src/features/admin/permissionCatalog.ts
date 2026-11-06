@@ -25,6 +25,7 @@ const FALLBACK_LABELS: Record<string, string> = {
   "gallery.review": "Duyệt ảnh, gỡ ảnh và quản lý album",
   "gallery.read_private": "Xem ảnh private trong Thư viện ảnh",
   "news.publish": "Soạn, đăng, sửa và xóa bản tin",
+  "news.facebook": "Kết nối Page Facebook để tự đăng bản tin",
 };
 
 export function normalizeCatalogGroups(

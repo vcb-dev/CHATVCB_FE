@@ -14,9 +14,16 @@ import type {
   GalleryPhotoPage,
   GalleryPhotoPatch,
   NewsCardPage,
+  NewsComment,
+  NewsCommentPage,
+  NewsFacebookPage,
+  NewsFacebookStatus,
   NewsImage,
   NewsPost,
   NewsPostInput,
+  NewsReactionKind,
+  NewsReactionSummary,
+  NewsReactionUser,
   GroupSettings,
   InviteInfo,
   JoinRequest,
@@ -724,6 +731,65 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ photoId }),
     });
+  },
+  setNewsReaction(postId: string, kind: NewsReactionKind) {
+    return request<NewsReactionSummary>(`/news/posts/${postId}/reaction`, {
+      method: "PUT",
+      body: JSON.stringify({ kind }),
+    });
+  },
+  removeNewsReaction(postId: string) {
+    return request<NewsReactionSummary>(`/news/posts/${postId}/reaction`, {
+      method: "DELETE",
+    });
+  },
+  newsReactionUsers(postId: string) {
+    return request<{ items: NewsReactionUser[] }>(`/news/posts/${postId}/reactions`);
+  },
+  newsComments(postId: string, cursor?: string) {
+    const params = new URLSearchParams();
+    if (cursor) {
+      params.set("cursor", cursor);
+    }
+    return request<NewsCommentPage>(`/news/posts/${postId}/comments?${params.toString()}`);
+  },
+  createNewsComment(postId: string, body: string, parentId?: string) {
+    return request<NewsComment>(`/news/posts/${postId}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ body, parentId }),
+    });
+  },
+  updateNewsComment(commentId: string, body: string) {
+    return request<NewsComment>(`/news/comments/${commentId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ body }),
+    });
+  },
+  deleteNewsComment(commentId: string) {
+    return request<void>(`/news/comments/${commentId}`, { method: "DELETE" });
+  },
+  newsFacebookStatus() {
+    return request<NewsFacebookStatus>("/news/facebook/status");
+  },
+  newsFacebookStart() {
+    return request<{ url: string }>("/news/facebook/start");
+  },
+  newsFacebookPages() {
+    return request<NewsFacebookPage[]>("/news/facebook/pages");
+  },
+  updateNewsFacebookPage(id: string, enabled: boolean) {
+    return request<NewsFacebookPage>(`/news/facebook/pages/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled }),
+    });
+  },
+  syncNewsFacebookPage(id: string) {
+    return request<{ imported: number }>(`/news/facebook/pages/${id}/sync`, {
+      method: "POST",
+    });
+  },
+  deleteNewsFacebookPage(id: string) {
+    return request<void>(`/news/facebook/pages/${id}`, { method: "DELETE" });
   },
   galleryAccess() {
     return request<GalleryAccess>("/gallery/access");

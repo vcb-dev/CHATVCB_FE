@@ -1,9 +1,9 @@
-import { PictureOutlined } from '@ant-design/icons';
+import { FacebookFilled, PictureOutlined } from '@ant-design/icons';
 import { Button, Empty, Spin } from 'antd';
 import { useMemo } from 'react';
 import { errorText } from '@/lib/errors';
 import { useNewsList } from '../hooks/useNewsList';
-import { newsDate } from '../utils/news';
+import { newsDate, reactionOf } from '../utils/news';
 
 export function NewsList(props: {
   kind: 'published' | 'drafts';
@@ -42,9 +42,26 @@ export function NewsList(props: {
           <span className="news-card-text">
             <strong>{post.title || '(Chưa có tiêu đề)'}</strong>
             <small>
-              {post.author?.name ?? 'Người dùng cũ'} · {newsDate(post.publishedAt)}
+              {post.source ? (
+                <span className="news-card-source">
+                  <FacebookFilled /> {post.source.name}
+                </span>
+              ) : (
+                (post.author?.name ?? 'Người dùng cũ')
+              )}{' '}
+              · {newsDate(post.publishedAt)}
             </small>
             {post.excerpt ? <span className="news-card-excerpt">{post.excerpt}</span> : null}
+            {post.reactions.total || post.commentCount ? (
+              <small className="news-card-stats">
+                {post.reactions.total ? (
+                  <span>
+                    {post.reactions.top.map((kind) => reactionOf(kind).emoji).join('')} {post.reactions.total}
+                  </span>
+                ) : null}
+                {post.commentCount ? <span>{post.commentCount} bình luận</span> : null}
+              </small>
+            ) : null}
           </span>
         </button>
       ))}

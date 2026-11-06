@@ -1,9 +1,10 @@
-import { Image } from 'antd';
+import { FacebookFilled } from '@ant-design/icons';
+import { Button, Image } from 'antd';
 import { textParts } from '@/lib/links';
-import type { NewsBlock, NewsCard, NewsImage } from '@/types';
+import type { NewsBlock, NewsCard, NewsImage, NewsSource } from '@/types';
 import { newsDate } from '../utils/news';
 
-function NewsText({ text }: { text: string }) {
+export function NewsText({ text }: { text: string }) {
   return (
     <>
       {textParts(text).map((part, index) =>
@@ -26,15 +27,33 @@ export function NewsArticle(props: {
   images: NewsImage[];
   cover: NewsImage | null;
   author: NewsCard['author'];
+  source?: NewsSource | null;
   publishedAt: string | null;
 }) {
   const byId = new Map(props.images.map((image) => [image.id, image]));
   return (
     <article className="news-article">
       <header className="news-article-header">
+        {props.source ? (
+          <div className="news-source-banner">
+            <FacebookFilled className="news-source-icon" />
+            <span className="news-source-text">
+              <strong>{props.source.name}</strong> có bài viết mới trên Facebook
+            </span>
+            <Button
+              type="primary"
+              href={props.source.url}
+              target="_blank"
+              rel="noreferrer"
+              icon={<FacebookFilled />}
+            >
+              Xem và tương tác trên Facebook
+            </Button>
+          </div>
+        ) : null}
         <h1 className="news-article-title">{props.title || '(Chưa có tiêu đề)'}</h1>
         <div className="news-article-meta">
-          {props.author?.name ?? 'Người dùng cũ'} · {newsDate(props.publishedAt)}
+          {props.source?.name ?? props.author?.name ?? 'Người dùng cũ'} · {newsDate(props.publishedAt)}
         </div>
         {props.cover ? (
           <div className="news-article-cover">

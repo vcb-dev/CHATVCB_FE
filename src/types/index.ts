@@ -590,6 +590,8 @@ export type TaskPreset = {
   roomId?: string;
   roomLabel?: string;
   assigneeId?: string;
+  notes?: string;
+  repeat?: TaskFrequency;
 };
 
 export type NewsBlock =

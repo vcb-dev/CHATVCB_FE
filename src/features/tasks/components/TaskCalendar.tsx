@@ -8,6 +8,7 @@ import {
   monthGrid,
   WEEKDAYS,
   type CalendarItem,
+  type ItemMenuHandler,
 } from '../utils/calendar';
 import { CalendarChip } from './CalendarChip';
 import { CalendarMore } from './CalendarMore';
@@ -21,6 +22,7 @@ export function TaskCalendar(props: {
   onOpen: (task: Task, anchor: DOMRect) => void;
   onOpenPlanned: (planned: PlannedTask, anchor: DOMRect) => void;
   onCreate: (day: Date, anchor: DOMRect) => void;
+  onMenu: ItemMenuHandler;
 }) {
   const now = new Date();
   const todayKey = dateKey(now);
@@ -68,6 +70,7 @@ export function TaskCalendar(props: {
                   item={item}
                   onOpen={props.onOpen}
                   onOpenPlanned={props.onOpenPlanned}
+                  onMenu={props.onMenu}
                 />
               ))}
               {hidden > 0 ? (
@@ -77,6 +80,7 @@ export function TaskCalendar(props: {
                   className="task-cal-more"
                   onOpen={props.onOpen}
                   onOpenPlanned={props.onOpenPlanned}
+                  onMenu={props.onMenu}
                 />
               ) : null}
             </div>

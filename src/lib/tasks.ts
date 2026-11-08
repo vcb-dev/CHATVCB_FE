@@ -1,13 +1,19 @@
 import { Modal, message } from 'antd';
 import { api } from '@/api/client';
 import { errorText } from '@/lib/errors';
-import type { Room, Task, TaskRoom, TaskSeriesInfo, TaskStatus } from '@/types';
+import type { Room, Task, TaskFrequency, TaskRoom, TaskSeriesInfo, TaskStatus } from '@/types';
 
 export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   open: 'Đang làm',
   done: 'Đã xong',
   cancelled: 'Đã hủy',
 };
+
+export const TASK_REPEAT_OPTIONS: { value: TaskFrequency | 'none'; label: string }[] = [
+  { value: 'none', label: 'Không lặp' },
+  { value: 'weekly', label: 'Hằng tuần' },
+  { value: 'monthly', label: 'Hằng tháng' },
+];
 
 export function seriesLabel(series: TaskSeriesInfo): string {
   const base = series.frequency === 'weekly' ? 'Lặp hằng tuần' : 'Lặp hằng tháng';

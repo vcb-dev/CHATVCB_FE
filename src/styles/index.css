@@ -8,8 +8,9 @@ body,
 }
 
 body {
-  font-family: system-ui, sans-serif;
-  background: #f0f2f5;
+  font-family: var(--ui-font);
+  color: var(--ui-text);
+  background: var(--ui-bg-app);
 }
 
 * {
@@ -5219,7 +5220,7 @@ body {
 
 /* Tasks Page */
 :root {
-  --task-open: #0084ff;
+  --task-open: var(--ui-primary);
   --task-open-bg: #e8f2ff;
   --task-overdue: #e5484d;
   --task-overdue-bg: #ffeded;
@@ -5229,8 +5230,8 @@ body {
   --task-cancelled-bg: #f1f2f4;
   --task-planned: #7b61ff;
   --task-planned-bg: #f5f2ff;
-  --task-line: #e4e6eb;
-  --task-gutter: #f7f8fa;
+  --task-line: var(--ui-border);
+  --task-gutter: var(--ui-bg-app);
 }
 
 .tasks-page {

@@ -1,10 +1,9 @@
-import { CameraOutlined, CloudOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
-import { Avatar, Button, Input, Spin } from 'antd';
+import { CloudOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { Button, Input, Spin } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState, type UIEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api, fileSrc } from '@/api/client';
+import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
-import { avatarColor, initials } from '@/lib/avatar';
 import type { ConversationLabel, PageMeta, Room, User } from '@/types';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
 import type { Drafts } from '../utils/drafts';
@@ -33,13 +32,11 @@ export function ChatSidebar(props: {
   onLoadMoreRooms: () => Promise<void>;
   onNewChat: () => void;
   onOpenCloud: () => void;
-  onOpenProfile: () => void;
-  onChangeAvatar: (file: File) => Promise<void>;
+  onOpenProfile?: () => void;
   prefs: ReturnType<typeof useRoomPrefs>;
   drafts: Drafts;
 }) {
   const { user, team, rooms, roomsMeta, searchText } = props;
-  const myAvatarRef = useRef<HTMLInputElement>(null);
 
   const [filter, setFilter] = useState<RoomFilter>({ kind: 'all' });
   const [managerOpen, setManagerOpen] = useState(false);
@@ -173,41 +170,6 @@ export function ChatSidebar(props: {
           </div>
         </>
       )}
-      <div className="sidebar-foot">
-        <button
-          type="button"
-          className="user-avatar-btn"
-          title="Đổi ảnh đại diện"
-          onClick={() => myAvatarRef.current?.click()}
-        >
-          <Avatar
-            src={user.avatarUrl ? fileSrc(user.avatarUrl) : undefined}
-            style={{ background: avatarColor(user.name), color: '#fff', fontWeight: 700 }}
-          >
-            {initials(user.name)}
-          </Avatar>
-          <span className="user-cam">
-            <CameraOutlined />
-          </span>
-        </button>
-        <input
-          ref={myAvatarRef}
-          type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp"
-          hidden
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = '';
-            if (file) {
-              void props.onChangeAvatar(file);
-            }
-          }}
-        />
-        <button type="button" className="who profile-who" onClick={props.onOpenProfile}>
-          <strong>{user.name}</strong>
-          <small>Team {team}</small>
-        </button>
-      </div>
 
       <LabelManagerModal
         open={managerOpen}

@@ -19,7 +19,6 @@ import { MeetingsPage } from '@/features/meetings/MeetingsPage';
 import { openMeetTab } from '@/features/meetings/meet';
 import { ProfileDrawer } from '@/features/profile/ProfileDrawer';
 import { UserProfileModal } from '@/features/profile/UserProfileModal';
-import { useMyProfile } from '@/features/profile/hooks/useMyProfile';
 import { TasksPage } from '@/features/tasks/TasksPage';
 import type { ChatMessage, Room, TaskPreset, User } from '@/types';
 import { ChatHeader } from './components/ChatHeader';
@@ -101,7 +100,6 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  const { changeAvatar } = useMyProfile(user, onUserUpdate);
   const { workspace, setWorkspace, isViewingChat, isViewingNews, confirmLeave, setLeaveBlocked } =
     useWorkspace();
   const accessLoaded = Array.isArray(user.permissions);
@@ -309,7 +307,6 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           onNewChat={() => setNewChatOpen(true)}
           onOpenCloud={tools.openCloud}
           onOpenProfile={() => setProfileOpen(true)}
-          onChangeAvatar={changeAvatar}
           prefs={roomPrefs}
           drafts={composer.drafts}
         />

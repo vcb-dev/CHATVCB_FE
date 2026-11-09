@@ -228,3 +228,41 @@ export function parseRichText(text: string): RichBlock[] {
   flushList();
   return blocks;
 }
+
+export function sameDay(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const da = new Date(a);
+  const db = new Date(b);
+  if (isNaN(da.getTime()) || isNaN(db.getTime())) return false;
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  );
+}
+
+export function dayLabel(iso: string, now: Date): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  if (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  ) {
+    return 'Hôm nay';
+  }
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  if (
+    d.getFullYear() === yesterday.getFullYear() &&
+    d.getMonth() === yesterday.getMonth() &&
+    d.getDate() === yesterday.getDate()
+  ) {
+    return 'Hôm qua';
+  }
+  return d.toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}

@@ -5,6 +5,8 @@ import type { ChatMessage, Room, RoomMember, RoomRead } from '@/types';
 import { isSelectable } from '../utils/selection';
 import { mentionsUser } from '../utils/mentions';
 import { buildSeen } from '../utils/seen';
+import { sameDay } from '../utils/format';
+import { DateDivider } from './DateDivider';
 import { MessageRow } from './MessageRow';
 import { ReadReceiptList } from './ReadReceiptList';
 import { SystemNotice } from './SystemNotice';
@@ -12,8 +14,15 @@ import { UnreadDivider } from './UnreadDivider';
 
 const NO_READERS: RoomRead[] = [];
 
-function sameAuthor(a: ChatMessage, b: ChatMessage) {
-  return a.role === b.role && a.userId === b.userId && a.authorName === b.authorName;
+function sameCluster(a: ChatMessage, b: ChatMessage) {
+  if (a.role !== b.role || a.userId !== b.userId || a.authorName !== b.authorName) {
+    return false;
+  }
+  if (!sameDay(a.createdAt, b.createdAt)) {
+    return false;
+  }
+  const diff = Math.abs(new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  return diff <= 5 * 60_000;
 }
 
 export function MessageList(props: {
@@ -108,11 +117,14 @@ export function MessageList(props: {
         <div className="messages-loading">Đang tải tin cũ…</div>
       ) : null}
       {messages.map((message, index) => {
-        const divider = message.id === props.unreadFromId ? <UnreadDivider /> : null;
+        const showDate = index === 0 || !sameDay(messages[index - 1].createdAt, message.createdAt);
+        const dateDivider = showDate ? <DateDivider iso={message.createdAt} /> : null;
+        const unreadDivider = message.id === props.unreadFromId ? <UnreadDivider /> : null;
         if (message.role === 'system') {
           return (
             <Fragment key={message.id}>
-              {divider}
+              {dateDivider}
+              {unreadDivider}
               <SystemNotice
                 message={message}
                 onJump={props.onJump}
@@ -131,8 +143,8 @@ export function MessageList(props: {
             userId={userId}
             myHandle={myHandle}
             mine={mine}
-            first={index === 0 || !sameAuthor(messages[index - 1], message)}
-            last={index === messages.length - 1 || !sameAuthor(message, messages[index + 1])}
+            first={index === 0 || !sameCluster(messages[index - 1], message)}
+            last={index === messages.length - 1 || !sameCluster(message, messages[index + 1])}
             tagged={!mine && Boolean(props.mentionsEnabled) && mentionsUser(message.content, myHandle, true)}
             mentionsEnabled={props.mentionsEnabled}
             viewers={seen.viewersOf(message)}
@@ -156,7 +168,8 @@ export function MessageList(props: {
         );
         return (
           <Fragment key={message.id}>
-            {divider}
+            {dateDivider}
+            {unreadDivider}
             {selectable ? (
               <div
                 className={selected ? 'select-line selected' : 'select-line'}

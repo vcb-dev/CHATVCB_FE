@@ -1521,20 +1521,22 @@ body {
 .messages {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 16px 16px 8px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: #f0f2f5;
+  background: var(--ui-bg-app);
 }
 
 .row {
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  max-width: 78%;
+  max-width: 66%;
+  min-width: 0;
 }
 
 .row.mine {
@@ -1555,41 +1557,49 @@ body {
   display: grid;
   gap: 2px;
   min-width: 0;
+  max-width: 100%;
 }
 
 .row.mine .stack {
   justify-items: end;
 }
 
-.who-line,
-.stack time {
-  color: #65676b;
-  font-size: 11px;
-  padding: 0 8px;
+.who-line {
+  color: var(--ui-text-2);
+  font-size: 12px;
+  padding: 0 4px;
 }
 
 .bubble {
   max-width: 100%;
   padding: 8px 12px;
-  border-radius: 18px;
-  background: #e4e6eb;
-  color: #050505;
+  border-radius: var(--ui-radius);
+  background: var(--ui-bg-panel);
+  border: 1px solid var(--ui-border);
+  color: var(--ui-text);
+  font-size: 14px;
+  line-height: 20px;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .bubble p {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .row.mine .bubble {
-  background: #0084ff;
-  color: #fff;
+  background: var(--ui-primary-soft);
+  color: var(--ui-text);
+  border-color: var(--ui-border);
 }
 
 .row.agent .bubble {
   background: #d1f4de;
-  color: #050505;
+  color: var(--ui-text);
 }
 
 .row.tagged .bubble {
@@ -1597,7 +1607,19 @@ body {
 }
 
 .row.theirs.tagged .bubble {
-  background: #fff4d6;
+  background: var(--ui-warning-soft);
+}
+
+.msg-time {
+  font-size: 11px;
+  color: var(--ui-text-3);
+  display: block;
+  margin-top: 4px;
+  line-height: 1.2;
+}
+
+.row.mine .msg-time {
+  text-align: right;
 }
 
 .mention,
@@ -1725,8 +1747,11 @@ body {
 }
 
 .seen-row .ant-avatar {
-  border: 2px solid #f0f2f5;
-  margin-left: -6px;
+  border: 1px solid var(--ui-bg-app);
+  margin-left: -4px;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
   font-size: 8px;
 }
 
@@ -1736,7 +1761,7 @@ body {
 
 .seen-extra {
   margin-left: 4px;
-  color: #65676b;
+  color: var(--ui-text-3);
   font-size: 11px;
 }
 
@@ -3158,7 +3183,9 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: 2px;
+  margin-top: -10px;
+  position: relative;
+  z-index: 2;
 }
 
 .row.mine .react-summary {
@@ -3171,23 +3198,23 @@ body {
   gap: 4px;
   padding: 2px 6px;
   border-radius: 12px;
-  border: 1px solid #e4e6eb;
-  background: #f0f2f5;
-  color: #050505;
+  border: 1px solid var(--ui-border);
+  background: #ffffff;
+  color: var(--ui-text);
   font-size: 12px;
   cursor: pointer;
   line-height: 1.2;
-  transition: all 0.15s ease;
+  transition: all var(--ui-speed) var(--ui-ease);
 }
 
 .react-pill:hover {
-  background: #e4e6eb;
+  background: var(--ui-bg-hover);
 }
 
 .react-pill.mine {
-  background: #e5f1ff;
-  border-color: #0084ff;
-  color: #0084ff;
+  background: var(--ui-primary-soft);
+  border-color: var(--ui-primary);
+  color: var(--ui-primary);
   font-weight: 600;
 }
 
@@ -3794,12 +3821,16 @@ body {
   text-overflow: ellipsis;
 }
 
-/* Tin hệ thống */
+/* Tin hệ thống & Vạch ngày */
 .system-notice {
-  text-align: center;
+  padding: 4px 12px;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--ui-text-2);
   font-size: 12px;
-  color: #65676b;
-  margin: 8px 0;
+  border-radius: 12px;
+  text-align: center;
+  margin: 12px auto;
+  width: fit-content;
 }
 
 .system-notice-link {
@@ -3814,6 +3845,22 @@ body {
 
 .system-notice-link:hover {
   text-decoration: underline;
+}
+
+.date-divider {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0;
+  text-align: center;
+}
+
+.date-divider span {
+  padding: 4px 12px;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--ui-text-2);
+  font-size: 12px;
+  border-radius: 12px;
+  display: inline-block;
 }
 
 /* Kéo thả */
@@ -4759,8 +4806,8 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 10px 0;
-  color: #0084ff;
+  margin: 16px 0;
+  color: var(--ui-primary);
   font-size: 12px;
   font-weight: 500;
 }
@@ -4770,7 +4817,12 @@ body {
   content: '';
   flex: 1;
   height: 1px;
-  background: #b8dcff;
+  background: var(--ui-primary);
+}
+
+.unread-divider span {
+  background: var(--ui-bg-app);
+  padding: 0 8px;
 }
 
 /* Chọn nhiều tin */
@@ -4958,9 +5010,13 @@ body {
 
 /* Đã gửi / Đã nhận */
 .delivery-status {
-  padding: 0 8px;
-  color: #65676b;
+  padding: 0 4px;
+  color: var(--ui-text-3);
   font-size: 11px;
+}
+
+.row.mine .delivery-status {
+  text-align: right;
 }
 
 /* Danh bạ */

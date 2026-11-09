@@ -82,13 +82,17 @@ function MessageRowView(props: Props) {
     message.rich?.type === 'sticker';
   const link = !isPoll && hasText && !hasImage && !album && !hasFile && !sticker ? firstLink(message.content) : null;
   const previewLink = link && !inviteTokenOf(link) ? link : null;
+  const timeStr = new Date(message.createdAt).toLocaleTimeString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
   return (
     <div
       id={`msg-${message.id}`}
       className={cls}
       onClick={() => props.onMarkRead()}
     >
-      {!mine && first ? (
+      {!mine && last ? (
         <Avatar
           size={28}
           className="avatar-initials"
@@ -114,7 +118,7 @@ function MessageRowView(props: Props) {
         {first && !mine ? (
           <span className="who-line">{message.authorName}</span>
         ) : null}
-        <div className="bubble-wrap">
+        <div className="bubble-wrap" title={!last ? timeStr : undefined}>
           <Dropdown
             trigger={['contextMenu']}
             menu={{
@@ -263,10 +267,16 @@ function MessageRowView(props: Props) {
                       <PushpinOutlined /> Đã ghim
                     </span>
                   ) : null}
+                  {last && (hasText || message.recalled) ? (
+                    <time className="msg-time">{timeStr}</time>
+                  ) : null}
                 </div>
               </SeenBubble>
             </div>
           </Dropdown>
+          {last && !hasText && !message.recalled ? (
+            <time className="msg-time">{timeStr}</time>
+          ) : null}
           {hasReceipt ? (
             <ReadStatus
               read={props.readCount ?? 0}
@@ -292,14 +302,6 @@ function MessageRowView(props: Props) {
         />
         <SeenAvatars readers={props.lastReaders} />
         {props.delivery ? <DeliveryStatus status={props.delivery} /> : null}
-        {last ? (
-          <time>
-            {new Date(message.createdAt).toLocaleTimeString('vi-VN', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </time>
-        ) : null}
       </div>
     </div>
   );

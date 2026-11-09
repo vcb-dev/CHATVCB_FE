@@ -1,6 +1,6 @@
 import { fileSrc } from "@/api/client";
 import { avatarColor, initials } from "@/lib/avatar";
-import { ExportOutlined, PlusOutlined, TeamOutlined } from "@ant-design/icons";
+import { ExportOutlined } from "@ant-design/icons";
 import {
   Avatar,
   Button,
@@ -9,11 +9,13 @@ import {
   Select,
   Table,
   Tag,
-  Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { EmployeeProfile } from "./types";
+import { ModuleLayout } from "@/components/ModuleLayout";
+import { PageHeader } from "@/components/PageHeader";
+import { ContentCard } from "@/components/ContentCard";
 
 interface Props {
   employees: EmployeeProfile[];
@@ -21,6 +23,7 @@ interface Props {
   onOpen: (id: string) => void;
   onCreate?: () => void;
   canExport?: boolean;
+  sidebar?: ReactNode;
 }
 
 export function EmployeeListView({
@@ -29,6 +32,7 @@ export function EmployeeListView({
   onOpen,
   onCreate,
   canExport,
+  sidebar,
 }: Props) {
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState<string | null>(null);
@@ -68,12 +72,11 @@ export function EmployeeListView({
   const stats = useMemo(
     () => ({
       total: employees.length,
-      official: employees.filter((e) => e.contractType.includes("Chính thức"))
-        .length,
-      departments: departments.length,
-      employmentStatuses: employmentStatuses.length,
+      official: employees.filter((e) => e.contractType.includes("Chính thức")).length,
+      probation: employees.filter((e) => e.contractType.includes("Thử việc")).length,
+      resigned: employees.filter((e) => e.employmentStatus === "Nghỉ việc").length,
     }),
-    [employees, departments.length],
+    [employees],
   );
 
   const columns: ColumnsType<EmployeeProfile> = [
@@ -150,64 +153,39 @@ export function EmployeeListView({
     },
   ];
 
-  return (
-    <main className="hr-page">
-      <header className="hr-page-head">
-        <div>
-          <Typography.Text className="hr-eyebrow">HRM</Typography.Text>
-          <h1>Nhân sự</h1>
-          <p>Quản lý hồ sơ nhân viên.</p>
+  const pageHeader = (
+    <PageHeader
+      title="Nhân sự"
+      meta={
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <Tag color="default">Tổng: {stats.total}</Tag>
+          <Tag color="blue">Chính thức: {stats.official}</Tag>
+          <Tag color="orange">Thử việc: {stats.probation}</Tag>
+          <Tag color="red">Nghỉ việc: {stats.resigned}</Tag>
         </div>
-        <div className="hr-page-actions">
-          <Button
-            disabled={!canExport}
-            icon={<ExportOutlined />}
-            onClick={() => message.info("Export sẽ kết nối API sau.")}
-          >
-            Export
-          </Button>
-          {canCreate ? (
-            <Button type="primary" icon={<PlusOutlined />} onClick={onCreate}>
-              Thêm nhân viên
-            </Button>
-          ) : null}
-        </div>
-      </header>
-
-      <div className="hr-stats">
-        <div className="hr-stat">
-          <TeamOutlined />
-          <div>
-            <strong>{stats.total}</strong>
-            <span>Tổng nhân viên</span>
-          </div>
-        </div>
-        <div className="hr-stat">
-          <strong>{stats.official}</strong>
-          <span>Chính thức</span>
-        </div>
-        <div className="hr-stat">
-          <strong>{stats.departments}</strong>
-          <span>Phòng ban</span>
-        </div>
-        <div className="hr-stat">
-          <strong>{stats.employmentStatuses}</strong>
-          <span>Tình trạng làm việc</span>
-        </div>
-      </div>
-
-      <div className="hr-filter-card">
+      }
+      actions={
+        <Button
+          disabled={!canExport}
+          icon={<ExportOutlined />}
+          onClick={() => message.info("Export sẽ kết nối API sau.")}
+        >
+          Xuất file
+        </Button>
+      }
+    >
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", width: "100%" }}>
         <Input.Search
           allowClear
           placeholder="Tìm mã NV, họ tên, email, SĐT…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="hr-search"
+          style={{ width: 260 }}
         />
         <Select
           allowClear
           placeholder="Phòng ban"
-          style={{ minWidth: 160 }}
+          style={{ minWidth: 150 }}
           value={department}
           onChange={setDepartment}
           options={departments.map((d) => ({ value: d, label: d }))}
@@ -215,27 +193,30 @@ export function EmployeeListView({
         <Select
           allowClear
           placeholder="Loại HĐ"
-          style={{ minWidth: 160 }}
+          style={{ minWidth: 140 }}
           value={contract}
           onChange={setContract}
           options={contracts.map((c) => ({ value: c, label: c }))}
         />
         <Select
           allowClear
-          placeholder="Tình trạng làm việc"
-          style={{ minWidth: 160 }}
+          placeholder="Trạng thái"
+          style={{ minWidth: 150 }}
           value={employmentStatus}
           onChange={setEmploymentStatus}
           options={employmentStatuses.map((c) => ({ value: c, label: c }))}
         />
       </div>
+    </PageHeader>
+  );
 
-      <div className="hr-table-wrap">
+  return (
+    <ModuleLayout sidebar={sidebar} header={pageHeader}>
+      <ContentCard>
         <Table
           rowKey="id"
           columns={columns}
           dataSource={filtered}
-          // ponytail: record có field `children` (con cái) — antd Table mặc định coi là tree row → icon +
           childrenColumnName="__rowTree"
           pagination={{ pageSize: 8, showSizeChanger: false }}
           onRow={(row) => ({
@@ -243,7 +224,7 @@ export function EmployeeListView({
             className: "hr-table-row",
           })}
         />
-      </div>
-    </main>
+      </ContentCard>
+    </ModuleLayout>
   );
 }

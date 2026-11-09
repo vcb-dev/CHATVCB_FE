@@ -3,106 +3,12 @@
   min-width: 0;
   min-height: 0;
   height: 100%;
-  overflow: auto;
-  background: #f0f2f5;
-  padding: 24px 28px 40px;
-}
-
-.hr-eyebrow {
-  display: block;
-  color: #0084ff;
-  letter-spacing: 0.12em;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-
-.hr-page-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.hr-page-head h1 {
-  margin: 0 0 6px;
-  font-size: 26px;
-  font-weight: 700;
-}
-
-.hr-page-head p {
-  margin: 0;
-  color: #65676b;
-  font-size: 14px;
-}
-
-.hr-page-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.hr-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.hr-stat {
-  background: #fff;
-  border-radius: 14px;
-  padding: 14px 16px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.hr-stat .anticon {
-  font-size: 22px;
-  color: #0084ff;
-}
-
-.hr-stat strong {
-  display: block;
-  font-size: 22px;
-  line-height: 1.1;
-}
-
-.hr-stat span {
-  color: #65676b;
-  font-size: 12px;
-}
-
-.hr-stat.warn strong {
-  color: #d48806;
-}
-
-.hr-filter-card {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-  background: #fff;
-  border-radius: 14px;
-  padding: 14px 16px;
-  margin-bottom: 16px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
-}
-
-.hr-search {
-  flex: 1;
-  min-width: 220px;
 }
 
 .hr-table-wrap {
-  background: #fff;
-  border-radius: 16px;
+  background: var(--ui-bg-panel);
+  border-radius: var(--ui-radius);
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
 .hr-table-wrap .ant-table-row.hr-table-row {
@@ -123,17 +29,18 @@
 
 .hr-table-name strong {
   display: block;
-  color: #050505;
+  color: var(--ui-text);
 }
 
 .hr-table-name small {
-  color: #65676b;
+  color: var(--ui-text-3);
   font-size: 12px;
 }
 
 .hr-code {
   font-size: 12px;
-  background: #f0f2f5;
+  background: var(--ui-bg-hover);
+  color: var(--ui-text);
   padding: 2px 8px;
   border-radius: 6px;
 }

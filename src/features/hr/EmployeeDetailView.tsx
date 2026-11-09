@@ -35,7 +35,7 @@ import {
   message,
 } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type ReactNode } from "react";
 import { employeeKeys } from "./queries/employeeKeys";
 import { uploadCitizenId } from "./services/employeesApi";
 import {
@@ -47,6 +47,8 @@ import {
   HrSubBlock,
 } from "./components/HrUi";
 import type { EmployeeProfile } from "./types";
+import { ModuleLayout } from "@/components/ModuleLayout";
+import { PageHeader } from "@/components/PageHeader";
 
 interface Props {
   profile: EmployeeProfile;
@@ -58,6 +60,7 @@ interface Props {
   onSave: (
     patch: Partial<EmployeeProfile> & { id: string },
   ) => void | Promise<void>;
+  sidebar?: ReactNode;
 }
 
 const TAB_KEYS = [
@@ -138,6 +141,7 @@ export function EmployeeDetailView({
   saveLoading = false,
   onBack,
   onSave,
+  sidebar,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
@@ -179,63 +183,57 @@ export function EmployeeDetailView({
   const data = editing ? draft : profile;
   const { data: orgDepartments = [] } = useDepartmentsQuery();
 
-  return (
-    <main className="hr-page hr-detail-page">
-      <div className="hr-detail-hero">
-        <Button
-          type="text"
-          className="hr-back-btn"
-          icon={<ArrowLeftOutlined />}
-          onClick={onBack}
+  const detailHeader = (
+    <PageHeader
+      icon={
+        <Avatar
+          size={36}
+          src={data.avatarUrl ? fileSrc(data.avatarUrl) : undefined}
+          style={{
+            background: avatarColor(data.fullName),
+            color: "#fff",
+            fontWeight: 700,
+          }}
         >
-          Danh sách
-        </Button>
-        <div className="hr-detail-hero-inner">
-          <Avatar
-            size={72}
-            src={data.avatarUrl ? fileSrc(data.avatarUrl) : undefined}
-            style={{
-              background: avatarColor(data.fullName),
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: 24,
-            }}
-          >
-            {initials(data.fullName)}
-          </Avatar>
-          <div className="hr-detail-hero-text">
-            <h1>{data.fullName}</h1>
-            <p>
-              {data.employeeCode} · {data.department} · {data.jobTitle}
-            </p>
-            <div className="hr-detail-tags">
-              <Tag color="blue" style={{ marginRight: 10 }}>
-                {data.contractType}
-              </Tag>
-              <Tag color="green">{data.employmentStatus}</Tag>
-            </div>
-          </div>
-          <div className="hr-detail-hero-actions">
-            {editing ? (
-              <>
-                <Button onClick={cancelEdit}>Hủy</Button>
-                <Button type="primary" loading={saveLoading} onClick={saveEdit}>
-                  Lưu thay đổi
-                </Button>
-              </>
-            ) : canUpdate ? (
-              <Button
-                type="primary"
-                icon={<EditOutlined />}
-                onClick={() => setEditing(true)}
-              >
-                Chỉnh sửa
-              </Button>
-            ) : null}
-          </div>
+          {initials(data.fullName)}
+        </Avatar>
+      }
+      title={data.fullName}
+      onBack={onBack}
+      meta={
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ color: "var(--ui-text-2)", fontSize: 13 }}>
+            {data.employeeCode} · {data.department} · {data.jobTitle}
+          </span>
+          <Tag color="blue">{data.contractType}</Tag>
+          <Tag color={data.employmentStatus === "Nghỉ việc" ? "red" : "green"}>
+            {data.employmentStatus}
+          </Tag>
         </div>
-      </div>
+      }
+      actions={
+        editing ? (
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button onClick={cancelEdit}>Hủy</Button>
+            <Button type="primary" loading={saveLoading} onClick={saveEdit}>
+              Lưu thay đổi
+            </Button>
+          </div>
+        ) : canUpdate ? (
+          <Button
+            type="primary"
+            icon={<EditOutlined />}
+            onClick={() => setEditing(true)}
+          >
+            Chỉnh sửa
+          </Button>
+        ) : null
+      }
+    />
+  );
 
+  return (
+    <ModuleLayout sidebar={sidebar} header={detailHeader}>
       <Form
         form={form}
         layout="vertical"
@@ -281,7 +279,7 @@ export function EmployeeDetailView({
           )}
         </div>
       </Form>
-    </main>
+    </ModuleLayout>
   );
 }
 

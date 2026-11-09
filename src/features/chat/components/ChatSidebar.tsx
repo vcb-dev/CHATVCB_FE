@@ -18,7 +18,6 @@ const NO_LABELS: ConversationLabel[] = [];
 
 export function ChatSidebar(props: {
   user: User;
-  team: string;
   rooms: Room[];
   roomId: string;
   roomsMeta: PageMeta;
@@ -32,11 +31,10 @@ export function ChatSidebar(props: {
   onLoadMoreRooms: () => Promise<void>;
   onNewChat: () => void;
   onOpenCloud: () => void;
-  onOpenProfile?: () => void;
   prefs: ReturnType<typeof useRoomPrefs>;
   drafts: Drafts;
 }) {
-  const { user, team, rooms, roomsMeta, searchText } = props;
+  const { user, rooms, roomsMeta, searchText } = props;
 
   const [filter, setFilter] = useState<RoomFilter>({ kind: 'all' });
   const [managerOpen, setManagerOpen] = useState(false);

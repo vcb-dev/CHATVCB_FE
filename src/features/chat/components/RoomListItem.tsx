@@ -4,6 +4,7 @@ import { memo } from 'react';
 import { fileSrc } from '@/api/client';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { ConversationLabel, Room } from '@/types';
+import { formatRoomTime } from '../utils/datetime';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
 import { isRoomMuted, sameRoom } from '../utils/rooms';
 import { RoomMenu } from './RoomMenu';
@@ -19,25 +20,6 @@ type Props = {
   draft?: string;
   onManageLabels?: () => void;
 };
-
-function formatRoomTime(iso?: string): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const now = new Date();
-  if (isNaN(d.getTime())) return '';
-  const isToday = d.toDateString() === now.toDateString();
-  if (isToday) {
-    return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-  }
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) {
-    return 'Hôm qua';
-  }
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  return `${day}/${month}`;
-}
 
 function RoomListItemView(props: Props) {
   const { room, actions, label, labels, onManageLabels } = props;
@@ -115,9 +97,11 @@ function RoomListItemView(props: Props) {
                 )}
               </div>
               {showCount ? (
-                <span className="room-badge">{room.unreadCount > 99 ? '99+' : room.unreadCount}</span>
+                <span className={muted ? 'room-badge muted' : 'room-badge'}>
+                  {room.unreadCount > 99 ? '99+' : room.unreadCount}
+                </span>
               ) : showMarkedDot ? (
-                <span className="room-unread-dot" />
+                <span className={muted ? 'room-unread-dot muted' : 'room-unread-dot'} />
               ) : null}
             </div>
           </div>
@@ -143,6 +127,7 @@ function RoomListItemView(props: Props) {
   );
 }
 
+// Mỗi dòng dựng sẵn hai menu chuột phải nên rất tốn khi vẽ: chỉ vẽ lại khi chính phòng đó đổi
 export const RoomListItem = memo(
   RoomListItemView,
   (a, b) =>

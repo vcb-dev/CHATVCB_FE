@@ -1285,6 +1285,14 @@ body {
   flex-shrink: 0;
 }
 
+.room-badge.muted {
+  background: var(--ui-text-3);
+}
+
+.room-unread-dot.muted {
+  background: var(--ui-text-3);
+}
+
 
 .profile-avatar-btn,
 .user-avatar-btn {

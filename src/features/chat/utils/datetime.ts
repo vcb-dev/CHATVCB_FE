@@ -38,3 +38,20 @@ export function formatDuration(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
   return `${Math.floor(totalSec / 60)}:${pad(totalSec % 60)}`;
 }
+
+export function formatRoomTime(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const now = new Date();
+  if (isNaN(d.getTime())) return '';
+  const isToday = d.toDateString() === now.toDateString();
+  if (isToday) {
+    return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  }
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) {
+    return 'Hôm qua';
+  }
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+}

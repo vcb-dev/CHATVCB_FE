@@ -263,7 +263,6 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const isPeerOnline = isOtherUserOnline(presence, peerUserIdOf(room, chat.members, user.id));
   const isGroupOnline = hasOnlineMember(presence, chat.members);
   const onlineMembersCount = countOnlineMembers(presence, chat.members);
-  const team = user.team ?? room?.team ?? 'sale';
   const chatPhotos = useMemo(() => photosFromMessages(chat.messages), [chat.messages]);
   const markRead = () => chat.markMessageRead();
   // Tin bị thu hồi trong lúc đang chọn tự rơi khỏi danh sách
@@ -325,7 +324,6 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       {workspace === 'messenger' ? (
         <ChatSidebar
           user={user}
-          team={team}
           rooms={rooms}
           roomId={roomId}
           roomsMeta={roomList.roomsMeta}
@@ -339,7 +337,6 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           onLoadMoreRooms={roomList.loadMoreRooms}
           onNewChat={() => setNewChatOpen(true)}
           onOpenCloud={tools.openCloud}
-          onOpenProfile={() => setProfileOpen(true)}
           prefs={roomPrefs}
           drafts={composer.drafts}
         />

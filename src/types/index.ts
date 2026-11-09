@@ -653,9 +653,14 @@ export type NewsComment = {
   createdAt: string;
   editedAt: string | null;
   replies: NewsComment[];
+  replyCount: number;
 };
 
 export type NewsCommentPage = { items: NewsComment[]; nextCursor: string | null };
+
+export type NewsFeedPost = NewsPost & { comments: NewsCommentPage };
+
+export type NewsFeedPage = { items: NewsFeedPost[]; nextCursor: string | null };
 
 export type NewsPublishedEvent = { id: string; title: string; source?: string };
 

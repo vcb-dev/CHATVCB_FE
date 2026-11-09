@@ -1,23 +1,39 @@
 import type { InfiniteData, QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/api/queryKeys';
-import type { NewsCard, NewsCardPage, NewsPost, NewsReactionSummary } from '@/types';
+import type { NewsFeedPage, NewsFeedPost, NewsPost, NewsReactionSummary } from '@/types';
 
-/** Sửa thẳng thẻ bài trong cache danh sách, để mỗi lượt thả cảm xúc không phải tải lại cả danh sách */
-export function patchNewsCard(
+export function patchFeedPages(
+  data: InfiniteData<NewsFeedPage> | undefined,
+  postId: string,
+  patch: (post: NewsFeedPost) => NewsFeedPost,
+): InfiniteData<NewsFeedPage> | undefined {
+  if (!data) {
+    return undefined;
+  }
+  let hasChange = false;
+  const pages = data.pages.map((page) => {
+    let pageChanged = false;
+    const items = page.items.map((item) => {
+      if (item.id === postId) {
+        pageChanged = true;
+        hasChange = true;
+        return patch(item);
+      }
+      return item;
+    });
+    return pageChanged ? { ...page, items } : page;
+  });
+  return hasChange ? { ...data, pages } : data;
+}
+
+export function patchNewsFeedPost(
   queryClient: QueryClient,
   postId: string,
-  patch: (card: NewsCard) => NewsCard,
+  patch: (post: NewsFeedPost) => NewsFeedPost,
 ): void {
-  queryClient.setQueriesData<InfiniteData<NewsCardPage>>({ queryKey: queryKeys.newsPosts }, (data) =>
-    data
-      ? {
-          ...data,
-          pages: data.pages.map((page) => ({
-            ...page,
-            items: page.items.map((item) => (item.id === postId ? patch(item) : item)),
-          })),
-        }
-      : data,
+  queryClient.setQueriesData<InfiniteData<NewsFeedPage>>(
+    { queryKey: queryKeys.newsPosts },
+    (data) => patchFeedPages(data, postId, patch),
   );
 }
 
@@ -26,7 +42,9 @@ export function patchNewsPost(
   postId: string,
   patch: (post: NewsPost) => NewsPost,
 ): void {
-  queryClient.setQueryData<NewsPost>(queryKeys.newsPost(postId), (post) => (post ? patch(post) : post));
+  queryClient.setQueryData<NewsPost>(queryKeys.newsPost(postId), (post) =>
+    post ? patch(post) : post,
+  );
 }
 
 /** `mine` chỉ đổi khi chính mình bấm; sự kiện của người khác giữ nguyên lựa chọn của mình */
@@ -44,13 +62,22 @@ export function applyNewsReactions(
       mine: summary.mine === undefined ? post.reactions.mine : summary.mine,
     },
   }));
-  patchNewsCard(queryClient, postId, (card) => ({
-    ...card,
-    reactions: { total: summary.total, top: summary.top },
+  patchNewsFeedPost(queryClient, postId, (post) => ({
+    ...post,
+    reactions: {
+      total: summary.total,
+      counts: summary.counts,
+      top: summary.top,
+      mine: summary.mine === undefined ? post.reactions.mine : summary.mine,
+    },
   }));
 }
 
-export function applyNewsCommentCount(queryClient: QueryClient, postId: string, commentCount: number): void {
+export function applyNewsCommentCount(
+  queryClient: QueryClient,
+  postId: string,
+  commentCount: number,
+): void {
   patchNewsPost(queryClient, postId, (post) => ({ ...post, commentCount }));
-  patchNewsCard(queryClient, postId, (card) => ({ ...card, commentCount }));
+  patchNewsFeedPost(queryClient, postId, (post) => ({ ...post, commentCount }));
 }

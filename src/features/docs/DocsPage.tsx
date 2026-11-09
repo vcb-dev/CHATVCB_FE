@@ -4,12 +4,14 @@ import {
   ArrowLeftOutlined,
   ClockCircleOutlined,
   DeleteOutlined,
+  DownOutlined,
   FileTextOutlined,
   FolderOutlined,
   FormOutlined,
   PartitionOutlined,
   PlusOutlined,
   ProjectOutlined,
+  ShareAltOutlined,
   StarFilled,
   StarOutlined,
   TableOutlined,
@@ -23,6 +25,11 @@ import { draftContent, draftTitle, kindLabel } from './utils/drafts';
 import { openSheetTab } from './sheet';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { DocItem, DocKind, User } from '@/types';
+import { ModuleLayout } from '@/components/ModuleLayout';
+import { ModuleSidebar } from '@/components/ModuleSidebar';
+import { PageHeader } from '@/components/PageHeader';
+import { ContentCard } from '@/components/ContentCard';
+import { EmptyState } from '@/components/EmptyState';
 
 type Tab = 'recent' | 'shared' | 'starred';
 type Props = { user: User };
@@ -289,162 +296,194 @@ export function DocsPage({ user }: Props) {
 
   if (opened && opened.kind !== 'folder') {
     return (
-      <main className="docs-page docs-edit">
-        <header className="docs-edit-head">
-          <button type="button" className="docs-back" onClick={() => setOpened(null)}>
-            <ArrowLeftOutlined /> Docs
-          </button>
-          <Input
-            className="docs-title"
-            variant="borderless"
-            value={title}
-            onChange={(event) => {
-              setTitle(event.target.value);
-              queueSave({ title: event.target.value });
-            }}
-          />
-          <small>{saving || kindLabel(opened.kind)}</small>
-          <Button
-            type="text"
-            icon={opened.starred ? <StarFilled /> : <StarOutlined />}
-            onClick={() => void toggleStar(opened)}
-          />
-        </header>
+      <ModuleLayout
+        sidebar={null}
+        flush
+        header={
+          <header className="docs-edit-head">
+            <button type="button" className="docs-back" onClick={() => setOpened(null)}>
+              <ArrowLeftOutlined /> Docs
+            </button>
+            <Input
+              className="docs-title"
+              variant="borderless"
+              value={title}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                queueSave({ title: event.target.value });
+              }}
+            />
+            <small>{saving || kindLabel(opened.kind)}</small>
+            <Button
+              type="text"
+              icon={opened.starred ? <StarFilled /> : <StarOutlined />}
+              onClick={() => void toggleStar(opened)}
+            />
+          </header>
+        }
+      >
         <div className="docs-edit-body">
           <DocsEditor doc={opened} onChange={(content) => queueSave({ content })} />
         </div>
-      </main>
+      </ModuleLayout>
     );
   }
 
+  const activeTab = TABS.find((item) => item.id === tab);
+
+  const newMenuItems = [
+    ...NEW_KINDS.map((item) => ({
+      key: item.id,
+      icon: <span className={`docs-kind ${item.tone}`}>{item.icon}</span>,
+      label: item.label,
+    })),
+    { type: 'divider' as const },
+    { key: 'upload', icon: <UploadOutlined />, label: 'Tải lên…' },
+    { key: 'template', icon: <FileTextOutlined />, label: 'Từ mẫu…' },
+  ];
+
+  const sidebarAction = (
+    <Dropdown
+      menu={{
+        items: newMenuItems,
+        onClick: ({ key }) => {
+          if (key === 'upload') {
+            fileRef.current?.click();
+            return;
+          }
+          if (key === 'template') {
+            setTemplatesOpen(true);
+            return;
+          }
+          create(key as DocKind);
+        },
+      }}
+      trigger={['click']}
+    >
+      <Button type="primary" block icon={<PlusOutlined />}>
+        Tạo mới <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
+      </Button>
+    </Dropdown>
+  );
+
+  const sidebarGroups = [
+    {
+      items: [
+        { key: 'recent', label: 'Gần đây', icon: <ClockCircleOutlined /> },
+        { key: 'shared', label: 'Được chia sẻ với tôi', icon: <ShareAltOutlined /> },
+        { key: 'starred', label: 'Ưa thích', icon: <StarOutlined /> },
+      ],
+    },
+  ];
+
   return (
-    <main className="docs-page">
-      <header className="docs-head">
-        <h1>Docs</h1>
-        <div className="docs-actions">
-          <div className="docs-new">
-            <button type="button" className="docs-card blue">
-              <span className="docs-card-ico"><PlusOutlined /></span>
-              <span className="docs-card-text">
-                <strong>Mới</strong>
-                <small>Tạo tài liệu mới</small>
-              </span>
-            </button>
-            <div className="docs-new-menu">
-              {NEW_KINDS.map((item) => (
-                <button key={item.id} type="button" onClick={() => create(item.id)}>
-                  <span className={`docs-kind ${item.tone}`}>{item.icon}</span>
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button type="button" className="docs-card peach" onClick={() => fileRef.current?.click()}>
-            <span className="docs-card-ico"><UploadOutlined /></span>
-            <span className="docs-card-text">
-              <strong>Tải lên</strong>
-              <small>txt, md, html</small>
-            </span>
-          </button>
-          <button type="button" className="docs-card teal" onClick={() => setTemplatesOpen(true)}>
-            <span className="docs-card-ico"><FileTextOutlined /></span>
-            <span className="docs-card-text">
-              <strong>Mẫu</strong>
-              <small>Bắt đầu từ template</small>
-            </span>
-          </button>
-        </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".txt,.md,.html,text/plain,text/markdown,text/html"
-          hidden
-          onChange={(event) => {
-            onUpload(event.target.files?.[0]);
-            event.target.value = '';
-          }}
+    <ModuleLayout
+      sidebar={
+        <ModuleSidebar
+          title="Docs"
+          action={sidebarAction}
+          groups={sidebarGroups}
+          activeKey={tab}
+          onSelect={(key) => setTab(key as Tab)}
         />
-      </header>
-      <div className="docs-toolbar-row">
-        <div className="docs-tabs">
-          {TABS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={tab === item.id ? 'active' : ''}
-              onClick={() => setTab(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        <Input.Search
-          allowClear
-          placeholder="Tìm kiếm"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          style={{ width: 240 }}
+      }
+      header={
+        <PageHeader
+          title={activeTab?.label || 'Docs'}
+          actions={
+            <Input.Search
+              allowClear
+              placeholder="Tìm kiếm"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              style={{ width: 240 }}
+            />
+          }
         />
-      </div>
-      <div className="docs-table">
-        <div className="docs-tr head">
-          <span>Tên</span>
-          <span>Vị trí</span>
-          <span>Chủ sở hữu</span>
-          <span>Đã tạo</span>
-          <span>Gần đây</span>
-        </div>
+      }
+    >
+      <ContentCard>
         {items.length ? (
-          items.map((item) => (
-            <div key={item.id} className="docs-tr" onClick={() => openDoc(item)}>
-              <span className="docs-name">
-                <KindIcon kind={item.kind} />
-                <em>{item.title || 'Không tiêu đề'}</em>
-                <button
-                  type="button"
-                  className={`docs-star${item.starred ? ' on' : ''}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    void toggleStar(item);
-                  }}
-                >
-                  {item.starred ? <StarFilled /> : <StarOutlined />}
-                </button>
-              </span>
-              <span>{item.folder}</span>
-              <span className="docs-owner">
-                <Avatar size={22} src={item.owner.avatarUrl ? fileSrc(item.owner.avatarUrl) : undefined} style={{ background: avatarColor(item.owner.name) }}>
-                  {initials(item.owner.name)}
-                </Avatar>
-                {item.owner.name}
-              </span>
-              <span>{formatWhen(item.createdAt)}</span>
-              <span className="docs-recent">
-                <ClockCircleOutlined />
-                {formatWhen(item.updatedAt)}
-                {item.ownerId === user.id ? (
-                  <Dropdown
-                    trigger={['click']}
-                    menu={{
-                      items: [{ key: 'del', label: 'Xóa', danger: true, icon: <DeleteOutlined /> }],
-                      onClick: ({ domEvent }) => {
-                        domEvent.stopPropagation();
-                        void remove(item);
-                      },
+          <div className="docs-table">
+            <div className="docs-tr head">
+              <span>Tên</span>
+              <span>Vị trí</span>
+              <span>Chủ sở hữu</span>
+              <span>Đã tạo</span>
+              <span>Gần đây</span>
+            </div>
+            {items.map((item) => (
+              <div key={item.id} className="docs-tr" onClick={() => openDoc(item)}>
+                <span className="docs-name">
+                  <KindIcon kind={item.kind} />
+                  <em>{item.title || 'Không tiêu đề'}</em>
+                  <button
+                    type="button"
+                    className={`docs-star${item.starred ? ' on' : ''}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void toggleStar(item);
                     }}
                   >
-                    <button type="button" className="docs-more" onClick={(event) => event.stopPropagation()}>
-                      ⋯
-                    </button>
-                  </Dropdown>
-                ) : null}
-              </span>
-            </div>
-          ))
+                    {item.starred ? <StarFilled /> : <StarOutlined />}
+                  </button>
+                </span>
+                <span>{item.folder}</span>
+                <span className="docs-owner">
+                  <Avatar size={22} src={item.owner.avatarUrl ? fileSrc(item.owner.avatarUrl) : undefined} style={{ background: avatarColor(item.owner.name) }}>
+                    {initials(item.owner.name)}
+                  </Avatar>
+                  {item.owner.name}
+                </span>
+                <span>{formatWhen(item.createdAt)}</span>
+                <span className="docs-recent">
+                  <ClockCircleOutlined />
+                  {formatWhen(item.updatedAt)}
+                  {item.ownerId === user.id ? (
+                    <Dropdown
+                      trigger={['click']}
+                      menu={{
+                        items: [{ key: 'del', label: 'Xóa', danger: true, icon: <DeleteOutlined /> }],
+                        onClick: ({ domEvent }) => {
+                          domEvent.stopPropagation();
+                          void remove(item);
+                        },
+                      }}
+                    >
+                      <button type="button" className="docs-more" onClick={(event) => event.stopPropagation()}>
+                        ⋯
+                      </button>
+                    </Dropdown>
+                  ) : null}
+                </span>
+              </div>
+            ))}
+          </div>
         ) : (
-          <div className="docs-empty">Chưa có tài liệu. Hover Mới để tạo.</div>
+          <EmptyState
+            icon={<FileTextOutlined />}
+            title="Chưa có tài liệu"
+            description="Tạo tài liệu mới hoặc tải lên tệp văn bản từ máy tính."
+            action={
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => create('doc')}>
+                Tạo mới
+              </Button>
+            }
+          />
         )}
-      </div>
+      </ContentCard>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".txt,.md,.html,text/plain,text/markdown,text/html"
+        hidden
+        onChange={(event) => {
+          onUpload(event.target.files?.[0]);
+          event.target.value = '';
+        }}
+      />
+
       <Modal title="Mẫu tài liệu" open={templatesOpen} footer={null} onCancel={() => setTemplatesOpen(false)}>
         <div className="docs-templates">
           {TEMPLATES.map((item) => (
@@ -456,6 +495,6 @@ export function DocsPage({ user }: Props) {
           ))}
         </div>
       </Modal>
-    </main>
+    </ModuleLayout>
   );
 }

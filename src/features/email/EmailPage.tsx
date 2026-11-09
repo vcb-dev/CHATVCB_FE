@@ -1,8 +1,17 @@
-import { MailOutlined, ReloadOutlined, SwapOutlined } from '@ant-design/icons';
+import {
+  DownOutlined,
+  MailOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
 import { Button, Dropdown, Form, Input, InputNumber, Modal, Typography, message } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/api/client';
 import type { MailAccount, MailItem, MailMessage } from '@/types';
+import { ModuleLayout } from '@/components/ModuleLayout';
+import { ModuleSidebar } from '@/components/ModuleSidebar';
+import { PageHeader } from '@/components/PageHeader';
+import { EmptyState } from '@/components/EmptyState';
 
 const SELECTED_KEY = 'chatvcb.mailAccount';
 
@@ -195,125 +204,147 @@ export function EmailPage() {
     </button>
   );
 
-  if (!accounts.length && !connectOpen) {
-    return (
-      <main className="mail-page is-login">
-        <div className="mail-login">
-          <MailOutlined />
-          <h1>Đăng nhập hộp thư</h1>
-          <p>Chọn tài khoản Google để đọc Gmail trong CHATVCB. Có thể thêm nhiều hộp thư rồi chuyển bằng Switch.</p>
-          {googleButton}
-          <details className="mail-imap">
-            <summary>Tài khoản khác (IMAP)</summary>
-            {loginForm}
-            <Button type="primary" size="large" loading={connecting} onClick={() => void connect()}>
-              Đăng nhập IMAP
-            </Button>
-          </details>
-        </div>
-      </main>
-    );
-  }
+  const sidebarAction = (
+    <Dropdown
+      menu={{
+        items: [
+          { key: 'google', icon: <GoogleMark />, label: 'Đăng nhập bằng Google' },
+          { key: 'add', icon: <MailOutlined />, label: 'Thêm hộp thư IMAP' },
+        ],
+        onClick: ({ key }) => {
+          if (key === 'google') {
+            void loginGoogle();
+            return;
+          }
+          if (key === 'add') {
+            setConnectOpen(true);
+            return;
+          }
+        },
+      }}
+      trigger={['click']}
+    >
+      <Button type="primary" block icon={<PlusOutlined />}>
+        Thêm hộp thư <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
+      </Button>
+    </Dropdown>
+  );
 
-  return (
-    <main className="mail-page">
-      <header className="mail-head">
-        <div>
-          <h1>Email</h1>
-          <small>{account ? `${account.displayName || account.email} · ${total} thư` : 'Chưa chọn hộp thư'}</small>
-        </div>
-        <div className="mail-head-actions">
-          <Button icon={<ReloadOutlined />} onClick={() => account && void loadInbox(account.id)} loading={loading}>
+  const sidebarGroups = [
+    {
+      title: 'Tài khoản',
+      items: accounts.map((item) => ({
+        key: item.id,
+        label: item.displayName || item.email,
+        icon: <MailOutlined />,
+      })),
+    },
+  ];
+
+  const pageHeader = (
+    <PageHeader
+      title={account ? (account.displayName || account.email) : 'Email'}
+      meta={account ? `${total} thư` : undefined}
+      actions={
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => account && void loadInbox(account.id)}
+            loading={loading}
+          >
             Làm mới
           </Button>
-          <Dropdown
-            trigger={['click']}
-            menu={{
-              items: [
-                ...accounts.map((item) => ({
-                  key: item.id,
-                  label: (
-                    <div className="mail-switch-item">
-                      <strong>{item.displayName || item.email}</strong>
-                      <small>{item.email}</small>
-                    </div>
-                  ),
-                })),
-                { type: 'divider' as const },
-                { key: 'google', label: 'Đăng nhập bằng Google' },
-                { key: 'add', label: 'Thêm hộp thư IMAP' },
-                ...(account ? [{ key: 'remove', label: `Gỡ ${account.email}`, danger: true }] : []),
-              ],
-              selectedKeys: account ? [account.id] : [],
-              onClick: ({ key }) => {
-                if (key === 'google') {
-                  void loginGoogle();
-                  return;
-                }
-                if (key === 'add') {
-                  setConnectOpen(true);
-                  return;
-                }
-                if (key === 'remove' && account) {
-                  void disconnect(account.id);
-                  return;
-                }
-                void switchAccount(key);
-              },
-            }}
-          >
-            <Button type="primary" icon={<SwapOutlined />}>
-              Switch
+          {account ? (
+            <Button danger onClick={() => void disconnect(account.id)}>
+              Gỡ hộp thư
             </Button>
-          </Dropdown>
+          ) : null}
         </div>
-      </header>
-      <div className="mail-body">
-        <aside className="mail-list">
-          {loading && !items.length ? (
-            <div className="mail-empty">Đang tải thư…</div>
-          ) : items.length ? (
-            items.map((item) => (
-              <button
-                key={item.uid}
-                type="button"
-                className={`mail-row${selectedUid === item.uid ? ' active' : ''}${item.seen ? '' : ' unread'}`}
-                onClick={() => void openMail(item.uid)}
-              >
-                <strong>{item.from || '(Không người gửi)'}</strong>
-                <span>{item.subject}</span>
-                <small>{formatWhen(item.date)}</small>
-              </button>
-            ))
-          ) : (
-            <div className="mail-empty">Hộp thư trống.</div>
-          )}
-        </aside>
-        <section className="mail-reader">
-          {reading && !opened ? (
-            <div className="mail-empty">Đang mở thư…</div>
-          ) : opened ? (
-            <>
-              <header className="mail-reader-head">
-                <h2>{opened.subject}</h2>
-                <p>Từ: {opened.from || '—'}</p>
-                <p>Đến: {opened.to || '—'}</p>
-                <small>{formatWhen(opened.date)}</small>
-              </header>
-              {opened.html ? (
-                <iframe className="mail-html" title={opened.subject} sandbox="" srcDoc={opened.html} />
-              ) : (
-                <pre className="mail-text">{opened.text || '(Không có nội dung)'}</pre>
-              )}
-            </>
-          ) : (
-            <div className="mail-empty">
-              <MailOutlined />
-              <p>Chọn một thư để đọc.</p>
+      }
+    />
+  );
+
+  return (
+    <ModuleLayout
+      sidebar={
+        <ModuleSidebar
+          title="Email"
+          action={sidebarAction}
+          groups={sidebarGroups}
+          activeKey={account?.id || accountId}
+          onSelect={(key) => void switchAccount(key)}
+        />
+      }
+      header={pageHeader}
+      flush={Boolean(accounts.length)}
+    >
+      {!accounts.length ? (
+        <EmptyState
+          icon={<MailOutlined />}
+          title="Đăng nhập hộp thư"
+          description="Chọn tài khoản Google để đọc Gmail trong CHATVCB hoặc thêm hộp thư IMAP công ty."
+          action={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
+              {googleButton}
+              <details className="mail-imap">
+                <summary>Tài khoản khác (IMAP)</summary>
+                {loginForm}
+                <Button type="primary" size="large" loading={connecting} onClick={() => void connect()}>
+                  Đăng nhập IMAP
+                </Button>
+              </details>
             </div>
-          )}
-        </section>
-      </div>
+          }
+        />
+      ) : (
+        <div className="mail-body">
+          <aside className="mail-list ui-scroll">
+            {loading && !items.length ? (
+              <div className="mail-empty">Đang tải thư…</div>
+            ) : items.length ? (
+              items.map((item) => (
+                <button
+                  key={item.uid}
+                  type="button"
+                  className={`mail-row${selectedUid === item.uid ? ' active' : ''}${item.seen ? '' : ' unread'}`}
+                  onClick={() => void openMail(item.uid)}
+                >
+                  <strong>{item.from || '(Không người gửi)'}</strong>
+                  <span>{item.subject}</span>
+                  <small>{formatWhen(item.date)}</small>
+                </button>
+              ))
+            ) : (
+              <div className="mail-empty">Hộp thư trống.</div>
+            )}
+          </aside>
+          <section className="mail-reader">
+            {reading && !opened ? (
+              <div className="mail-empty">Đang mở thư…</div>
+            ) : opened ? (
+              <>
+                <header className="mail-reader-head">
+                  <h2>{opened.subject}</h2>
+                  <p>Từ: {opened.from || '—'}</p>
+                  <p>Đến: {opened.to || '—'}</p>
+                  <small>{formatWhen(opened.date)}</small>
+                </header>
+                {opened.html ? (
+                  <iframe className="mail-html" title={opened.subject} sandbox="" srcDoc={opened.html} />
+                ) : (
+                  <pre className="mail-text">{opened.text || '(Không có nội dung)'}</pre>
+                )}
+              </>
+            ) : (
+              <div className="mail-empty">
+                <MailOutlined />
+                <p>Chọn một thư để đọc.</p>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
       <Modal
         title="Thêm hộp thư IMAP"
         open={connectOpen}
@@ -326,6 +357,6 @@ export function EmailPage() {
         <Typography.Paragraph type="secondary">Gmail hãy dùng nút Đăng nhập bằng Google.</Typography.Paragraph>
         {loginForm}
       </Modal>
-    </main>
+    </ModuleLayout>
   );
 }

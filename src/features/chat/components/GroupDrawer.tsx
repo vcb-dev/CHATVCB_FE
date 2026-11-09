@@ -10,9 +10,10 @@ import {
   LogoutOutlined,
   PictureOutlined,
   PushpinOutlined,
-  RightOutlined,
+  SettingOutlined,
+  UsergroupAddOutlined,
 } from '@ant-design/icons';
-import { Avatar, Button, Input, Modal, Switch, Typography, message } from 'antd';
+import { Avatar, Button, Input, Modal, Typography, message } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, fileSrc } from '@/api/client';
@@ -21,18 +22,17 @@ import { CopyableImage } from '@/components/CopyableImage';
 import { compressImage } from '@/lib/image';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
 import { mergePhotos } from '../utils/media';
-import { notifyEnabled, requestNotifyPermission } from '@/lib/notify';
+import { requestNotifyPermission } from '@/lib/notify';
 import { formatBytes } from '../utils/attachments';
 import { UserPicker } from './UserPicker';
 import { avatarColor, initials } from '@/lib/avatar';
-import { isRoomMuted, muteLabel } from '../utils/rooms';
+import { isRoomMuted } from '../utils/rooms';
 import { MuteDurationModal } from './MuteDurationModal';
-import { GroupInviteCard } from './GroupInviteCard';
-import { GroupSettingsCard } from './GroupSettingsCard';
+import { GroupManageView } from './GroupManageView';
+import { InfoSection } from './InfoSection';
 import { GroupRemindersCard } from './GroupRemindersCard';
 import { GroupTasksCard } from './GroupTasksCard';
 import { GroupNotesCard } from './GroupNotesCard';
-import { JoinRequestsCard } from './JoinRequestsCard';
 import { GroupMembersCard } from './GroupMembersCard';
 import type { ChatFile, ChatMessage, DirectoryUser, GalleryImage, Reminder, Room, RoomLink, RoomMember, RoomNote } from '@/types';
 
@@ -46,7 +46,7 @@ function GroupAvatar({ room }: { room: Room }) {
   if (room.isCloud) {
     return (
       <Avatar
-        size={72}
+        size={64}
         className="avatar-initials"
         icon={<CloudOutlined />}
         src={src}
@@ -57,7 +57,7 @@ function GroupAvatar({ room }: { room: Room }) {
   const label = room.title || room.name;
   return (
     <Avatar
-      size={72}
+      size={64}
       className="avatar-initials"
       src={src}
       style={{ background: avatarColor(label) }}
@@ -182,17 +182,15 @@ export function GroupDrawer({
       !(room.settings?.adminOnlyInfo && room.myRole === 'member'),
   );
 
+  const [view, setView] = useState<'info' | 'manage'>('info');
+
   useEffect(() => {
     setName(room?.name ?? '');
     setEditingName(false);
     setPhotoOpen(false);
     setAddMemberOpen(false);
-    setOpenSection('members');
+    setView('info');
   }, [room?.id]);
-
-  function toggle(section: 'members' | 'photos' | 'files' | 'links' | 'pins') {
-    setOpenSection((current) => (current === section ? null : section));
-  }
 
   async function saveName() {
     if (!room) {
@@ -343,7 +341,14 @@ export function GroupDrawer({
         ) : null}
       </div>
 
-      {room ? (
+      {view === 'manage' && room ? (
+        <GroupManageView
+          room={room}
+          onBack={() => setView('info')}
+          onRoomUpdated={onRoomUpdated}
+          onMembersUpdated={onMembersUpdated}
+        />
+      ) : room ? (
         <div className="group-scroll">
           <div className="group-card group-hero-card">
             <div className="group-hero">
@@ -425,263 +430,253 @@ export function GroupDrawer({
                 </>
               )}
             </div>
-          </div>
 
-          {!isCloud ? (
-            <div className="group-card">
-              <div className="group-row static">
-                <span className="group-ico">
-                  <BellOutlined />
-                </span>
-                <span className="group-row-text">
-                  <strong>Thông báo tin nhắn</strong>
-                  <small>
-                    {notifyEnabled()
-                      ? muteLabel(room) || 'Chỉ áp dụng cho cuộc trò chuyện này'
-                      : 'Đang tắt mọi thông báo trong Hồ sơ'}
-                  </small>
-                </span>
-                <Switch
-                  size="small"
-                  checked={!isRoomMuted(room)}
-                  loading={muting}
-                  onChange={(checked) => {
-                    if (checked) {
+            <div className="info-actions">
+              {!isCloud ? (
+                <button
+                  type="button"
+                  className="info-action"
+                  onClick={() => {
+                    if (isRoomMuted(room)) {
                       void changeMute(prefs.unmute(room), false);
                     } else {
                       setMuteModalOpen(true);
                     }
                   }}
-                />
-              </div>
+                >
+                  <span className="info-action-btn">
+                    <BellOutlined />
+                  </span>
+                  <span className="info-action-label">
+                    {isRoomMuted(room) ? 'Bật thông báo' : 'Tắt thông báo'}
+                  </span>
+                </button>
+              ) : null}
+
+              <button
+                type="button"
+                className="info-action"
+                onClick={() => void prefs.togglePin(room)}
+              >
+                <span className="info-action-btn">
+                  <PushpinOutlined />
+                </span>
+                <span className="info-action-label">
+                  {room.pinned ? 'Bỏ ghim' : 'Ghim hội thoại'}
+                </span>
+              </button>
+
+              {isGroup && canAddMember ? (
+                <button
+                  type="button"
+                  className="info-action"
+                  onClick={() => setAddMemberOpen(true)}
+                >
+                  <span className="info-action-btn">
+                    <UsergroupAddOutlined />
+                  </span>
+                  <span className="info-action-label">
+                    {isSuggestMember ? 'Đề xuất TV' : 'Thêm thành viên'}
+                  </span>
+                </button>
+              ) : null}
+
+              {isGroup && room.canManage ? (
+                <button
+                  type="button"
+                  className="info-action"
+                  onClick={() => setView('manage')}
+                >
+                  <span className="info-action-btn">
+                    <SettingOutlined />
+                  </span>
+                  <span className="info-action-label">Quản lý nhóm</span>
+                </button>
+              ) : null}
             </div>
-          ) : null}
+          </div>
 
           {isGroup ? (
-            <GroupMembersCard
-              key={room.id}
-              room={room}
-              members={members}
-              currentUserId={currentUserId}
-              open={openSection === 'members'}
-              onToggle={() => toggle('members')}
-              addLabel={canAddMember ? (isSuggestMember ? 'Đề xuất thành viên' : 'Thêm thành viên') : null}
-              onAdd={() => setAddMemberOpen(true)}
-              onPick={(member) => {
-                setNickUser(member);
-                setNickValue(member.nickname || '');
-              }}
-              onMembersUpdated={onMembersUpdated}
-              onRemove={handleRemoveMember}
-            />
+            <InfoSection title="Thành viên nhóm" count={members.length} defaultOpen>
+              <GroupMembersCard
+                key={room.id}
+                room={room}
+                members={members}
+                currentUserId={currentUserId}
+                addLabel={canAddMember ? (isSuggestMember ? 'Đề xuất thành viên' : 'Thêm thành viên') : null}
+                onAdd={() => setAddMemberOpen(true)}
+                onPick={(member) => {
+                  setNickUser(member);
+                  setNickValue(member.nickname || '');
+                }}
+                onMembersUpdated={onMembersUpdated}
+                onRemove={handleRemoveMember}
+              />
+            </InfoSection>
           ) : null}
 
-          {isGroup && room ? (
-            <>
-              <GroupSettingsCard room={room} onRoomUpdated={onRoomUpdated} />
-              <GroupInviteCard room={room} />
-              <JoinRequestsCard room={room} onMembersUpdated={onMembersUpdated} />
-            </>
+          {!isCloud ? (
+            <InfoSection title="Bảng tin nhóm" defaultOpen={false}>
+              {isGroup && room ? (
+                <GroupTasksCard
+                  room={room}
+                  onCreate={onCreateTask}
+                  onOpen={(task) => {
+                    if (task.messageId) {
+                      onJumpMessage(task.messageId, task.createdAt);
+                    }
+                  }}
+                />
+              ) : null}
+              {room ? (
+                <GroupRemindersCard
+                  room={room}
+                  currentUserId={currentUserId}
+                  onEdit={onEditReminder}
+                  onCreate={onCreateReminder}
+                />
+              ) : null}
+              {room ? (
+                <GroupNotesCard
+                  room={room}
+                  onOpen={onOpenNote}
+                  onCreate={onCreateNote}
+                />
+              ) : null}
+            </InfoSection>
           ) : null}
 
-          {room && !room.isCloud ? (
-            <GroupTasksCard
-              room={room}
-              onCreate={onCreateTask}
-              onOpen={(task) => {
-                if (task.messageId) {
-                  onJumpMessage(task.messageId, task.createdAt);
-                }
-              }}
-            />
-          ) : null}
+          <InfoSection title="Ảnh/Video" count={photos.length} defaultOpen>
+            {photos.length ? (
+              <div className="group-photos">
+                {photos.slice(0, 8).map((image) => (
+                  <button
+                    key={image.id}
+                    type="button"
+                    className="group-thumb"
+                    onClick={() => setPhotoOpen(true)}
+                  >
+                    <img src={fileSrc(image.url)} alt="" />
+                  </button>
+                ))}
+                {photos.length > 8 ? (
+                  <button
+                    type="button"
+                    className="group-more"
+                    onClick={() => setPhotoOpen(true)}
+                  >
+                    Xem tất cả
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <p className="group-muted">Chưa có ảnh</p>
+            )}
+          </InfoSection>
 
-          {room ? (
-            <GroupRemindersCard
-              room={room}
-              currentUserId={currentUserId}
-              onEdit={onEditReminder}
-              onCreate={onCreateReminder}
-            />
-          ) : null}
+          <InfoSection title="File" count={files.length} defaultOpen={false}>
+            {files.length ? (
+              <div className="group-list">
+                {files.map((file) => (
+                  <a
+                    key={file.id}
+                    className="group-member"
+                    href={fileSrc(file.url)}
+                    target="_blank"
+                    rel="noreferrer"
+                    download={file.filename}
+                  >
+                    <span className="group-file-ico">
+                      <FileOutlined />
+                    </span>
+                    <span className="group-member-info">
+                      <strong title={file.filename}>{file.filename}</strong>
+                      <small>{formatBytes(file.sizeBytes)}</small>
+                    </span>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="group-muted">Chưa có file</p>
+            )}
+          </InfoSection>
 
-          {room ? <GroupNotesCard room={room} onOpen={onOpenNote} onCreate={onCreateNote} /> : null}
+          <InfoSection title="Link" count={links.length} defaultOpen={false}>
+            {links.length ? (
+              <div className="group-list">
+                {links.map((item) => (
+                  <a
+                    key={`${item.messageId}-${item.url}`}
+                    className="group-member"
+                    href={item.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <span className="group-file-ico">
+                      <LinkOutlined />
+                    </span>
+                    <span className="group-member-info">
+                      <strong>{item.url}</strong>
+                      <small>{item.authorName}</small>
+                    </span>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <p className="group-muted">Chưa có link</p>
+            )}
+          </InfoSection>
 
-          <div className="group-card">
-            <button type="button" className="group-row" onClick={() => toggle('photos')}>
-              <span className="group-ico">
-                <PictureOutlined />
-              </span>
-              <span className="group-row-text">
-                <strong>Ảnh</strong>
-                <small>{photos.length} ảnh</small>
-              </span>
-              <RightOutlined className={openSection === 'photos' ? 'chev open' : 'chev'} />
-            </button>
-            {openSection === 'photos' ? (
-              photos.length ? (
-                <div className="group-photos">
-                  {previewPhotos.map((image) => (
-                    <button key={image.id} type="button" className="group-thumb" onClick={() => setPhotoOpen(true)}>
-                      <img src={fileSrc(image.url)} alt="" />
-                    </button>
-                  ))}
-                  {photos.length > 6 ? (
-                    <button type="button" className="group-more" onClick={() => setPhotoOpen(true)}>
-                      Xem tất cả
-                    </button>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="group-muted">Chưa có ảnh</p>
-              )
-            ) : null}
-            <button type="button" className="group-row" onClick={() => toggle('files')}>
-              <span className="group-ico">
-                <FileOutlined />
-              </span>
-              <span className="group-row-text">
-                <strong>File</strong>
-                <small>{files.length} file</small>
-              </span>
-              <RightOutlined className={openSection === 'files' ? 'chev open' : 'chev'} />
-            </button>
-            {openSection === 'files' ? (
-              files.length ? (
-                <div className="group-list">
-                  {files.map((file) => (
-                    <a
-                      key={file.id}
-                      className="group-member"
-                      href={fileSrc(file.url)}
-                      target="_blank"
-                      rel="noreferrer"
-                      download={file.filename}
-                    >
-                      <span className="group-file-ico">
-                        <FileOutlined />
-                      </span>
-                      <span className="group-member-info">
-                        <strong title={file.filename}>{file.filename}</strong>
-                        <small>{formatBytes(file.sizeBytes)}</small>
-                      </span>
-                    </a>
-                  ))}
-                </div>
-              ) : (
-                <p className="group-muted">Chưa có file</p>
-              )
-            ) : null}
-            <button type="button" className="group-row" onClick={() => toggle('links')}>
-              <span className="group-ico">
-                <LinkOutlined />
-              </span>
-              <span className="group-row-text">
-                <strong>Link</strong>
-                <small>{links.length} link</small>
-              </span>
-              <RightOutlined className={openSection === 'links' ? 'chev open' : 'chev'} />
-            </button>
-            {openSection === 'links' ? (
-              links.length ? (
-                <div className="group-list">
-                  {links.map((item) => (
-                    <a
-                      key={`${item.messageId}-${item.url}`}
-                      className="group-member"
-                      href={item.url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <span className="group-file-ico">
-                        <LinkOutlined />
-                      </span>
-                      <span className="group-member-info">
-                        <strong>{item.url}</strong>
-                        <small>{item.authorName}</small>
-                      </span>
-                    </a>
-                  ))}
-                </div>
-              ) : (
-                <p className="group-muted">Chưa có link</p>
-              )
-            ) : null}
-          </div>
+          <InfoSection title="Tin đã ghim" count={pins.length} defaultOpen={false}>
+            {pins.length ? (
+              <div className="group-list">
+                {pins.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="group-member"
+                    onClick={() => {
+                      onJumpMessage(item.id, item.createdAt);
+                      onClose?.();
+                    }}
+                  >
+                    <span className="group-file-ico">
+                      <PushpinOutlined />
+                    </span>
+                    <span className="group-member-info">
+                      <strong>{item.authorName}</strong>
+                      <small>{item.content || (item.imageUrl ? '[Ảnh]' : 'Tin đã ghim')}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="group-muted">Chưa ghim tin nào</p>
+            )}
+          </InfoSection>
 
-          <div className="group-card">
-            <button type="button" className="group-row" onClick={() => toggle('pins')}>
-              <span className="group-ico">
-                <PushpinOutlined />
-              </span>
-              <span className="group-row-text">
-                <strong>Tin đã ghim</strong>
-                <small>{pins.length} tin</small>
-              </span>
-              <RightOutlined className={openSection === 'pins' ? 'chev open' : 'chev'} />
-            </button>
-            {openSection === 'pins' ? (
-              pins.length ? (
-                <div className="group-list">
-                  {pins.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className="group-member"
-                      onClick={() => {
-                        onJumpMessage(item.id, item.createdAt);
-                        onClose?.();
-                      }}
-                    >
-                      <span className="group-file-ico">
-                        <PushpinOutlined />
-                      </span>
-                      <span className="group-member-info">
-                        <strong>{item.authorName}</strong>
-                        <small>{item.content || (item.imageUrl ? '[Ảnh]' : 'Tin đã ghim')}</small>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="group-muted">Chưa ghim tin nào</p>
-              )
-            ) : null}
-          </div>
-
-          {!isCloud && room.canLeave ? (
-            <div className="group-card">
-              <button
-                type="button"
-                className="group-row group-danger"
-                onClick={handleLeaveRoom}
-              >
-                <span className="group-ico">
+          {!isCloud && (room.canLeave || room.canDelete) ? (
+            <div className="group-danger-actions">
+              {room.canLeave ? (
+                <button
+                  type="button"
+                  className="group-danger-item"
+                  onClick={handleLeaveRoom}
+                >
                   <LogoutOutlined />
-                </span>
-                <span className="group-row-text">
-                  <strong>Rời nhóm</strong>
-                  <small>Không nhận tin nhắn của nhóm này nữa</small>
-                </span>
-              </button>
-            </div>
-          ) : null}
-
-          {!isCloud && room.canDelete ? (
-            <div className="group-card">
-              <button
-                type="button"
-                className="group-row group-danger"
-                onClick={handleDeleteRoom}
-              >
-                <span className="group-ico">
+                  <span>Rời nhóm</span>
+                </button>
+              ) : null}
+              {room.canDelete ? (
+                <button
+                  type="button"
+                  className="group-danger-item"
+                  onClick={handleDeleteRoom}
+                >
                   <DeleteOutlined />
-                </span>
-                <span className="group-row-text">
-                  <strong>Giải tán nhóm</strong>
-                  <small>Xóa vĩnh viễn cuộc trò chuyện</small>
-                </span>
-              </button>
+                  <span>Giải tán nhóm</span>
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>

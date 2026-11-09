@@ -1,5 +1,21 @@
-import { CameraOutlined, LockOutlined, MailOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
-import { Avatar, Button, Divider, Drawer, Form, Input, Switch, Typography, message } from 'antd';
+import {
+  CameraOutlined,
+  LockOutlined,
+  MailOutlined,
+  TeamOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
+import {
+  Avatar,
+  Button,
+  Divider,
+  Form,
+  Input,
+  Modal,
+  Switch,
+  Typography,
+  message,
+} from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { api, fileSrc } from '@/api/client';
 import { compressImage } from '@/lib/image';
@@ -26,10 +42,12 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState(user);
   const [notifyOn, setNotifyOn] = useState(notifyEnabled);
+  const [isEditing, setIsEditing] = useState(false);
   const avatarRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) {
+      setIsEditing(false);
       return;
     }
     setProfile(user);
@@ -71,6 +89,7 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
       }
       if (!payload.name && !payload.email && !payload.password) {
         message.info('Chưa có thay đổi nào.');
+        setIsEditing(false);
         return;
       }
       const result = await api.updateProfile(payload);
@@ -83,6 +102,7 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
         password: '',
       });
       message.success('Đã lưu thông tin cá nhân.');
+      setIsEditing(false);
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không lưu được.');
     } finally {
@@ -110,12 +130,16 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
     : '';
 
   return (
-    <Drawer
-      title="Thông tin cá nhân"
+    <Modal
+      title="Thông tin tài khoản"
       open={open}
-      onClose={onClose}
-      size={360}
+      onCancel={onClose}
+      width={400}
+      destroyOnHidden
+      footer={null}
+      className="profile-modal"
     >
+      <div className="profile-cover" />
       <div className="profile-head">
         <button
           type="button"
@@ -124,9 +148,13 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
           onClick={() => avatarRef.current?.click()}
         >
           <Avatar
-            size={72}
+            size={80}
             src={profile.avatarUrl ? fileSrc(profile.avatarUrl) : undefined}
-            style={{ background: avatarColor(profile.name) }}
+            style={{
+              background: avatarColor(profile.name),
+              fontSize: 28,
+              fontWeight: 700,
+            }}
           >
             {initials(profile.name)}
           </Avatar>
@@ -147,92 +175,139 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
             }
           }}
         />
-        <div>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            {profile.name}
-          </Typography.Title>
-          <Typography.Text type="secondary">{profile.email}</Typography.Text>
-        </div>
+        <h3 className="profile-name">{profile.name}</h3>
       </div>
 
-      <div className="profile-meta">
-        <span>
-          <MailOutlined /> {profile.email ?? '—'}
-        </span>
-        <span>
-          <TeamOutlined /> Team {profile.team ?? '—'}
-        </span>
-        {joined ? <span>Tham gia {joined}</span> : null}
-      </div>
+      {!isEditing ? (
+        <>
+          <div className="profile-info-list">
+            <div className="profile-info-row">
+              <span className="profile-info-label">Email</span>
+              <span className="profile-info-value">{profile.email ?? '—'}</span>
+            </div>
+            <div className="profile-info-row">
+              <span className="profile-info-label">Phòng ban</span>
+              <span className="profile-info-value">
+                {profile.team ? `Team ${profile.team}` : '—'}
+              </span>
+            </div>
+            {joined ? (
+              <div className="profile-info-row">
+                <span className="profile-info-label">Ngày tham gia</span>
+                <span className="profile-info-value">{joined}</span>
+              </div>
+            ) : null}
+          </div>
 
-      <Divider />
+          <Divider style={{ margin: '14px 0' }} />
 
-      <div className="profile-notify">
-        <div>
-          <Typography.Text strong>Thông báo tin nhắn</Typography.Text>
-          <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
-            Hiện popup khi có tin mới lúc bạn đang ở tab/cửa sổ khác.
-          </Typography.Paragraph>
-        </div>
-        <Switch
-          checked={notifyOn}
-          onChange={(checked) => {
-            setNotifyEnabled(checked);
-            setNotifyOn(checked);
-            if (checked) {
-              void requestNotifyPermission().then((status) => {
-                if (status === 'denied') {
-                  message.warning('Hãy cho phép thông báo trong cài đặt trình duyệt / macOS.');
+          <div className="profile-notify">
+            <div>
+              <Typography.Text strong style={{ fontSize: 13 }}>
+                Thông báo tin nhắn
+              </Typography.Text>
+              <Typography.Paragraph
+                type="secondary"
+                style={{ margin: 0, fontSize: 12 }}
+              >
+                Hiện thông báo khi có tin mới ở tab khác.
+              </Typography.Paragraph>
+            </div>
+            <Switch
+              checked={notifyOn}
+              onChange={(checked) => {
+                setNotifyEnabled(checked);
+                setNotifyOn(checked);
+                if (checked) {
+                  void requestNotifyPermission().then((status) => {
+                    if (status === 'denied') {
+                      message.warning(
+                        'Hãy cho phép thông báo trong cài đặt trình duyệt / macOS.',
+                      );
+                    }
+                  });
                 }
-              });
-            }
-          }}
-        />
-      </div>
+              }}
+            />
+          </div>
 
-      <Divider />
-
-      <Form form={form} layout="vertical" onFinish={onFinish} requiredMark={false}>
-        <Form.Item name="name" label="Họ tên" rules={[{ required: true, message: 'Nhập họ tên' }]}>
-          <Input size="large" prefix={<UserOutlined />} autoComplete="name" />
-        </Form.Item>
-        <Form.Item
-          name="email"
-          label="Email"
-          rules={[
-            { required: true, message: 'Nhập email' },
-            { type: 'email', message: 'Email không hợp lệ' },
-          ]}
+          <div style={{ marginTop: 20 }}>
+            <Button
+              type="primary"
+              block
+              onClick={() => setIsEditing(true)}
+            >
+              Cập nhật
+            </Button>
+          </div>
+        </>
+      ) : (
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+          requiredMark={false}
+          style={{ marginTop: 8 }}
         >
-          <Input size="large" prefix={<MailOutlined />} autoComplete="email" />
-        </Form.Item>
-        <Form.Item label="Phòng ban">
-          <Input size="large" value={profile.team ? `Team ${profile.team}` : ''} disabled prefix={<TeamOutlined />} />
-        </Form.Item>
-        <Typography.Text type="secondary">Đổi mật khẩu (không bắt buộc)</Typography.Text>
-        <Form.Item name="currentPassword" style={{ marginTop: 8 }}>
-          <Input.Password
-            size="large"
-            prefix={<LockOutlined />}
-            placeholder="Mật khẩu hiện tại"
-            autoComplete="current-password"
-          />
-        </Form.Item>
-        <Form.Item
-          name="password"
-          rules={[{ min: 6, message: 'Mật khẩu mới tối thiểu 6 ký tự' }]}
-        >
-          <Input.Password
-            size="large"
-            prefix={<LockOutlined />}
-            placeholder="Mật khẩu mới"
-            autoComplete="new-password"
-          />
-        </Form.Item>
-        <Button type="primary" htmlType="submit" size="large" block loading={loading}>
-          Lưu thay đổi
-        </Button>
-      </Form>
-    </Drawer>
+          <Form.Item
+            name="name"
+            label="Họ tên"
+            rules={[{ required: true, message: 'Nhập họ tên' }]}
+          >
+            <Input prefix={<UserOutlined />} autoComplete="name" />
+          </Form.Item>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              { required: true, message: 'Nhập email' },
+              { type: 'email', message: 'Email không hợp lệ' },
+            ]}
+          >
+            <Input prefix={<MailOutlined />} autoComplete="email" />
+          </Form.Item>
+          <Form.Item label="Phòng ban">
+            <Input
+              value={profile.team ? `Team ${profile.team}` : ''}
+              disabled
+              prefix={<TeamOutlined />}
+            />
+          </Form.Item>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            Đổi mật khẩu (không bắt buộc)
+          </Typography.Text>
+          <Form.Item name="currentPassword" style={{ marginTop: 8 }}>
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="Mật khẩu hiện tại"
+              autoComplete="current-password"
+            />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            rules={[{ min: 6, message: 'Mật khẩu mới tối thiểu 6 ký tự' }]}
+          >
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="Mật khẩu mới"
+              autoComplete="new-password"
+            />
+          </Form.Item>
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <Button style={{ flex: 1 }} onClick={() => setIsEditing(false)}>
+              Hủy
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              style={{ flex: 1 }}
+              loading={loading}
+            >
+              Lưu
+            </Button>
+          </div>
+        </Form>
+      )}
+    </Modal>
   );
 }

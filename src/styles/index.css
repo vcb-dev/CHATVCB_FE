@@ -170,8 +170,9 @@ body {
   box-sizing: border-box;
 }
 
-.nav-rail-logout {
-  color: var(--ui-danger) !important;
+.ant-dropdown .ant-dropdown-menu .ant-dropdown-menu-item.nav-rail-logout,
+.nav-rail-settings-menu .ant-dropdown-menu-item.nav-rail-logout {
+  color: var(--ui-danger);
 }
 
 .workspace-empty {
@@ -1323,7 +1324,7 @@ body {
 
 .profile-avatar-btn:hover .ant-avatar,
 .user-avatar-btn:hover .ant-avatar {
-  box-shadow: 0 0 0 2px #0084ff;
+  box-shadow: 0 0 0 2px var(--ui-primary);
 }
 
 .user-cam {
@@ -2634,7 +2635,7 @@ body {
 }
 
 .group-danger-item:hover {
-  background: #fff1f0;
+  background: var(--ui-bg-hover);
 }
 
 .group-card .group-row + .group-row,
@@ -2670,8 +2671,8 @@ body {
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: #eef6ff;
-  color: #0084ff;
+  background: var(--ui-primary-soft);
+  color: var(--ui-primary);
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -2789,7 +2790,7 @@ body {
   aspect-ratio: 1;
   border-radius: 8px;
   overflow: hidden;
-  background: #eef0f3;
+  background: var(--ui-bg-hover);
   cursor: pointer;
 }
 
@@ -2803,7 +2804,7 @@ body {
   grid-column: 1 / -1;
   border: 0;
   background: transparent;
-  color: #0084ff;
+  color: var(--ui-primary);
   font-weight: 600;
   padding: 8px 0 0;
   cursor: pointer;
@@ -2813,14 +2814,14 @@ body {
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: #0084ff;
+  color: var(--ui-primary);
   font-weight: 600;
   padding: 8px 10px;
   cursor: pointer;
 }
 
 .group-members-more:hover {
-  background: #f0f7ff;
+  background: var(--ui-bg-hover);
 }
 
 .members-modal-search {
@@ -2835,14 +2836,14 @@ body {
   overflow-y: auto;
   margin: 0 -8px;
   scrollbar-width: thin;
-  scrollbar-color: #d0d3d8 transparent;
+  scrollbar-color: var(--ui-border-strong) transparent;
 }
 
 .members-modal-empty {
   margin: 0;
   padding: 24px 0;
   text-align: center;
-  color: #8a8d91;
+  color: var(--ui-text-3);
 }
 
 
@@ -3443,7 +3444,7 @@ body {
   padding: 2px 6px;
   border-radius: 12px;
   border: 1px solid var(--ui-border);
-  background: #ffffff;
+  background: var(--ui-bg-panel);
   color: var(--ui-text);
   font-size: 12px;
   cursor: pointer;
@@ -3624,18 +3625,18 @@ body {
   flex-shrink: 0;
 }
 
-.sidebar-search-input {
+.chat-sidebar-head .sidebar-search-input.ant-input-affix-wrapper {
   flex: 1;
   height: 32px;
   background: var(--ui-bg-hover);
-  border: 0 !important;
-  border-radius: var(--ui-radius) !important;
+  border: 0;
+  border-radius: var(--ui-radius);
 }
 
-.sidebar-search-input:focus,
-.sidebar-search-input:focus-within {
+.chat-sidebar-head .sidebar-search-input.ant-input-affix-wrapper:focus,
+.chat-sidebar-head .sidebar-search-input.ant-input-affix-wrapper:focus-within {
   background: var(--ui-bg-hover);
-  box-shadow: none !important;
+  box-shadow: none;
 }
 
 .sidebar-head-actions {
@@ -3644,28 +3645,28 @@ body {
   gap: 4px;
 }
 
-.sidebar-new-btn {
-  width: 32px !important;
-  height: 32px !important;
-  min-width: 32px !important;
-  padding: 0 !important;
-  border: 0 !important;
-  background: transparent !important;
-  border-radius: var(--ui-radius) !important;
-  color: var(--ui-text-2) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  transition: all 0.15s ease !important;
+.chat-sidebar-head .sidebar-head-actions .sidebar-new-btn.ant-btn {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: var(--ui-radius);
+  color: var(--ui-text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
 }
 
-.sidebar-new-btn:hover {
-  background: var(--ui-bg-hover) !important;
-  color: var(--ui-text) !important;
+.chat-sidebar-head .sidebar-head-actions .sidebar-new-btn.ant-btn:hover {
+  background: var(--ui-bg-hover);
+  color: var(--ui-text);
 }
 
-.sidebar-new-btn .anticon {
-  font-size: 18px !important;
+.chat-sidebar-head .sidebar-head-actions .sidebar-new-btn.ant-btn .anticon {
+  font-size: 18px;
 }
 
 /* User Picker & New Chat */
@@ -5887,7 +5888,7 @@ body {
   min-height: 0;
   border: 1px solid var(--ui-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--ui-bg-panel);
   overflow: hidden;
 }
 
@@ -6525,7 +6526,7 @@ button.task-peek-title.editable:focus-visible .anticon {
   flex-direction: column;
   border: 1px solid var(--ui-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--ui-bg-panel);
   overflow: hidden;
 }
 
@@ -6659,7 +6660,7 @@ button.task-peek-title.editable:focus-visible .anticon {
   padding: 10px 12px;
   border: 1px solid var(--ui-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--ui-bg-panel);
   cursor: pointer;
 }
 

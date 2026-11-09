@@ -301,7 +301,8 @@
   background: var(--ui-bg-panel);
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius);
-  overflow: hidden;
+  overflow: auto;
+  max-width: 100%;
 }
 
 .ui-card.padded {
@@ -379,3 +380,11 @@
   padding: 0;
   margin: -1px;
 }
+
+@media (max-width: 1023px) {
+  :root {
+    --ui-list-w: 280px;
+    --ui-sidebar-w: 220px;
+  }
+}
+

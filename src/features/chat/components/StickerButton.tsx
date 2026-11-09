@@ -35,9 +35,7 @@ export function StickerButton({
       <Tooltip title="Emoji / sticker / GIF">
         <Button
           type="text"
-          shape="circle"
-          size="large"
-          className="composer-icon"
+          className="composer-tool"
           icon={<SmileOutlined />}
           disabled={disabled}
           onClick={() => setOpen((current) => !current)}

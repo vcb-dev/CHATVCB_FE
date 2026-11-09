@@ -78,9 +78,8 @@ export function ComposerToolsMenu(props: {
       <Tooltip title="Công cụ">
         <Button
           type="text"
-          shape="circle"
           icon={<PlusCircleOutlined />}
-          className="composer-icon"
+          className="composer-tool"
           disabled={props.disabled}
         />
       </Tooltip>

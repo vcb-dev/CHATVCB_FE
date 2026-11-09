@@ -30,9 +30,7 @@ export function AttachButton(props: {
       <Tooltip title="Đính kèm tệp">
         <Button
           type="text"
-          shape="circle"
-          size="large"
-          className="composer-icon"
+          className="composer-tool"
           icon={<PaperClipOutlined />}
           disabled={props.disabled}
           onClick={() => inputRef.current?.click()}

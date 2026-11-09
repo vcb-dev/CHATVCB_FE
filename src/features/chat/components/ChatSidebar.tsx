@@ -94,38 +94,32 @@ export function ChatSidebar(props: {
   return (
     <aside className="sidebar">
       <div className="sidebar-head">
-        <div className="brand">
-          <strong>VCB Chat
-          </strong>
-          <small>Team {team}</small>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Button
-            type="text"
-            shape="circle"
-            icon={<CloudOutlined />}
-            className="sidebar-new-btn"
-            title="Cloud của tôi"
-            onClick={props.onOpenCloud}
-          />
-          <Button
-            type="text"
-            shape="circle"
-            icon={<PlusOutlined />}
-            className="sidebar-new-btn"
-            title="Cuộc trò chuyện mới"
-            onClick={props.onNewChat}
-          />
-        </div>
-      </div>
-      <div className="sidebar-search-box">
         <Input
-          prefix={<SearchOutlined style={{ color: '#8a8d91' }} />}
-          placeholder="Tìm người, nhóm, tin nhắn"
+          className="sidebar-search-input"
+          prefix={<SearchOutlined style={{ color: 'var(--ui-text-3)' }} />}
+          placeholder="Tìm kiếm"
           allowClear
           value={searchText}
           onChange={(e) => props.onSearchTextChange(e.target.value)}
         />
+        <div className="sidebar-head-actions">
+          <Button
+            type="text"
+            icon={<CloudOutlined />}
+            className="sidebar-new-btn"
+            title="Cloud của tôi"
+            aria-label="Cloud của tôi"
+            onClick={props.onOpenCloud}
+          />
+          <Button
+            type="text"
+            icon={<PlusOutlined />}
+            className="sidebar-new-btn"
+            title="Cuộc trò chuyện mới"
+            aria-label="Cuộc trò chuyện mới"
+            onClick={props.onNewChat}
+          />
+        </div>
       </div>
       {searchText.trim() ? (
         <SidebarSearch

@@ -134,7 +134,7 @@ export function RoleFormModal({
               }
             }}
           />
-          <p style={{ margin: "8px 0 0", fontSize: 12, color: "#65676b" }}>
+          <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--ui-text-3)" }}>
             Copy từ Admin hệ thống sẽ tick đủ quyền (role mới không dùng *).
           </p>
         </div>

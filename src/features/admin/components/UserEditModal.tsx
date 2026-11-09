@@ -120,7 +120,7 @@ export function UserEditModal({
                 onChange={onRoleChange}
               />
             </Form.Item>
-            <p style={{ margin: "0 0 12px", fontSize: 13, color: "#65676b" }}>
+            <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--ui-text-3)" }}>
               Quyền theo role
               {roleLabels.length ? ` (${roleLabels.join(", ")})` : ""} — tick
               thêm hoặc bỏ tick để cá nhân hoá tài khoản.

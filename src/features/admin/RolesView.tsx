@@ -2,7 +2,10 @@ import { P, can } from "@/lib/access";
 import type { User } from "@/types";
 import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { Button, Input, Select, Table, Tag } from "antd";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { ModuleLayout } from "@/components/ModuleLayout";
+import { PageHeader } from "@/components/PageHeader";
+import { ContentCard } from "@/components/ContentCard";
 import { RoleFormModal } from "./components/RoleFormModal";
 import { confirmDeleteRole } from "./roleDeleteConfirm";
 import { useAdminMutations } from "./hooks/useAdminMutations";
@@ -11,9 +14,10 @@ import type { AdminRole } from "./types";
 
 interface RolesViewProps {
   user: User;
+  sidebar?: ReactNode;
 }
 
-export function RolesView({ user }: RolesViewProps) {
+export function RolesView({ user, sidebar }: RolesViewProps) {
   const { data: roles = [], isPending } = useRolesQuery();
   const { data: groups = [] } = useCatalogQuery();
   const mutations = useAdminMutations();
@@ -46,93 +50,100 @@ export function RolesView({ user }: RolesViewProps) {
     setModal(null);
   }
 
-  return (
-    <main className="dept-page">
-      <div className="dept-toolbar">
-        <Input.Search
-          allowClear
-          placeholder="Tìm tên, mã role, mô tả…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="dept-search"
-        />
-        <Select
-          style={{ minWidth: 160 }}
-          value={kindFilter}
-          onChange={setKindFilter}
-          options={[
-            { value: "all", label: "Tất cả role" },
-            { value: "system", label: "Hệ thống" },
-            { value: "custom", label: "Tùy chỉnh" },
-          ]}
-        />
-        {can(user, P.roles.create) ? (
-          <div className="dept-toolbar-actions">
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setModal({ mode: "create" })}
-            >
-              Role
-            </Button>
-          </div>
-        ) : null}
-      </div>
-      <Table
-        rowKey="id"
-        loading={isPending}
-        dataSource={filteredRoles}
-        pagination={false}
-        columns={[
-          {
-            title: "Tên",
-            dataIndex: "name",
-            render: (_, row) => (
-              <>
-                <strong>{row.name}</strong> <Tag>{row.key}</Tag>
-                {row.isSystem ? <Tag color="blue">Hệ thống</Tag> : null}
-              </>
-            ),
-          },
-          { title: "Người", dataIndex: "userCount", width: 90 },
-          {
-            title: "Quyền",
-            dataIndex: "permissions",
-            render: (v: string[]) => v.length,
-          },
-          {
-            title: "Thao tác",
-            width: 140,
-            render: (_, row) => (
-              <div className="admin-row-actions">
-                {can(user, P.roles.update) ? (
-                  <Button
-                    type="link"
-                    size="small"
-                    icon={<EditOutlined />}
-                    onClick={() => setModal({ mode: "edit", role: row })}
-                  >
-                    Sửa
-                  </Button>
-                ) : null}
-                {canDeleteRole && !row.isSystem ? (
-                  <Button
-                    type="link"
-                    size="small"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={() =>
-                      confirmDeleteRole(row, () => deleteRole(row))
-                    }
-                  >
-                    Xóa
-                  </Button>
-                ) : null}
-              </div>
-            ),
-          },
+  const header = (
+    <PageHeader
+      title="Role"
+      actions={
+        can(user, P.roles.create) ? (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setModal({ mode: "create" })}
+          >
+            Role
+          </Button>
+        ) : null
+      }
+    >
+      <Input.Search
+        allowClear
+        placeholder="Tìm tên, mã role, mô tả…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        style={{ maxWidth: 360 }}
+      />
+      <Select
+        style={{ minWidth: 160 }}
+        value={kindFilter}
+        onChange={setKindFilter}
+        options={[
+          { value: "all", label: "Tất cả role" },
+          { value: "system", label: "Hệ thống" },
+          { value: "custom", label: "Tùy chỉnh" },
         ]}
       />
+    </PageHeader>
+  );
+
+  return (
+    <ModuleLayout sidebar={sidebar} header={header}>
+      <ContentCard>
+        <Table
+          rowKey="id"
+          loading={isPending}
+          dataSource={filteredRoles}
+          pagination={false}
+          columns={[
+            {
+              title: "Tên",
+              dataIndex: "name",
+              render: (_, row) => (
+                <>
+                  <strong>{row.name}</strong> <Tag>{row.key}</Tag>
+                  {row.isSystem ? <Tag color="blue">Hệ thống</Tag> : null}
+                </>
+              ),
+            },
+            { title: "Người", dataIndex: "userCount", width: 90 },
+            {
+              title: "Quyền",
+              dataIndex: "permissions",
+              render: (v: string[]) => v.length,
+            },
+            {
+              title: "Thao tác",
+              width: 140,
+              render: (_, row) => (
+                <div className="admin-row-actions">
+                  {can(user, P.roles.update) ? (
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => setModal({ mode: "edit", role: row })}
+                    >
+                      Sửa
+                    </Button>
+                  ) : null}
+                  {canDeleteRole && !row.isSystem ? (
+                    <Button
+                      type="link"
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() =>
+                        confirmDeleteRole(row, () => deleteRole(row))
+                      }
+                    >
+                      Xóa
+                    </Button>
+                  ) : null}
+                </div>
+              ),
+            },
+          ]}
+        />
+      </ContentCard>
       <RoleFormModal
         open={modal !== null}
         mode={modal?.mode === "edit" ? "edit" : "create"}
@@ -175,6 +186,6 @@ export function RolesView({ user }: RolesViewProps) {
           setModal(null);
         }}
       />
-    </main>
+    </ModuleLayout>
   );
 }

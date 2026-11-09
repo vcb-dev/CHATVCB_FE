@@ -2,7 +2,10 @@ import { P, can } from "@/lib/access";
 import type { User } from "@/types";
 import { PlusOutlined } from "@ant-design/icons";
 import { Button, Input, Modal, Select, Table, Tag, message } from "antd";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { ModuleLayout } from "@/components/ModuleLayout";
+import { PageHeader } from "@/components/PageHeader";
+import { ContentCard } from "@/components/ContentCard";
 import { UserEditModal } from "./components/UserEditModal";
 import { UserFormModal } from "./components/UserFormModal";
 import { useAdminMutations } from "./hooks/useAdminMutations";
@@ -20,9 +23,10 @@ import {
 
 interface UsersViewProps {
   user: User;
+  sidebar?: ReactNode;
 }
 
-export function UsersView({ user }: UsersViewProps) {
+export function UsersView({ user, sidebar }: UsersViewProps) {
   const { data: users = [], isPending } = useAdminUsersQuery();
   const { data: roles = [] } = useRolesQuery();
   const { data: groups = [] } = useCatalogQuery();
@@ -60,135 +64,144 @@ export function UsersView({ user }: UsersViewProps) {
     });
   }
 
-  return (
-    <main className="dept-page">
-      <div className="dept-toolbar">
-        <Input.Search
-          allowClear
-          placeholder="Tìm tên, email, team…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="dept-search"
-        />
-        <Select
-          allowClear
-          placeholder="Tất cả role"
-          style={{ minWidth: 200 }}
-          value={roleFilterId}
-          onChange={(value) => setRoleFilterId(value ?? null)}
-          options={roles.map((role) => ({ value: role.id, label: role.name }))}
-        />
-        {can(user, P.users.create) ? (
-          <div className="dept-toolbar-actions">
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setCreateOpen(true)}
-            >
-              Tài khoản
-            </Button>
-          </div>
-        ) : null}
-      </div>
-      <Table
-        rowKey="id"
-        loading={isPending}
-        dataSource={filteredUsers}
-        pagination={false}
-        columns={[
-          {
-            title: "Tên",
-            dataIndex: "name",
-            render: (_, row) => (
-              <>
-                <strong>{row.name}</strong>
-                {row.isActive ? null : (
-                  <Tag color="default" style={{ marginInlineStart: 8 }}>
-                    Khóa
-                  </Tag>
-                )}
-              </>
-            ),
-          },
-          { title: "Email", dataIndex: "email" },
-          { title: "Team", dataIndex: "team", width: 100 },
-          {
-            title: "Role",
-            render: (_, row) =>
-              row.roles.length
-                ? row.roles.map((role) => <Tag key={role.id}>{role.name}</Tag>)
-                : "—",
-          },
-          {
-            title: "",
-            width: 220,
-            render: (_, row) => (
-              <div className="admin-row-actions">
-                {can(user, P.users.update) ? (
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={() => setEditing(row)}
-                  >
-                    Sửa
-                  </Button>
-                ) : null}
-                {can(user, P.users.resetPassword) ? (
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={() =>
-                      Modal.confirm({
-                        title: `Reset mật khẩu ${row.name}?`,
-                        onOk: async () => {
-                          const result =
-                            await mutations.resetPassword.mutateAsync(row.id);
-                          showTempPassword(result.temporaryPassword);
-                        },
-                      })
-                    }
-                  >
-                    Reset MK
-                  </Button>
-                ) : null}
-                {can(user, P.users.deactivate) &&
-                row.id !== user.id &&
-                row.isActive ? (
-                  <Button
-                    type="link"
-                    size="small"
-                    danger
-                    onClick={() =>
-                      Modal.confirm({
-                        title: `Khóa ${row.name}?`,
-                        okType: "danger",
-                        onOk: () =>
-                          mutations.deactivateUser.mutateAsync(row.id),
-                      })
-                    }
-                  >
-                    Khóa
-                  </Button>
-                ) : null}
-                {can(user, P.users.update) && !row.isActive ? (
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={() =>
-                      mutations.updateUser.mutateAsync({
-                        id: row.id,
-                        isActive: true,
-                      })
-                    }
-                  >
-                    Mở khóa
-                  </Button>
-                ) : null}
-              </div>
-            ),
-          },
-        ]}
+  const header = (
+    <PageHeader
+      title="Tài khoản"
+      actions={
+        can(user, P.users.create) ? (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setCreateOpen(true)}
+          >
+            Tài khoản
+          </Button>
+        ) : null
+      }
+    >
+      <Input.Search
+        allowClear
+        placeholder="Tìm tên, email, team…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        style={{ maxWidth: 360 }}
       />
+      <Select
+        allowClear
+        placeholder="Tất cả role"
+        style={{ minWidth: 200 }}
+        value={roleFilterId}
+        onChange={(value) => setRoleFilterId(value ?? null)}
+        options={roles.map((role) => ({ value: role.id, label: role.name }))}
+      />
+    </PageHeader>
+  );
+
+  return (
+    <ModuleLayout sidebar={sidebar} header={header}>
+      <ContentCard>
+        <Table
+          rowKey="id"
+          loading={isPending}
+          dataSource={filteredUsers}
+          pagination={false}
+          columns={[
+            {
+              title: "Tên",
+              dataIndex: "name",
+              render: (_, row) => (
+                <>
+                  <strong>{row.name}</strong>
+                  {row.isActive ? null : (
+                    <Tag color="default" style={{ marginInlineStart: 8 }}>
+                      Khóa
+                    </Tag>
+                  )}
+                </>
+              ),
+            },
+            { title: "Email", dataIndex: "email" },
+            { title: "Team", dataIndex: "team", width: 100 },
+            {
+              title: "Role",
+              render: (_, row) =>
+                row.roles.length
+                  ? row.roles.map((role) => (
+                      <Tag key={role.id}>{role.name}</Tag>
+                    ))
+                  : "—",
+            },
+            {
+              title: "",
+              width: 220,
+              render: (_, row) => (
+                <div className="admin-row-actions">
+                  {can(user, P.users.update) ? (
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => setEditing(row)}
+                    >
+                      Sửa
+                    </Button>
+                  ) : null}
+                  {can(user, P.users.resetPassword) ? (
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() =>
+                        Modal.confirm({
+                          title: `Reset mật khẩu ${row.name}?`,
+                          onOk: async () => {
+                            const result =
+                              await mutations.resetPassword.mutateAsync(row.id);
+                            showTempPassword(result.temporaryPassword);
+                          },
+                        })
+                      }
+                    >
+                      Reset MK
+                    </Button>
+                  ) : null}
+                  {can(user, P.users.deactivate) &&
+                  row.id !== user.id &&
+                  row.isActive ? (
+                    <Button
+                      type="link"
+                      size="small"
+                      danger
+                      onClick={() =>
+                        Modal.confirm({
+                          title: `Khóa ${row.name}?`,
+                          okType: "danger",
+                          onOk: () =>
+                            mutations.deactivateUser.mutateAsync(row.id),
+                        })
+                      }
+                    >
+                      Khóa
+                    </Button>
+                  ) : null}
+                  {can(user, P.users.update) && !row.isActive ? (
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() =>
+                        mutations.updateUser.mutateAsync({
+                          id: row.id,
+                          isActive: true,
+                        })
+                      }
+                    >
+                      Mở khóa
+                    </Button>
+                  ) : null}
+                </div>
+              ),
+            },
+          ]}
+        />
+      </ContentCard>
 
       <UserFormModal
         open={createOpen}
@@ -245,6 +258,6 @@ export function UsersView({ user }: UsersViewProps) {
           setEditing(null);
         }}
       />
-    </main>
+    </ModuleLayout>
   );
 }

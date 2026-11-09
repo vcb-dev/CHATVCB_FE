@@ -1,9 +1,19 @@
-import { MessageOutlined, SearchOutlined } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
-import { Avatar, Button, Empty, Input, Spin, message as antMessage } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
+import {
+  ContactsOutlined,
+  MessageOutlined,
+  SearchOutlined,
+  TeamOutlined,
+} from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
+import { Avatar, Button, Input, Spin, message as antMessage } from 'antd';
 import { api, fileSrc } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
+import { ContentCard } from '@/components/ContentCard';
+import { EmptyState } from '@/components/EmptyState';
+import { ModuleLayout } from '@/components/ModuleLayout';
+import { ModuleSidebar, type ModuleSidebarGroup } from '@/components/ModuleSidebar';
+import { PageHeader } from '@/components/PageHeader';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { DirectoryUser, Room } from '@/types';
 import { groupByLetter, teamLabel } from './utils/contacts';
@@ -20,7 +30,6 @@ export function ContactsPage({ onlineUserIds, onViewProfile, onOpenRoom }: Props
   const [team, setTeam] = useState('');
   const [openingId, setOpeningId] = useState<string | null>(null);
 
-  // Gõ xong mới gọi API, giống ô tìm người ở các hộp thoại khác
   useEffect(() => {
     const timer = window.setTimeout(() => setQuery(searchText.trim()), 250);
     return () => window.clearTimeout(timer);
@@ -39,6 +48,33 @@ export function ContactsPage({ onlineUserIds, onViewProfile, onOpenRoom }: Props
   );
   const groups = useMemo(() => groupByLetter(contacts.data ?? []), [contacts.data]);
 
+  const currentLabel = team === '' ? 'Tất cả' : teamLabel(team);
+  const currentCount =
+    team === ''
+      ? totalCount
+      : (teams.data ?? []).find((t) => t.team === team)?.count ?? (contacts.data ?? []).length;
+
+  const sidebarGroups: ModuleSidebarGroup[] = useMemo(
+    () => [
+      {
+        items: [
+          {
+            key: '',
+            label: 'Tất cả',
+            icon: <TeamOutlined />,
+            count: totalCount,
+          },
+          ...(teams.data ?? []).map((item) => ({
+            key: item.team,
+            label: teamLabel(item.team),
+            count: item.count,
+          })),
+        ],
+      },
+    ],
+    [teams.data, totalCount],
+  );
+
   async function openDirect(person: DirectoryUser) {
     setOpeningId(person.id);
     try {
@@ -51,68 +87,54 @@ export function ContactsPage({ onlineUserIds, onViewProfile, onOpenRoom }: Props
   }
 
   return (
-    <main className="contacts-page">
-      <header className="contacts-head">
-        <div>
-          <h1>Danh bạ</h1>
-          <p>{teams.data ? `${totalCount} người trong hệ thống` : 'Đang tải…'}</p>
-        </div>
-        <Input
-          allowClear
-          className="contacts-search"
-          prefix={<SearchOutlined />}
-          placeholder="Tìm theo tên hoặc email"
-          value={searchText}
-          onChange={(event) => setSearchText(event.target.value)}
+    <ModuleLayout
+      sidebar={
+        <ModuleSidebar
+          title="Danh bạ"
+          groups={sidebarGroups}
+          activeKey={team}
+          onSelect={setTeam}
         />
-      </header>
-
-      <div className="contacts-filter" role="tablist" aria-label="Lọc theo team">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={team === ''}
-          className={team === '' ? 'contacts-chip active' : 'contacts-chip'}
-          onClick={() => setTeam('')}
-        >
-          Tất cả <em>{totalCount}</em>
-        </button>
-        {(teams.data ?? []).map((item) => (
-          <button
-            key={item.team}
-            type="button"
-            role="tab"
-            aria-selected={team === item.team}
-            className={team === item.team ? 'contacts-chip active' : 'contacts-chip'}
-            onClick={() => setTeam(item.team)}
-          >
-            {teamLabel(item.team)} <em>{item.count}</em>
-          </button>
-        ))}
-      </div>
-
-      <div className="contacts-list">
+      }
+      header={
+        <PageHeader
+          icon={<ContactsOutlined />}
+          title={currentLabel}
+          meta={`${currentCount} người`}
+          actions={
+            <Input
+              allowClear
+              style={{ width: 260 }}
+              prefix={<SearchOutlined />}
+              placeholder="Tìm theo tên hoặc email"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+            />
+          }
+        />
+      }
+    >
+      <ContentCard>
         {contacts.isPending ? (
           <div className="contacts-state">
             <Spin />
           </div>
         ) : contacts.isError ? (
           <div className="contacts-state">
-            <Empty description="Không tải được danh bạ" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-              <Button onClick={() => void contacts.refetch()}>Thử lại</Button>
-            </Empty>
-          </div>
-        ) : groups.length === 0 ? (
-          <div className="contacts-state">
-            <Empty
-              description={query || team ? 'Không có ai khớp' : 'Chưa có ai khác trong hệ thống'}
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            <EmptyState
+              title="Không tải được danh bạ"
+              action={<Button onClick={() => void contacts.refetch()}>Thử lại</Button>}
             />
           </div>
+        ) : groups.length === 0 ? (
+          <EmptyState
+            icon={<SearchOutlined />}
+            title="Không tìm thấy người phù hợp"
+          />
         ) : (
           groups.map((group) => (
             <section key={group.letter} className="contacts-group">
-              <h2>{group.letter}</h2>
+              <div className="contacts-group-title">{group.letter}</div>
               {group.users.map((person) => (
                 <div key={person.id} className="contacts-row">
                   <button
@@ -122,8 +144,7 @@ export function ContactsPage({ onlineUserIds, onViewProfile, onOpenRoom }: Props
                   >
                     <span className="contacts-avatar">
                       <Avatar
-                        size={40}
-                        className="avatar-initials"
+                        size={44}
                         src={person.avatarUrl ? fileSrc(person.avatarUrl) : undefined}
                         style={{ background: avatarColor(person.name) }}
                       >
@@ -140,6 +161,7 @@ export function ContactsPage({ onlineUserIds, onViewProfile, onOpenRoom }: Props
                     <span className="contacts-team">{teamLabel(person.team)}</span>
                   </button>
                   <Button
+                    className="contacts-chat-btn"
                     icon={<MessageOutlined />}
                     loading={openingId === person.id}
                     onClick={() => void openDirect(person)}
@@ -151,7 +173,7 @@ export function ContactsPage({ onlineUserIds, onViewProfile, onOpenRoom }: Props
             </section>
           ))
         )}
-      </div>
-    </main>
+      </ContentCard>
+    </ModuleLayout>
   );
 }

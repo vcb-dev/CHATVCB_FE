@@ -77,22 +77,20 @@ function MessageRowView(props: Props) {
   const isRich = Boolean(message.rich && !message.recalled);
   const isTask = Boolean(message.task && !message.recalled);
   const hasText = Boolean(message.content && !message.recalled) && !isPoll && !isRich && !isTask;
+  const isCardTypeRich = Boolean(isRich && message.rich?.type !== 'sticker');
+  const hasCard = Boolean(isTask || isPoll || isCardTypeRich || hasFile);
   const sticker =
     (!hasImage && !album && !hasFile && hasText && isStickerText(message.content)) ||
     message.rich?.type === 'sticker';
   const link = !isPoll && hasText && !hasImage && !album && !hasFile && !sticker ? firstLink(message.content) : null;
   const previewLink = link && !inviteTokenOf(link) ? link : null;
-  const timeStr = new Date(message.createdAt).toLocaleTimeString('vi-VN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
   return (
     <div
       id={`msg-${message.id}`}
       className={cls}
       onClick={() => props.onMarkRead()}
     >
-      {!mine && last ? (
+      {!mine && first ? (
         <Avatar
           size={28}
           className="avatar-initials"
@@ -118,7 +116,7 @@ function MessageRowView(props: Props) {
         {first && !mine ? (
           <span className="who-line">{message.authorName}</span>
         ) : null}
-        <div className="bubble-wrap" title={!last ? timeStr : undefined}>
+        <div className="bubble-wrap">
           <Dropdown
             trigger={['contextMenu']}
             menu={{
@@ -164,6 +162,7 @@ function MessageRowView(props: Props) {
                     hasImage || album ? 'has-image' : '',
                     hasFile ? 'has-file' : '',
                     hasText ? 'has-text' : '',
+                    hasCard ? 'has-card' : '',
                     sticker ? 'sticker' : '',
                     message.recalled ? 'recalled' : '',
                     message.pinned ? 'pinned' : '',
@@ -267,16 +266,10 @@ function MessageRowView(props: Props) {
                       <PushpinOutlined /> Đã ghim
                     </span>
                   ) : null}
-                  {last && (hasText || message.recalled) ? (
-                    <time className="msg-time">{timeStr}</time>
-                  ) : null}
                 </div>
               </SeenBubble>
             </div>
           </Dropdown>
-          {last && !hasText && !message.recalled ? (
-            <time className="msg-time">{timeStr}</time>
-          ) : null}
           {hasReceipt ? (
             <ReadStatus
               read={props.readCount ?? 0}
@@ -302,6 +295,14 @@ function MessageRowView(props: Props) {
         />
         <SeenAvatars readers={props.lastReaders} />
         {props.delivery ? <DeliveryStatus status={props.delivery} /> : null}
+        {last ? (
+          <time>
+            {new Date(message.createdAt).toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </time>
+        ) : null}
       </div>
     </div>
   );

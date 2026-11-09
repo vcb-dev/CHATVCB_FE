@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { message as antMessage } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { AdminPage } from '@/features/admin/AdminPage';
@@ -43,6 +43,7 @@ import { TypingIndicator } from './components/TypingIndicator';
 import { parseJoinHash } from './utils/invite';
 import { canEditItem } from './utils/rooms';
 import { useChatNotifications } from './hooks/useChatNotifications';
+import { useMediaQuery } from './hooks/useMediaQuery';
 import { useChatRoom } from './hooks/useChatRoom';
 import { useBlockUser } from './hooks/useBlockUser';
 import { useChatSocket } from './hooks/useChatSocket';
@@ -78,6 +79,24 @@ type Props = {
 };
 
 export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
+  const narrow = useMediaQuery('(max-width: 1100px)');
+  const [infoHidden, setInfoHidden] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('chatvcb.infoHidden') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (infoHidden) {
+        localStorage.setItem('chatvcb.infoHidden', '1');
+      } else {
+        localStorage.removeItem('chatvcb.infoHidden');
+      }
+    } catch {}
+  }, [infoHidden]);
   const [error, setError] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
   const [groupOverlay, setGroupOverlay] = useState(false);
@@ -143,6 +162,16 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setWorkspace('messenger');
     void roomList.openRoom(target);
   };
+
+  const toggleInfo = useCallback(() => {
+    if (narrow) {
+      setRightPane('info');
+      setGroupOverlay((current) => !current);
+    } else {
+      setRightPane('info');
+      setInfoHidden((current) => !current);
+    }
+  }, [narrow]);
 
   useChatNotifications({ onOpenRoom: openRoomFromNotice });
   const chat = useChatRoom({
@@ -273,7 +302,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   }
 
   return (
-    <div className={`app-shell module-${workspace}`}>
+    <div
+      className={`app-shell module-${workspace}${
+        !narrow && infoHidden ? ' info-hidden' : ''
+      }`}
+    >
       <NavRail
         workspace={workspace}
         user={user}
@@ -321,13 +354,15 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             isGroupOnline={isGroupOnline}
             membersCount={chat.members.length}
             onlineMembersCount={onlineMembersCount}
-            onToggleInfo={() => {
-              setRightPane('info');
-              setGroupOverlay((current) => !current);
-            }}
+            infoOpen={narrow ? groupOverlay : !infoHidden}
+            onToggleInfo={toggleInfo}
             onSearch={() => {
               setRightPane('search');
-              setGroupOverlay(true);
+              if (narrow) {
+                setGroupOverlay(true);
+              } else {
+                setInfoHidden(false);
+              }
             }}
             onStartMeeting={
               room && !room.isCloud && !locked && !room.blockedByMe

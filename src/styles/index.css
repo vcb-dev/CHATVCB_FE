@@ -54,6 +54,14 @@ body {
   grid-template-columns: var(--ui-rail-w) minmax(0, 1fr);
 }
 
+.app-shell.module-messenger.info-hidden {
+  grid-template-columns: var(--ui-rail-w) var(--ui-list-w) minmax(0, 1fr);
+}
+
+.app-shell.module-messenger.info-hidden .group-pane {
+  display: none;
+}
+
 .nav-rail {
   width: var(--ui-rail-w);
   height: 100%;
@@ -1366,10 +1374,11 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  height: 64px;
   min-height: 64px;
-  padding: 10px 16px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #fff;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-bg-panel);
 }
 
 .chat-head-info {
@@ -1406,10 +1415,12 @@ body {
 
 .chat-head-name {
   font-size: 16px;
+  font-weight: 600;
+  color: var(--ui-text);
 }
 
 .chat-head-info small {
-  color: #8a8d91;
+  color: var(--ui-text-2);
   font-size: 12px;
 }
 
@@ -1418,9 +1429,10 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px 8px 16px;
-  border-bottom: 1px solid #e4e6eb;
-  background: #f7f8fa;
+  height: 48px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-bg-panel);
 }
 
 .pin-bar-main {
@@ -1434,7 +1446,7 @@ body {
   padding: 0;
   cursor: pointer;
   text-align: left;
-  color: #050505;
+  color: var(--ui-text);
 }
 
 .pin-bar-main span {
@@ -1447,20 +1459,23 @@ body {
 
 .pin-bar-main strong {
   margin-right: 6px;
+  font-weight: 600;
 }
 
 .pin-bar-main .anticon {
-  color: #0084ff;
+  color: var(--ui-primary);
   flex-shrink: 0;
+  font-size: 15px;
 }
 
 .pin-bar-count {
   flex-shrink: 0;
   min-width: 24px;
   height: 24px;
+  padding: 0 6px;
   border: 0;
   border-radius: 12px;
-  background: #0084ff;
+  background: var(--ui-primary);
   color: #fff;
   font-size: 12px;
   font-weight: 700;
@@ -6638,6 +6653,42 @@ button.task-peek-title.editable:focus-visible .anticon {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+.chat-head-actions .chat-head-btn.ant-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ui-radius);
+  color: var(--ui-text-2);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  transition: all var(--ui-speed) var(--ui-ease);
+}
+
+.chat-head-actions .chat-head-btn.ant-btn .anticon {
+  font-size: 18px;
+}
+
+.chat-head-actions .chat-head-btn.ant-btn:not(:disabled):hover {
+  background: var(--ui-bg-hover);
+  color: var(--ui-text);
+}
+
+.chat-head-actions .chat-head-btn.ant-btn.active:not(:disabled) {
+  background: var(--ui-primary-soft);
+  color: var(--ui-primary);
+}
+
+.chat-head-actions .chat-head-btn.ant-btn:disabled {
+  color: var(--ui-text-3);
+  background: transparent;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .rich-meeting-card {

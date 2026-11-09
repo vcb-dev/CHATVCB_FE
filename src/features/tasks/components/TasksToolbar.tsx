@@ -68,7 +68,7 @@ export function TasksToolbar(props: {
 
   return (
     <div className="tasks-toolbar">
-      <div className="tasks-toolbar-left">
+      <div className="tasks-toolbar-row">
         <div className="tasks-toolbar-title">
           <h2>Công việc</h2>
           {props.rangeTitle ? (
@@ -96,6 +96,47 @@ export function TasksToolbar(props: {
             <span className="tasks-range-text">Mọi việc của bạn</span>
           )}
         </div>
+        <div className="tasks-toolbar-right">
+          <Field label="Chế độ xem">
+            <Segmented<TaskView>
+              className="tasks-page-view"
+              options={VIEWS}
+              value={props.view}
+              onChange={props.onView}
+            />
+          </Field>
+          <Field label="Phạm vi">
+            <Select<TaskScope>
+              className="tasks-scope"
+              options={SCOPES}
+              value={props.scope}
+              onChange={props.onScope}
+            />
+          </Field>
+          <Field label="Nhóm">
+            <Select<string[]>
+              mode="multiple"
+              allowClear
+              className="tasks-rooms-filter"
+              placeholder="Tất cả nhóm"
+              maxTagCount="responsive"
+              showSearch={{ optionFilterProp: 'label' }}
+              value={props.roomIds}
+              onChange={props.onRoomIds}
+              options={props.rooms.map((room) => ({
+                value: room.roomId,
+                label: taskRoomLabel(room, props.userId),
+              }))}
+              notFoundContent="Chưa có nhóm nào có việc"
+            />
+          </Field>
+          <Button type="primary" icon={<PlusOutlined />} className="tasks-add" onClick={props.onAdd}>
+            Giao việc mới
+          </Button>
+        </div>
+      </div>
+      {/* Hàng này có ở mọi chế độ xem (viên đếm luôn hiện) để đổi chế độ không đẩy phần dưới lên xuống */}
+      <div className="tasks-toolbar-row sub">
         {props.view !== 'list' ? (
           <div className="tasks-toolbar-nav">
             <Button icon={<LeftOutlined />} className="tasks-cal-prev" onClick={() => props.onMove(-1)}>
@@ -126,44 +167,6 @@ export function TasksToolbar(props: {
             {props.count} {props.countLabel}
           </span>
         </div>
-      </div>
-      <div className="tasks-toolbar-right">
-        <Field label="Chế độ xem">
-          <Segmented<TaskView>
-            className="tasks-page-view"
-            options={VIEWS}
-            value={props.view}
-            onChange={props.onView}
-          />
-        </Field>
-        <Field label="Phạm vi">
-          <Select<TaskScope>
-            className="tasks-scope"
-            options={SCOPES}
-            value={props.scope}
-            onChange={props.onScope}
-          />
-        </Field>
-        <Field label="Nhóm">
-          <Select<string[]>
-            mode="multiple"
-            allowClear
-            className="tasks-rooms-filter"
-            placeholder="Tất cả nhóm"
-            maxTagCount="responsive"
-            showSearch={{ optionFilterProp: 'label' }}
-            value={props.roomIds}
-            onChange={props.onRoomIds}
-            options={props.rooms.map((room) => ({
-              value: room.roomId,
-              label: taskRoomLabel(room, props.userId),
-            }))}
-            notFoundContent="Chưa có nhóm nào có việc"
-          />
-        </Field>
-        <Button type="primary" icon={<PlusOutlined />} className="tasks-add" onClick={props.onAdd}>
-          Giao việc mới
-        </Button>
       </div>
     </div>
   );

@@ -5293,22 +5293,29 @@ body {
   background: #ffffff;
 }
 
-/* Thanh đầu trang */
+/* Thanh đầu trang: hai hàng cố định để đổi chế độ xem không làm các nút đổi chỗ */
 .tasks-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   flex-shrink: 0;
+  gap: 10px;
+}
+
+.tasks-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: 12px 20px;
+  min-width: 0;
 }
 
-.tasks-toolbar-left {
-  display: flex;
-  flex-wrap: wrap;
+/* Cao bằng một nút cả khi chỉ có viên đếm (chế độ danh sách) */
+.tasks-toolbar-row.sub {
   align-items: center;
-  gap: 10px 16px;
-  min-width: 0;
+  justify-content: flex-start;
+  gap: 8px 16px;
+  min-height: 32px;
 }
 
 .tasks-toolbar-title {
@@ -5340,6 +5347,7 @@ body {
   background: none;
   color: #65676b;
   font-size: 13px;
+  line-height: 18px;
   cursor: pointer;
 }
 
@@ -5367,6 +5375,7 @@ body {
 .tasks-range-text {
   color: #65676b;
   font-size: 13px;
+  line-height: 18px;
 }
 
 .tasks-toolbar-nav,

@@ -1,11 +1,12 @@
-import { ArrowLeftOutlined, EditOutlined, FacebookFilled } from '@ant-design/icons';
+import { ArrowLeftOutlined, EditOutlined, FacebookFilled, FileTextOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Modal, Spin, Tabs, message } from 'antd';
+import { Button, Modal, Spin, message } from 'antd';
 import type { TextAreaRef } from 'antd/es/input/TextArea';
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { P, can } from '@/lib/access';
+import { confirmDiscard } from '@/lib/confirmDiscard';
 import { errorText } from '@/lib/errors';
 import type { User } from '@/types';
 import { NewsArticle } from './components/NewsArticle';
@@ -15,6 +16,9 @@ import { NewsFacebookPages } from './components/NewsFacebookPages';
 import { NewsList } from './components/NewsList';
 import { NewsReactionBar } from './components/NewsReactionBar';
 import { NewsRelated } from './components/NewsRelated';
+import { ModuleLayout } from '@/components/ModuleLayout';
+import { ModuleSidebar } from '@/components/ModuleSidebar';
+import { PageHeader } from '@/components/PageHeader';
 
 /** BE chuyển về `?workspace=news&facebook=ok|error` sau khi kết nối; useWorkspace xóa query trong effect của trang cha, nên đọc ngay lúc render đầu */
 function facebookReturn(): string | null {
@@ -155,12 +159,12 @@ export function NewsPage({
   );
   const [tab, setTab] = useState('published');
   const [creating, setCreating] = useState(false);
-  const pageRef = useRef<HTMLDivElement>(null);
+  const [dirty, setDirty] = useState(false);
 
-  // Mở bài khác từ cột bên phải thì đọc từ đầu bài, không giữ vị trí cuộn của bài trước
-  useEffect(() => {
-    pageRef.current?.scrollTo({ top: 0 });
-  }, [view]);
+  const handleDirtyChange = (d: boolean) => {
+    setDirty(d);
+    onDirtyChange(d);
+  };
 
   useEffect(() => {
     void api
@@ -202,13 +206,65 @@ export function NewsPage({
     }
   }
 
+  const handleSidebarSelect = (key: string) => {
+    const proceed = () => {
+      if (key === 'facebook') {
+        setView({ name: 'facebook' });
+      } else {
+        setView({ name: 'list' });
+        setTab(key);
+      }
+    };
+
+    if (view.name === 'editor' && dirty) {
+      confirmDiscard(proceed);
+      return;
+    }
+    proceed();
+  };
+
+  const sidebarGroups = [
+    {
+      items: [
+        { key: 'published', label: 'Đã đăng', icon: <FileTextOutlined /> },
+        ...(canPublish ? [{ key: 'drafts', label: 'Nháp', icon: <EditOutlined /> }] : []),
+        ...(canFacebook ? [{ key: 'facebook', label: 'Page Facebook', icon: <FacebookFilled /> }] : []),
+      ],
+    },
+  ];
+
+  const sidebarAction = canPublish ? (
+    <Button
+      type="primary"
+      block
+      icon={<EditOutlined />}
+      loading={creating}
+      onClick={() => void writePost()}
+    >
+      Viết bài
+    </Button>
+  ) : undefined;
+
+  const activeKey = view.name === 'facebook' ? 'facebook' : tab;
+
   if (view.name === 'editor') {
     return (
-      <div className="news-page">
+      <ModuleLayout
+        flush
+        sidebar={
+          <ModuleSidebar
+            title="Bản tin"
+            action={sidebarAction}
+            groups={sidebarGroups}
+            activeKey="drafts"
+            onSelect={handleSidebarSelect}
+          />
+        }
+      >
         <NewsEditor
           key={view.id}
           postId={view.id}
-          onDirtyChange={onDirtyChange}
+          onDirtyChange={handleDirtyChange}
           onClose={() => {
             void queryClient.invalidateQueries({ queryKey: queryKeys.newsLibrary });
             setView(view.back);
@@ -218,21 +274,24 @@ export function NewsPage({
             setView({ name: 'article', id: post.id });
           }}
         />
-      </div>
-    );
-  }
-
-  if (view.name === 'facebook') {
-    return (
-      <div className="news-page" ref={pageRef}>
-        <NewsFacebookPages onBack={() => setView({ name: 'list' })} />
-      </div>
+      </ModuleLayout>
     );
   }
 
   if (view.name === 'article') {
     return (
-      <div className="news-page" ref={pageRef}>
+      <ModuleLayout
+        flush
+        sidebar={
+          <ModuleSidebar
+            title="Bản tin"
+            action={sidebarAction}
+            groups={sidebarGroups}
+            activeKey={tab}
+            onSelect={handleSidebarSelect}
+          />
+        }
+      >
         <ArticleView
           id={view.id}
           user={user}
@@ -241,48 +300,58 @@ export function NewsPage({
           onEdit={(id) => setView({ name: 'editor', id, back: { name: 'article', id } })}
           onOpenOther={openArticle}
         />
-      </div>
+      </ModuleLayout>
     );
   }
 
+  if (view.name === 'facebook') {
+    return (
+      <ModuleLayout
+        sidebar={
+          <ModuleSidebar
+            title="Bản tin"
+            action={sidebarAction}
+            groups={sidebarGroups}
+            activeKey="facebook"
+            onSelect={handleSidebarSelect}
+          />
+        }
+        header={<PageHeader title="Page Facebook" onBack={() => setView({ name: 'list' })} />}
+      >
+        <div style={{ maxWidth: 680, margin: '0 auto', width: '100%' }}>
+          <NewsFacebookPages onBack={() => setView({ name: 'list' })} />
+        </div>
+      </ModuleLayout>
+    );
+  }
+
+  const pageTitle = tab === 'published' ? 'Đã đăng' : 'Nháp';
+
   return (
-    <div className="news-page">
-      <header className="news-header">
-        <h1>Bản tin</h1>
-        <span className="news-header-actions">
-          {canFacebook ? (
-            <Button icon={<FacebookFilled />} onClick={() => setView({ name: 'facebook' })}>
-              Page Facebook
-            </Button>
-          ) : null}
-          {canPublish ? (
-            <Button type="primary" loading={creating} onClick={() => void writePost()}>
-              Viết bài
-            </Button>
-          ) : null}
-        </span>
-      </header>
-      {canPublish ? (
-        <Tabs
-          activeKey={tab}
-          onChange={setTab}
-          items={[
-            { key: 'published', label: 'Đã đăng', children: <NewsList kind="published" onOpen={openArticle} /> },
-            {
-              key: 'drafts',
-              label: 'Nháp',
-              children: (
-                <NewsList
-                  kind="drafts"
-                  onOpen={(id) => setView({ name: 'editor', id, back: { name: 'list' } })}
-                />
-              ),
-            },
-          ]}
+    <ModuleLayout
+      sidebar={
+        <ModuleSidebar
+          title="Bản tin"
+          action={sidebarAction}
+          groups={sidebarGroups}
+          activeKey={activeKey}
+          onSelect={handleSidebarSelect}
         />
-      ) : (
-        <NewsList kind="published" onOpen={openArticle} />
-      )}
-    </div>
+      }
+      header={<PageHeader title={pageTitle} />}
+    >
+      <div style={{ maxWidth: 680, margin: '0 auto', width: '100%' }}>
+        <NewsList
+          kind={tab === 'drafts' ? 'drafts' : 'published'}
+          onOpen={(id) => {
+            if (tab === 'drafts') {
+              setView({ name: 'editor', id, back: { name: 'list' } });
+            } else {
+              openArticle(id);
+            }
+          }}
+        />
+      </div>
+    </ModuleLayout>
   );
 }

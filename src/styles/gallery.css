@@ -3,22 +3,14 @@
   min-width: 0;
   min-height: 0;
   height: 100%;
-  overflow: auto;
-  background: #f0f2f5;
-  padding: 20px 28px 40px;
 }
 
-.gallery-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.gallery-header h1 {
-  margin: 0;
-  font-size: 22px;
+.gallery-album-card {
+  position: relative;
+  background: var(--ui-bg-panel);
+  border-radius: var(--ui-radius);
+  border: 1px solid var(--ui-border);
+  overflow: hidden;
 }
 
 .gallery-album-bar {

@@ -20,7 +20,7 @@ import { openMeetTab } from '@/features/meetings/meet';
 import { ProfileDrawer } from '@/features/profile/ProfileDrawer';
 import { UserProfileModal } from '@/features/profile/UserProfileModal';
 import { TasksPage } from '@/features/tasks/TasksPage';
-import type { ChatMessage, Room, TaskPreset, User } from '@/types';
+import type { ChatMessage, Room, Task, TaskPreset, User } from '@/types';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatSidebar } from './components/ChatSidebar';
 import { Composer } from './components/Composer';
@@ -55,6 +55,7 @@ import { useRoomList } from './hooks/useRoomList';
 import { useRoomPrefs } from './hooks/useRoomPrefs';
 import { useRoomTools } from './hooks/useRoomTools';
 import { useTypingSignal } from './hooks/useTypingSignal';
+import { TaskDueToasts } from '@/features/work/components/TaskDueToasts';
 import { useWorkspace } from './hooks/useWorkspace';
 import { DropOverlay } from './components/DropOverlay';
 import { useFileDrop } from './hooks/useFileDrop';
@@ -174,6 +175,16 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   }, [narrow]);
 
   useChatNotifications({ onOpenRoom: openRoomFromNotice });
+
+  // Toast việc sắp hết hạn: mở tin việc trong Messenger từ bất kỳ màn nào.
+  const openTaskFromToast = (task: Task) => {
+    setWorkspace('messenger');
+    if (task.messageId) {
+      chat.openMessage(task.roomId, task.messageId);
+    } else {
+      openRoomFromNotice(task.roomId);
+    }
+  };
   const chat = useChatRoom({
     user,
     roomId,

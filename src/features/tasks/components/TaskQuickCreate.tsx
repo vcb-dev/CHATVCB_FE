@@ -1,3 +1,4 @@
+import { ClockCircleOutlined, FileTextOutlined, SyncOutlined } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Segmented, Select, message } from 'antd';
 import { useState } from 'react';
@@ -10,8 +11,8 @@ import {
 } from '@/features/chat/hooks/useAssignTarget';
 import { fromLocalInput } from '@/features/chat/utils/datetime';
 import { errorText } from '@/lib/errors';
-import { formatDue } from '@/lib/tasks';
-import type { AssignKind, ChatMessage, Room, RoomMember, TaskPreset } from '@/types';
+import { TASK_REPEAT_OPTIONS } from '@/lib/tasks';
+import type { AssignKind, ChatMessage, Room, RoomMember, TaskFrequency, TaskPreset } from '@/types';
 
 const NO_MEMBERS: RoomMember[] = [];
 
@@ -25,6 +26,9 @@ export function TaskQuickCreate(props: {
 }) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
+  const [dueAt, setDueAt] = useState(props.dueAt);
+  const [notes, setNotes] = useState('');
+  const [repeat, setRepeat] = useState<TaskFrequency | 'none'>('none');
   const [loading, setLoading] = useState(false);
   const target = useAssignTarget({
     rooms: props.rooms,
@@ -32,13 +36,14 @@ export function TaskQuickCreate(props: {
     members: NO_MEMBERS,
     isDirect: false,
   });
-  const ready = Boolean(title.trim() && target.ready);
+  // Việc lặp lại tính kỳ sau từ hạn nên bắt buộc có hạn, giống hộp thoại đầy đủ
+  const ready = Boolean(title.trim() && target.ready && (dueAt || repeat === 'none'));
 
   const submit = async () => {
     if (!ready || loading) {
       return;
     }
-    if (new Date(props.dueAt) <= new Date()) {
+    if (dueAt && new Date(dueAt) <= new Date()) {
       message.error('Hạn phải sau thời điểm hiện tại.');
       return;
     }
@@ -48,7 +53,9 @@ export function TaskQuickCreate(props: {
       const created = await api.createTask(roomId as string, {
         title: title.trim(),
         assigneeId: target.assigneeId as string,
-        dueAt: fromLocalInput(props.dueAt),
+        notes: notes.trim() || undefined,
+        dueAt: dueAt ? fromLocalInput(dueAt) : undefined,
+        repeat: repeat === 'none' ? undefined : { frequency: repeat },
       });
       props.onCreated(created);
       message.success('Đã giao việc.');
@@ -62,6 +69,7 @@ export function TaskQuickCreate(props: {
 
   return (
     <div className="task-quick">
+      <div className="task-quick-head">Giao việc mới</div>
       <Input
         autoFocus
         className="task-quick-title"
@@ -71,7 +79,28 @@ export function TaskQuickCreate(props: {
         onChange={(event) => setTitle(event.target.value)}
         onPressEnter={() => void submit()}
       />
-      <span className="task-quick-due">Hạn: {formatDue(fromLocalInput(props.dueAt))}</span>
+      <div className="task-quick-row">
+        <ClockCircleOutlined />
+        <Input
+          size="small"
+          type="datetime-local"
+          className="task-quick-due"
+          aria-label="Hạn"
+          value={dueAt}
+          onChange={(event) => setDueAt(event.target.value)}
+        />
+      </div>
+      <div className="task-quick-row">
+        <SyncOutlined />
+        <Select
+          size="small"
+          className="task-quick-repeat"
+          aria-label="Lặp lại"
+          value={repeat}
+          onChange={setRepeat}
+          options={TASK_REPEAT_OPTIONS}
+        />
+      </div>
       <Segmented<AssignKind>
         block
         size="small"
@@ -116,14 +145,27 @@ export function TaskQuickCreate(props: {
           />
         </>
       )}
+      <div className="task-quick-row top">
+        <FileTextOutlined />
+        <Input.TextArea
+          className="task-quick-notes"
+          placeholder="Ghi chú (không bắt buộc)"
+          autoSize={{ minRows: 1, maxRows: 4 }}
+          maxLength={2000}
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+        />
+      </div>
       <div className="task-quick-actions">
         <Button
           type="text"
           size="small"
           onClick={() =>
             props.onMore({
-              dueAt: props.dueAt,
+              dueAt,
               title,
+              notes,
+              repeat: repeat === 'none' ? undefined : repeat,
               kind: target.kind,
               roomId: target.roomId,
               roomLabel: target.roomOptions.find((option) => option.value === target.roomId)?.label,

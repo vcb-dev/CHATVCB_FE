@@ -1,7 +1,7 @@
 import { Popover } from 'antd';
 import { useState, type CSSProperties } from 'react';
 import type { PlannedTask, Task } from '@/types';
-import { itemKey, type CalendarItem } from '../utils/calendar';
+import { itemKey, type CalendarItem, type ItemMenuHandler } from '../utils/calendar';
 import { CalendarChip } from './CalendarChip';
 
 export function CalendarMore(props: {
@@ -12,7 +12,9 @@ export function CalendarMore(props: {
   style?: CSSProperties;
   onOpen: (task: Task, anchor: DOMRect) => void;
   onOpenPlanned: (planned: PlannedTask, anchor: DOMRect) => void;
+  onMenu?: ItemMenuHandler;
 }) {
+  const { onMenu } = props;
   const [open, setOpen] = useState(false);
   return (
     <Popover
@@ -38,6 +40,14 @@ export function CalendarMore(props: {
                 setOpen(false);
                 props.onOpenPlanned(picked, anchor);
               }}
+              onMenu={
+                onMenu
+                  ? (picked, point, anchor) => {
+                      setOpen(false);
+                      onMenu(picked, point, anchor);
+                    }
+                  : undefined
+              }
             />
           ))}
         </div>

@@ -19,7 +19,10 @@ import {
   Tag,
   message,
 } from "antd";
-import { useMemo, useState, type Key } from "react";
+import { useMemo, useState, type Key, type ReactNode } from "react";
+import { ModuleLayout } from "@/components/ModuleLayout";
+import { PageHeader } from "@/components/PageHeader";
+import { ContentCard } from "@/components/ContentCard";
 import {
   DepartmentFormModal,
   type DepartmentFormValues,
@@ -56,7 +59,13 @@ function statusLabel(status: OrgUnitStatus) {
   return status === "active" ? "Đang hoạt động" : "Ngưng";
 }
 
-export function DepartmentsGroupsView({ user }: { user: User }) {
+export function DepartmentsGroupsView({
+  user,
+  sidebar,
+}: {
+  user: User;
+  sidebar?: ReactNode;
+}) {
   const canCreate = can(user, P.departments.create);
   const canUpdate = can(user, P.departments.update);
   const canDelete = can(user, P.departments.delete);
@@ -200,8 +209,69 @@ export function DepartmentsGroupsView({ user }: { user: User }) {
   const modalLoading = create.isPending || update.isPending;
   const groupModalLoading = createGroup.isPending || updateGroup.isPending;
 
+  const header = (
+    <PageHeader
+      title="Phòng ban & nhóm"
+      meta={
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span className="ui-chip">{stats.departmentCount} phòng ban</span>
+          <span className="ui-chip">{stats.groupCount} nhóm</span>
+          <span className="ui-chip">{stats.memberCount} thành viên</span>
+        </div>
+      }
+      actions={
+        canCreate ? (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setModal({ mode: "create" })}
+          >
+            Phòng ban
+          </Button>
+        ) : null
+      }
+    >
+      <Input.Search
+        allowClear
+        placeholder="Tìm theo tên / mã phòng ban / nhóm…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        style={{ maxWidth: 360 }}
+      />
+      <Select
+        allowClear
+        placeholder="Tất cả nhóm"
+        style={{ minWidth: 200 }}
+        value={groupFilter}
+        onChange={setGroupFilter}
+        options={allGroupNames.map((name) => ({ value: name, label: name }))}
+      />
+      <Select
+        placeholder="Mọi trạng thái"
+        style={{ minWidth: 160 }}
+        value={statusFilter}
+        onChange={setStatusFilter}
+        options={[
+          { value: "all", label: "Mọi trạng thái" },
+          { value: "active", label: "Đang hoạt động" },
+          { value: "inactive", label: "Ngưng" },
+        ]}
+      />
+      <Select
+        style={{ minWidth: 140 }}
+        value={sort}
+        onChange={setSort}
+        options={[
+          { value: "name-asc", label: "Tên A → Z" },
+          { value: "name-desc", label: "Tên Z → A" },
+          { value: "members-desc", label: "Nhiều thành viên" },
+        ]}
+      />
+    </PageHeader>
+  );
+
   return (
-    <main className="dept-page">
+    <ModuleLayout sidebar={sidebar} header={header}>
       {isError ? (
         <Alert
           type="error"
@@ -214,114 +284,35 @@ export function DepartmentsGroupsView({ user }: { user: User }) {
         />
       ) : null}
 
-      <div className="dept-hero">
-        <section className="dept-hero-main">
-          <h1>Phòng ban &amp; nhóm</h1>
-          <p>Quản lý cấu trúc tổ chức và thành viên nội bộ.</p>
-        </section>
-        <div className="dept-mini-stats">
-          <div className="dept-mini-stat purple">
-            <ApartmentOutlined aria-hidden />
-            <div>
-              <strong>{stats.departmentCount}</strong>
-              <span>Phòng ban</span>
-            </div>
+      <ContentCard>
+        <Spin spinning={isPending}>
+          <div className="dept-tree">
+            {!isPending && filtered.length === 0 ? (
+              <div className="dept-empty">
+                {departments.length === 0
+                  ? canCreate
+                    ? "Chưa có phòng ban. Bấm «Phòng ban» để thêm."
+                    : "Chưa có phòng ban."
+                  : "Không có phòng ban phù hợp bộ lọc."}
+              </div>
+            ) : (
+              <Collapse
+                bordered={false}
+                activeKey={expandedKeys}
+                onChange={(keys: Key | Key[]) => {
+                  const next = Array.isArray(keys)
+                    ? keys
+                    : keys != null
+                      ? [keys]
+                      : [];
+                  setExpandedKeys(next.map(String));
+                }}
+                items={collapseItems}
+              />
+            )}
           </div>
-          <div className="dept-mini-stat green">
-            <UsergroupAddOutlined aria-hidden />
-            <div>
-              <strong>{stats.groupCount}</strong>
-              <span>Nhóm</span>
-            </div>
-          </div>
-          <div className="dept-mini-stat blue">
-            <TeamOutlined aria-hidden />
-            <div>
-              <strong>{stats.memberCount}</strong>
-              <span>Thành viên</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="dept-toolbar">
-        <Input.Search
-          allowClear
-          placeholder="Tìm theo tên / mã phòng ban / nhóm…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="dept-search"
-        />
-        <Select
-          allowClear
-          placeholder="Tất cả nhóm"
-          style={{ minWidth: 280 }}
-          value={groupFilter}
-          onChange={setGroupFilter}
-          options={allGroupNames.map((name) => ({ value: name, label: name }))}
-        />
-        <Select
-          placeholder="Mọi trạng thái"
-          style={{ minWidth: 160 }}
-          value={statusFilter}
-          onChange={setStatusFilter}
-          options={[
-            { value: "all", label: "Mọi trạng thái" },
-            { value: "active", label: "Đang hoạt động" },
-            { value: "inactive", label: "Ngưng" },
-          ]}
-        />
-        <Select
-          style={{ minWidth: 140 }}
-          value={sort}
-          onChange={setSort}
-          options={[
-            { value: "name-asc", label: "Tên A → Z" },
-            { value: "name-desc", label: "Tên Z → A" },
-            { value: "members-desc", label: "Nhiều thành viên" },
-          ]}
-        />
-        {canCreate ? (
-          <div className="dept-toolbar-actions">
-            <Button
-              type="primary"
-              className="dept-primary"
-              icon={<PlusOutlined />}
-              onClick={() => setModal({ mode: "create" })}
-            >
-              Phòng ban
-            </Button>
-          </div>
-        ) : null}
-      </div>
-
-      <Spin spinning={isPending}>
-        <div className="dept-tree">
-          {!isPending && filtered.length === 0 ? (
-            <div className="dept-empty">
-              {departments.length === 0
-                ? canCreate
-                  ? "Chưa có phòng ban. Bấm «Phòng ban» để thêm."
-                  : "Chưa có phòng ban."
-                : "Không có phòng ban phù hợp bộ lọc."}
-            </div>
-          ) : (
-            <Collapse
-              bordered={false}
-              activeKey={expandedKeys}
-              onChange={(keys: Key | Key[]) => {
-                const next = Array.isArray(keys)
-                  ? keys
-                  : keys != null
-                    ? [keys]
-                    : [];
-                setExpandedKeys(next.map(String));
-              }}
-              items={collapseItems}
-            />
-          )}
-        </div>
-      </Spin>
+        </Spin>
+      </ContentCard>
 
       <DepartmentFormModal
         open={modal !== null}
@@ -341,7 +332,7 @@ export function DepartmentsGroupsView({ user }: { user: User }) {
         onClose={() => setGroupModal(null)}
         onSubmit={handleGroupModalSubmit}
       />
-    </main>
+    </ModuleLayout>
   );
 }
 

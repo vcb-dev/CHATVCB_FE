@@ -13,7 +13,7 @@ import type { Socket } from 'socket.io-client';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { closeSocket, connectSocket } from '@/api/socket';
-import { applyNewsCommentCount, applyNewsReactions } from '@/lib/newsCache';
+import { applyNewsCommentCount, applyNewsReactions, refreshNewsCommentPreview } from '@/lib/newsCache';
 import { notifyIncoming } from '@/lib/notify';
 import type {
   GalleryPendingEvent,
@@ -250,6 +250,7 @@ export function useChatSocket(options: Options) {
 
     socket.on('news.comments', ({ postId, commentCount }: NewsCommentsEvent) => {
       applyNewsCommentCount(queryClient, postId, commentCount);
+      void refreshNewsCommentPreview(queryClient, postId).catch(() => undefined);
       // Chỉ tải lại khi đang mở đúng bài đó, query không có ai dùng chỉ bị đánh dấu cũ
       void queryClient.invalidateQueries({ queryKey: queryKeys.newsComments(postId) });
     });

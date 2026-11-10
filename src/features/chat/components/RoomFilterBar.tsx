@@ -3,13 +3,6 @@ import { Dropdown, type MenuProps } from 'antd';
 import type { ConversationLabel } from '@/types';
 import type { RoomFilter } from '../utils/rooms';
 
-const CHIPS: { kind: 'all' | 'unread' | 'group' | 'direct'; text: string }[] = [
-  { kind: 'all', text: 'Tất cả' },
-  { kind: 'unread', text: 'Chưa đọc' },
-  { kind: 'group', text: 'Nhóm' },
-  { kind: 'direct', text: 'Nhắn riêng' },
-];
-
 export function RoomFilterBar(props: {
   filter: RoomFilter;
   labels: ConversationLabel[];
@@ -18,10 +11,34 @@ export function RoomFilterBar(props: {
 }) {
   const { filter, labels, onChange, onManage } = props;
 
-  const activeLabel =
-    filter.kind === 'label' ? labels.find((l) => l.id === filter.labelId) : null;
+  let moreLabel = 'Phân loại';
+  let isMoreActive = false;
+  if (filter.kind === 'group') {
+    moreLabel = 'Nhóm';
+    isMoreActive = true;
+  } else if (filter.kind === 'direct') {
+    moreLabel = 'Nhắn riêng';
+    isMoreActive = true;
+  } else if (filter.kind === 'label') {
+    const activeLabel = labels.find((l) => l.id === filter.labelId);
+    moreLabel = activeLabel?.name ?? 'Phân loại';
+    isMoreActive = true;
+  }
 
   const menuItems: MenuProps['items'] = [
+    {
+      key: 'group',
+      label: 'Nhóm',
+      onClick: () => onChange({ kind: 'group' }),
+    },
+    {
+      key: 'direct',
+      label: 'Nhắn riêng',
+      onClick: () => onChange({ kind: 'direct' }),
+    },
+    {
+      type: 'divider',
+    },
     ...labels.map((l) => ({
       key: l.id,
       label: (
@@ -42,29 +59,29 @@ export function RoomFilterBar(props: {
 
   return (
     <div className="room-filter-bar">
-      {CHIPS.map((chip) => (
+      <div className="room-filter-tabs">
         <button
-          key={chip.kind}
           type="button"
-          className={['room-filter-chip', filter.kind === chip.kind ? 'active' : ''].filter(Boolean).join(' ')}
-          onClick={() => onChange({ kind: chip.kind })}
+          className={`room-filter-tab${filter.kind === 'all' ? ' active' : ''}`}
+          onClick={() => onChange({ kind: 'all' })}
         >
-          {chip.text}
+          Tất cả
         </button>
-      ))}
+        <button
+          type="button"
+          className={`room-filter-tab${filter.kind === 'unread' ? ' active' : ''}`}
+          onClick={() => onChange({ kind: 'unread' })}
+        >
+          Chưa đọc
+        </button>
+      </div>
+
       <Dropdown menu={{ items: menuItems }} trigger={['click']}>
         <button
           type="button"
-          className={['room-filter-chip', filter.kind === 'label' ? 'active' : ''].filter(Boolean).join(' ')}
+          className={`room-filter-more${isMoreActive ? ' active' : ''}`}
         >
-          {activeLabel ? (
-            <span className="label-dropdown-item">
-              <span className="room-label-dot" style={{ background: activeLabel.color }} />
-              <span>{activeLabel.name}</span>
-            </span>
-          ) : (
-            'Phân loại'
-          )}
+          <span>{moreLabel}</span>
           <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
         </button>
       </Dropdown>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { message as antMessage } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { AdminPage } from '@/features/admin/AdminPage';
@@ -19,7 +19,6 @@ import { MeetingsPage } from '@/features/meetings/MeetingsPage';
 import { openMeetTab } from '@/features/meetings/meet';
 import { ProfileDrawer } from '@/features/profile/ProfileDrawer';
 import { UserProfileModal } from '@/features/profile/UserProfileModal';
-import { useMyProfile } from '@/features/profile/hooks/useMyProfile';
 import { TasksPage } from '@/features/tasks/TasksPage';
 import type { ChatMessage, Room, Task, TaskPreset, User } from '@/types';
 import { ChatHeader } from './components/ChatHeader';
@@ -44,6 +43,7 @@ import { TypingIndicator } from './components/TypingIndicator';
 import { parseJoinHash } from './utils/invite';
 import { canEditItem } from './utils/rooms';
 import { useChatNotifications } from './hooks/useChatNotifications';
+import { useMediaQuery } from './hooks/useMediaQuery';
 import { useChatRoom } from './hooks/useChatRoom';
 import { useBlockUser } from './hooks/useBlockUser';
 import { useChatSocket } from './hooks/useChatSocket';
@@ -80,6 +80,24 @@ type Props = {
 };
 
 export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
+  const narrow = useMediaQuery('(max-width: 1100px)');
+  const [infoHidden, setInfoHidden] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('chatvcb.infoHidden') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (infoHidden) {
+        localStorage.setItem('chatvcb.infoHidden', '1');
+      } else {
+        localStorage.removeItem('chatvcb.infoHidden');
+      }
+    } catch {}
+  }, [infoHidden]);
   const [error, setError] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
   const [groupOverlay, setGroupOverlay] = useState(false);
@@ -102,7 +120,6 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  const { changeAvatar } = useMyProfile(user, onUserUpdate);
   const { workspace, setWorkspace, isViewingChat, isViewingNews, confirmLeave, setLeaveBlocked } =
     useWorkspace();
   const accessLoaded = Array.isArray(user.permissions);
@@ -146,6 +163,16 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setWorkspace('messenger');
     void roomList.openRoom(target);
   };
+
+  const toggleInfo = useCallback(() => {
+    if (narrow) {
+      setRightPane('info');
+      setGroupOverlay((current) => !current);
+    } else {
+      setRightPane('info');
+      setInfoHidden((current) => !current);
+    }
+  }, [narrow]);
 
   useChatNotifications({ onOpenRoom: openRoomFromNotice });
 
@@ -247,7 +274,6 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const isPeerOnline = isOtherUserOnline(presence, peerUserIdOf(room, chat.members, user.id));
   const isGroupOnline = hasOnlineMember(presence, chat.members);
   const onlineMembersCount = countOnlineMembers(presence, chat.members);
-  const team = user.team ?? room?.team ?? 'sale';
   const chatPhotos = useMemo(() => photosFromMessages(chat.messages), [chat.messages]);
   const markRead = () => chat.markMessageRead();
   // Tin bị thu hồi trong lúc đang chọn tự rơi khỏi danh sách
@@ -286,8 +312,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   }
 
   return (
-    <div className={`app-shell module-${workspace}`}>
-      <TaskDueToasts myId={user.id} onOpenTask={openTaskFromToast} />
+    <div
+      className={`app-shell module-${workspace}${
+        !narrow && infoHidden ? ' info-hidden' : ''
+      }`}
+    >
       <NavRail
         workspace={workspace}
         user={user}
@@ -306,7 +335,6 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       {workspace === 'messenger' ? (
         <ChatSidebar
           user={user}
-          team={team}
           rooms={rooms}
           roomId={roomId}
           roomsMeta={roomList.roomsMeta}
@@ -320,8 +348,6 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           onLoadMoreRooms={roomList.loadMoreRooms}
           onNewChat={() => setNewChatOpen(true)}
           onOpenCloud={tools.openCloud}
-          onOpenProfile={() => setProfileOpen(true)}
-          onChangeAvatar={changeAvatar}
           prefs={roomPrefs}
           drafts={composer.drafts}
         />
@@ -336,13 +362,15 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             isGroupOnline={isGroupOnline}
             membersCount={chat.members.length}
             onlineMembersCount={onlineMembersCount}
-            onToggleInfo={() => {
-              setRightPane('info');
-              setGroupOverlay((current) => !current);
-            }}
+            infoOpen={narrow ? groupOverlay : !infoHidden}
+            onToggleInfo={toggleInfo}
             onSearch={() => {
               setRightPane('search');
-              setGroupOverlay(true);
+              if (narrow) {
+                setGroupOverlay(true);
+              } else {
+                setInfoHidden(false);
+              }
             }}
             onStartMeeting={
               room && !room.isCloud && !locked && !room.blockedByMe

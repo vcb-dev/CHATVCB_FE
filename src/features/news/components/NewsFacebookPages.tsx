@@ -1,4 +1,4 @@
-import { ArrowLeftOutlined, FacebookFilled, SyncOutlined } from '@ant-design/icons';
+import { FacebookFilled, SyncOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Avatar, Button, Empty, Popconfirm, Spin, Switch, Tag, Tooltip, message } from 'antd';
 import { useState } from 'react';
@@ -101,7 +101,7 @@ function PageRow(props: { page: NewsFacebookPage; onChanged: () => void }) {
 }
 
 /** Kết nối Page bằng OAuth: BE nhận callback rồi chuyển về `?workspace=news&facebook=ok|error` */
-export function NewsFacebookPages(props: { onBack: () => void }) {
+export function NewsFacebookPages() {
   const queryClient = useQueryClient();
   const [connecting, setConnecting] = useState(false);
   const status = useQuery({ queryKey: queryKeys.newsFacebookStatus, queryFn: () => api.newsFacebookStatus() });
@@ -120,11 +120,6 @@ export function NewsFacebookPages(props: { onBack: () => void }) {
 
   return (
     <div className="news-facebook">
-      <div className="news-reader-bar">
-        <Button icon={<ArrowLeftOutlined />} onClick={props.onBack}>
-          Quay lại
-        </Button>
-      </div>
       <section className="news-facebook-panel">
         <header className="news-header">
           <h1>Page Facebook</h1>

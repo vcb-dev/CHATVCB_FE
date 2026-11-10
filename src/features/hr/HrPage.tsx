@@ -1,6 +1,7 @@
 import { P, can } from "@/lib/access";
 import type { User } from "@/types";
-import { Alert, Modal, Result, Spin } from "antd";
+import { Alert, Button, Modal, Result, Spin } from "antd";
+import { TeamOutlined, UserAddOutlined } from "@ant-design/icons";
 import { useMemo, useState } from "react";
 import { EmployeeCreateModal } from "./components/EmployeeCreateModal";
 import { EmployeeDetailView } from "./EmployeeDetailView";
@@ -11,6 +12,8 @@ import {
 } from "./hooks/useEmployeeMutations";
 import { useEmployeesQuery } from "./hooks/useEmployeesQuery";
 import type { EmployeeProfile } from "./types";
+import { ModuleLayout } from "@/components/ModuleLayout";
+import { ModuleSidebar } from "@/components/ModuleSidebar";
 
 interface HrPageProps {
   user: User;
@@ -40,21 +43,53 @@ export function HrPage({ user }: HrPageProps) {
     await updateEmployee.mutateAsync(patch);
   }
 
+  const sidebar = (
+    <ModuleSidebar
+      title="Nhân sự"
+      action={
+        canCreate ? (
+          <Button
+            type="primary"
+            block
+            icon={<UserAddOutlined />}
+            onClick={() => setCreateOpen(true)}
+          >
+            Thêm nhân viên
+          </Button>
+        ) : undefined
+      }
+      groups={[
+        {
+          items: [
+            {
+              key: "all",
+              label: "Tất cả nhân viên",
+              icon: <TeamOutlined />,
+              count: employees.length,
+            },
+          ],
+        },
+      ]}
+      activeKey="all"
+      onSelect={() => setSelectedId(null)}
+    />
+  );
+
   if (!canRead) {
     return (
-      <main className="hr-page">
+      <ModuleLayout sidebar={sidebar}>
         <Result
           status="403"
           title="Không có quyền xem nhân sự"
           subTitle="Cần quyền Xem hồ sơ nhân viên"
         />
-      </main>
+      </ModuleLayout>
     );
   }
 
   if (error) {
     return (
-      <main className="hr-page">
+      <ModuleLayout sidebar={sidebar}>
         <Alert
           type="error"
           showIcon
@@ -63,29 +98,47 @@ export function HrPage({ user }: HrPageProps) {
             error instanceof Error ? error.message : "Lỗi không xác định"
           }
         />
-      </main>
+      </ModuleLayout>
     );
   }
 
   if (isPending && !employees.length) {
     return (
-      <main className="hr-page">
+      <ModuleLayout sidebar={sidebar}>
         <Spin size="large" style={{ display: "block", margin: "48px auto" }} />
-      </main>
+      </ModuleLayout>
     );
   }
 
   if (selected) {
     return (
-      <EmployeeDetailView
-        profile={selected}
-        canUpdate={canUpdate}
-        canReadSensitive={canReadSensitive}
-        canUpdateSensitive={canUpdateSensitive}
-        saveLoading={updateEmployee.isPending}
-        onBack={() => setSelectedId(null)}
-        onSave={handleSave}
-      />
+      <>
+        <EmployeeDetailView
+          profile={selected}
+          canUpdate={canUpdate}
+          canReadSensitive={canReadSensitive}
+          canUpdateSensitive={canUpdateSensitive}
+          saveLoading={updateEmployee.isPending}
+          onBack={() => setSelectedId(null)}
+          onSave={handleSave}
+          sidebar={sidebar}
+        />
+        <EmployeeCreateModal
+          open={createOpen}
+          confirmLoading={createEmployee.isPending}
+          onClose={() => setCreateOpen(false)}
+          onSubmit={async (values) => {
+            const created = await createEmployee.mutateAsync(values);
+            setCreateOpen(false);
+            if (created.temporaryPassword) {
+              Modal.info({
+                title: "Mật khẩu tạm — chỉ hiện 1 lần",
+                content: created.temporaryPassword,
+              });
+            }
+          }}
+        />
+      </>
     );
   }
 
@@ -97,6 +150,7 @@ export function HrPage({ user }: HrPageProps) {
         canExport={canExport}
         onOpen={setSelectedId}
         onCreate={() => setCreateOpen(true)}
+        sidebar={sidebar}
       />
       <EmployeeCreateModal
         open={createOpen}

@@ -6,6 +6,7 @@
 .admin-matrix-group h4 {
   margin: 0 0 8px;
   font-size: 13px;
+  color: var(--ui-text);
 }
 
 .admin-matrix-group .ant-checkbox-group {
@@ -16,6 +17,7 @@
 .admin-matrix-group .ant-checkbox-wrapper {
   align-items: flex-start;
   line-height: 1.35;
+  color: var(--ui-text);
 }
 
 .admin-matrix-group .ant-checkbox + span {
@@ -25,7 +27,7 @@
 .admin-field-label {
   margin-bottom: 6px;
   font-size: 13px;
-  color: #65676b;
+  color: var(--ui-text-3);
 }
 
 .admin-row-actions {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { MailOutlined, MessageOutlined, StopOutlined, TeamOutlined } from '@ant-design/icons';
-import { Avatar, Button, Modal, Spin, Typography, message as antMessage } from 'antd';
+import { MessageOutlined, StopOutlined } from '@ant-design/icons';
+import { Avatar, Button, Modal, Spin, message as antMessage } from 'antd';
 import { api, fileSrc } from '@/api/client';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { DirectoryUser, Room } from '@/types';
@@ -93,64 +93,76 @@ export function UserProfileModal(props: {
 
   return (
     <Modal
-      title="Hồ sơ người dùng"
+      title="Thông tin tài khoản"
       open={props.open}
       onCancel={props.onClose}
       destroyOnHidden
-      width={380}
-      footer={[
-        <Button key="close" onClick={props.onClose}>
-          Đóng
-        </Button>,
-        profile && !isSelf ? (
-          <Button
-            key="block"
-            danger={!profile.blockedByMe}
-            icon={<StopOutlined />}
-            onClick={handleBlockClick}
-          >
-            {profile.blockedByMe ? 'Bỏ chặn' : 'Chặn người này'}
-          </Button>
-        ) : null,
-        profile && !isSelf ? (
-          <Button
-            key="chat"
-            type="primary"
-            icon={<MessageOutlined />}
-            loading={messaging}
-            onClick={() => void handleDirectChat()}
-          >
-            Nhắn tin
-          </Button>
-        ) : null,
-      ]}
+      width={400}
+      footer={null}
+      className="profile-modal"
     >
+      <div className="profile-cover" />
       {loading ? (
         <div className="user-profile-modal-loading">
           <Spin />
         </div>
       ) : profile ? (
         <div className="user-profile-modal-body">
-          <div className="user-profile-modal-avatar">
-            <Avatar
-              size={72}
-              className="avatar-initials"
-              src={profile.avatarUrl ? fileSrc(profile.avatarUrl) : undefined}
-              style={{ background: avatarColor(profile.name), fontSize: 28 }}
-            >
-              {initials(profile.name)}
-            </Avatar>
+          <div className="profile-head" style={{ marginBottom: 8 }}>
+            <div className="user-avatar-btn" style={{ cursor: 'default' }}>
+              <Avatar
+                size={80}
+                src={profile.avatarUrl ? fileSrc(profile.avatarUrl) : undefined}
+                style={{
+                  background: avatarColor(profile.name),
+                  fontSize: 28,
+                  fontWeight: 700,
+                }}
+              >
+                {initials(profile.name)}
+              </Avatar>
+            </div>
+            <h3 className="profile-name">{profile.name}</h3>
           </div>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            {profile.name}
-          </Typography.Title>
-          <div className="user-profile-modal-meta">
-            <span className="user-profile-modal-meta-item">
-              <MailOutlined /> {profile.email}
-            </span>
-            <span className="user-profile-modal-meta-item">
-              <TeamOutlined /> Team {profile.team}
-            </span>
+
+          {!isSelf ? (
+            <div
+              className="user-profile-modal-actions"
+              style={{
+                display: 'flex',
+                gap: 8,
+                justifyContent: 'center',
+                width: '100%',
+                marginBottom: 12,
+              }}
+            >
+              <Button
+                type="primary"
+                icon={<MessageOutlined />}
+                loading={messaging}
+                onClick={() => void handleDirectChat()}
+              >
+                Nhắn tin
+              </Button>
+              <Button
+                danger={!profile.blockedByMe}
+                icon={<StopOutlined />}
+                onClick={handleBlockClick}
+              >
+                {profile.blockedByMe ? 'Bỏ chặn' : 'Chặn'}
+              </Button>
+            </div>
+          ) : null}
+
+          <div className="profile-info-list" style={{ width: '100%' }}>
+            <div className="profile-info-row">
+              <span className="profile-info-label">Email</span>
+              <span className="profile-info-value">{profile.email}</span>
+            </div>
+            <div className="profile-info-row">
+              <span className="profile-info-label">Phòng ban</span>
+              <span className="profile-info-value">Team {profile.team}</span>
+            </div>
           </div>
         </div>
       ) : null}

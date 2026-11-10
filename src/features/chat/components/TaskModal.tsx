@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { errorText } from '@/lib/errors';
+import { TASK_REPEAT_OPTIONS } from '@/lib/tasks';
 import type {
   AssignKind,
   ChatMessage,
@@ -29,12 +30,6 @@ type Props = {
   rooms?: Room[];
   preset?: TaskPreset;
 };
-
-const REPEAT_OPTIONS: { value: TaskFrequency | 'none'; label: string }[] = [
-  { value: 'none', label: 'Không lặp' },
-  { value: 'weekly', label: 'Hằng tuần' },
-  { value: 'monthly', label: 'Hằng tháng' },
-];
 
 function initialDue(task: MessageTask | null) {
   return task?.dueAt ? toLocalInput(task.dueAt) : '';
@@ -67,9 +62,9 @@ export function TaskModal({
     }
     setTitle(task?.title ?? preset?.title ?? '');
     setDueAt(task ? initialDue(task) : (preset?.dueAt ?? ''));
-    setNotes(task?.notes ?? '');
+    setNotes(task?.notes ?? preset?.notes ?? '');
     target.reset(preset);
-    setRepeat('none');
+    setRepeat(task ? 'none' : (preset?.repeat ?? 'none'));
     setEndsAt('');
     // Theo id: thả cảm xúc hay ghim tin đều thay đối tượng task, không được xóa nội dung đang sửa
   }, [open, task?.id, preset]);
@@ -227,7 +222,7 @@ export function TaskModal({
               className="task-modal-repeat"
               value={repeat}
               onChange={setRepeat}
-              options={REPEAT_OPTIONS}
+              options={TASK_REPEAT_OPTIONS}
             />
           </Form.Item>
         )}

@@ -11,6 +11,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/api/client';
 import { openMeetTab } from './meet';
 import type { Meeting, User } from '@/types';
+import { ModuleLayout } from '@/components/ModuleLayout';
+import { ModuleSidebar } from '@/components/ModuleSidebar';
+import { PageHeader } from '@/components/PageHeader';
+import { ContentCard } from '@/components/ContentCard';
+import { EmptyState } from '@/components/EmptyState';
 
 type Props = {
   user: User;
@@ -34,6 +39,7 @@ function toLocalInput(date: Date) {
 }
 
 export function MeetingsPage({ user }: Props) {
+  const [section, setSection] = useState<'upcoming' | 'history'>('upcoming');
   const [upcoming, setUpcoming] = useState<Meeting[]>([]);
   const [history, setHistory] = useState<Meeting[]>([]);
   const [query, setQuery] = useState('');
@@ -185,64 +191,102 @@ export function MeetingsPage({ user }: Props) {
     (item) => !q || item.title.toLowerCase().includes(q) || item.code.includes(q),
   );
 
+  const sidebarGroups = [
+    {
+      items: [
+        {
+          key: 'upcoming',
+          label: 'Sắp diễn ra',
+          icon: <VideoCameraOutlined />,
+          count: upcoming.length,
+        },
+        {
+          key: 'history',
+          label: 'Lịch sử',
+          icon: <FileTextOutlined />,
+          count: history.length,
+        },
+      ],
+    },
+  ];
+
+  const sidebarAction = (
+    <Button
+      type="primary"
+      block
+      icon={<VideoCameraOutlined />}
+      onClick={() => openMeetTab()}
+    >
+      Cuộc họp mới
+    </Button>
+  );
+
   return (
-    <main className="meet-page">
-      <header className="meet-head">
-        <h1>Cuộc họp</h1>
-        <Input.Search
-          allowClear
-          placeholder="Tìm cuộc họp hoặc mã"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          style={{ maxWidth: 280 }}
-        />
-      </header>
-
-      <div className="meet-layout">
-        <section className="meet-actions">
-          <button type="button" className="meet-card blue" onClick={() => openMeetTab()}>
-            <span className="meet-ico">
-              <VideoCameraOutlined />
-            </span>
-            <strong>Cuộc họp mới</strong>
-          </button>
-          <button type="button" className="meet-card blue" onClick={() => setJoinOpen(true)}>
-            <span className="meet-ico">
+    <ModuleLayout
+      sidebar={
+        <ModuleSidebar
+          title="Cuộc họp"
+          action={sidebarAction}
+          groups={sidebarGroups}
+          activeKey={section}
+          onSelect={(key) => setSection(key as 'upcoming' | 'history')}
+        >
+          <div className="ui-sidebar-quick" style={{ padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <button
+              type="button"
+              className="ui-sidebar-item"
+              onClick={() => setJoinOpen(true)}
+            >
               <UserAddOutlined />
-            </span>
-            <strong>Tham gia</strong>
-          </button>
-          <button type="button" className="meet-card peach" onClick={openCreateSchedule}>
-            <span className="meet-ico">
+              <span className="ui-sidebar-label">Tham gia bằng mã</span>
+            </button>
+            <button
+              type="button"
+              className="ui-sidebar-item"
+              onClick={openCreateSchedule}
+            >
               <CalendarOutlined />
-            </span>
-            <strong>Lên lịch</strong>
-          </button>
-          <button
-            type="button"
-            className="meet-card violet"
-            onClick={() => {
-              const target = allMeetings[0];
-              if (!target) {
-                message.info('Chưa có cuộc họp để ghi biên bản.');
-                return;
-              }
-              setNotesOpen(target);
-              setNotes(target.notes || '');
-            }}
-          >
-            <span className="meet-ico">
+              <span className="ui-sidebar-label">Lên lịch</span>
+            </button>
+            <button
+              type="button"
+              className="ui-sidebar-item"
+              onClick={() => {
+                const target = allMeetings[0];
+                if (!target) {
+                  message.info('Chưa có cuộc họp để ghi biên bản.');
+                  return;
+                }
+                setNotesOpen(target);
+                setNotes(target.notes || '');
+              }}
+            >
               <FileTextOutlined />
-            </span>
-            <strong>Biên bản</strong>
-          </button>
-        </section>
-
-        <section className="meet-lists">
-          <div className="meet-panel">
-            <div className="meet-panel-head">Sắp diễn ra</div>
-            {upcomingView.length ? (
-              upcomingView.map((item) => {
+              <span className="ui-sidebar-label">Ghi biên bản</span>
+            </button>
+          </div>
+        </ModuleSidebar>
+      }
+      header={
+        <PageHeader
+          title={section === 'upcoming' ? 'Sắp diễn ra' : 'Lịch sử'}
+          actions={
+            <Input.Search
+              allowClear
+              placeholder="Tìm cuộc họp hoặc mã"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              style={{ width: 240 }}
+            />
+          }
+        />
+      }
+    >
+      <ContentCard>
+        {section === 'upcoming' ? (
+          upcomingView.length ? (
+            <div className="meet-list">
+              {upcomingView.map((item) => {
                 const isLive = Boolean(item.isLive || (item.startedAt && !item.endedAt));
                 const isHost = item.hostId === user.id;
                 return (
@@ -313,42 +357,52 @@ export function MeetingsPage({ user }: Props) {
                     </span>
                   </div>
                 );
-              })
-            ) : (
-              <p className="meet-empty">Chưa có cuộc họp sắp tới</p>
-            )}
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              icon={<VideoCameraOutlined />}
+              title="Chưa có cuộc họp sắp tới"
+              description="Tạo cuộc họp mới hoặc lên lịch để bắt đầu."
+              action={
+                <Button type="primary" onClick={() => openMeetTab()}>
+                  Cuộc họp mới
+                </Button>
+              }
+            />
+          )
+        ) : historyView.length ? (
+          <div className="meet-list">
+            {historyView.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="meet-row"
+                onClick={() => {
+                  setNotesOpen(item);
+                  setNotes(item.notes || '');
+                }}
+              >
+                <span className="meet-row-ico doc">
+                  <FileTextOutlined />
+                </span>
+                <span className="meet-row-body">
+                  <strong>{item.title}</strong>
+                  <small>
+                    {item.hostName} · {formatWhen(item.endedAt || item.createdAt)}
+                  </small>
+                </span>
+              </button>
+            ))}
           </div>
-
-          <div className="meet-panel">
-            <div className="meet-panel-head">Lịch sử</div>
-            {historyView.length ? (
-              historyView.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className="meet-row"
-                  onClick={() => {
-                    setNotesOpen(item);
-                    setNotes(item.notes || '');
-                  }}
-                >
-                  <span className="meet-row-ico doc">
-                    <FileTextOutlined />
-                  </span>
-                  <span className="meet-row-body">
-                    <strong>{item.title}</strong>
-                    <small>
-                      {item.hostName} · {formatWhen(item.endedAt || item.createdAt)}
-                    </small>
-                  </span>
-                </button>
-              ))
-            ) : (
-              <p className="meet-empty">Chưa có lịch sử họp</p>
-            )}
-          </div>
-        </section>
-      </div>
+        ) : (
+          <EmptyState
+            icon={<FileTextOutlined />}
+            title="Chưa có lịch sử họp"
+            description="Lịch sử các cuộc họp đã diễn ra sẽ hiển thị tại đây."
+          />
+        )}
+      </ContentCard>
 
       <Modal
         title="Tham gia cuộc họp"
@@ -426,6 +480,6 @@ export function MeetingsPage({ user }: Props) {
           placeholder="Ghi chú cuộc họp"
         />
       </Modal>
-    </main>
+    </ModuleLayout>
   );
 }

@@ -18,6 +18,7 @@ import type {
   NewsCommentPage,
   NewsFacebookPage,
   NewsFacebookStatus,
+  NewsFeedPage,
   NewsImage,
   NewsPost,
   NewsPostInput,
@@ -677,12 +678,15 @@ export const api = {
       `/mail/accounts/${id}/messages/${encodeURIComponent(uid)}`,
     );
   },
-  newsPosts(query: { cursor?: string }) {
+  newsPosts(query: { cursor?: string; limit?: number }) {
     const params = new URLSearchParams();
     if (query.cursor) {
       params.set("cursor", query.cursor);
     }
-    return request<NewsCardPage>(`/news/posts?${params.toString()}`);
+    if (query.limit !== undefined) {
+      params.set("limit", String(query.limit));
+    }
+    return request<NewsFeedPage>(`/news/posts?${params.toString()}`);
   },
   newsDrafts(query: { cursor?: string }) {
     const params = new URLSearchParams();
@@ -746,10 +750,13 @@ export const api = {
   newsReactionUsers(postId: string) {
     return request<{ items: NewsReactionUser[] }>(`/news/posts/${postId}/reactions`);
   },
-  newsComments(postId: string, cursor?: string) {
+  newsComments(postId: string, cursor?: string, limit?: number) {
     const params = new URLSearchParams();
     if (cursor) {
       params.set("cursor", cursor);
+    }
+    if (limit !== undefined) {
+      params.set("limit", String(limit));
     }
     return request<NewsCommentPage>(`/news/posts/${postId}/comments?${params.toString()}`);
   },

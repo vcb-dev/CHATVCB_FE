@@ -228,17 +228,19 @@ export function PollCard({
               />
               <Button
                 type="primary"
+                size="small"
                 loading={addingOption}
                 disabled={!newOptionText.trim()}
                 onClick={() => void handleAddOption()}
               >
                 Thêm
               </Button>
-              <Button onClick={() => setShowAddInput(false)}>Hủy</Button>
+              <Button size="small" onClick={() => setShowAddInput(false)}>Hủy</Button>
             </Space.Compact>
           ) : (
             <Button
               type="dashed"
+              size="small"
               icon={<PlusOutlined />}
               onClick={() => setShowAddInput(true)}
               style={{ width: '100%' }}

@@ -1,5 +1,6 @@
 import {
   CloudOutlined,
+  LayoutOutlined,
   SearchOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
@@ -15,6 +16,7 @@ export function ChatHeader(props: {
   isGroupOnline: boolean;
   membersCount: number;
   onlineMembersCount: number;
+  infoOpen: boolean;
   onToggleInfo: () => void;
   onSearch: () => void;
   onStartMeeting?: () => void;
@@ -40,12 +42,12 @@ export function ChatHeader(props: {
           offset={[-2, 4]}
         >
           <Avatar
-            size={40}
+            size={44}
             className="avatar-initials"
             icon={isCloud ? <CloudOutlined /> : undefined}
             src={room?.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
             style={{
-              background: isCloud ? '#0084ff' : room ? avatarColor(room.title || room.name) : '#0084ff',
+              background: isCloud ? 'var(--ui-primary)' : room ? avatarColor(room.title || room.name) : 'var(--ui-primary)',
             }}
           >
             {isCloud ? null : room ? initials(room.title || room.name) : '?'}
@@ -73,12 +75,23 @@ export function ChatHeader(props: {
           </small>
         </div>
       </button>
+
       <div className="chat-head-actions">
+        <Tooltip title="Tìm trong cuộc trò chuyện">
+          <Button
+            type="text"
+            className="chat-head-btn"
+            icon={<SearchOutlined />}
+            aria-label="Tìm trong cuộc trò chuyện"
+            onClick={props.onSearch}
+            disabled={!room}
+          />
+        </Tooltip>
         {!isCloud && props.onStartMeeting ? (
           <Tooltip title="Bắt đầu cuộc họp">
             <Button
               type="text"
-              shape="circle"
+              className="chat-head-btn"
               icon={<VideoCameraOutlined />}
               aria-label="Bắt đầu cuộc họp"
               onClick={props.onStartMeeting}
@@ -86,13 +99,13 @@ export function ChatHeader(props: {
             />
           </Tooltip>
         ) : null}
-        <Tooltip title="Tìm trong cuộc trò chuyện">
+        <Tooltip title={props.infoOpen ? 'Ẩn thông tin hội thoại' : 'Hiện thông tin hội thoại'}>
           <Button
             type="text"
-            shape="circle"
-            icon={<SearchOutlined />}
-            aria-label="Tìm trong cuộc trò chuyện"
-            onClick={props.onSearch}
+            className={props.infoOpen ? 'chat-head-btn active' : 'chat-head-btn'}
+            icon={<LayoutOutlined />}
+            aria-label="Bật/tắt bảng thông tin"
+            onClick={props.onToggleInfo}
             disabled={!room}
           />
         </Tooltip>

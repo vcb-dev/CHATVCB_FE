@@ -77,6 +77,8 @@ function MessageRowView(props: Props) {
   const isRich = Boolean(message.rich && !message.recalled);
   const isTask = Boolean(message.task && !message.recalled);
   const hasText = Boolean(message.content && !message.recalled) && !isPoll && !isRich && !isTask;
+  const isCardTypeRich = Boolean(isRich && message.rich?.type !== 'sticker');
+  const hasCard = Boolean(isTask || isPoll || isCardTypeRich || hasFile);
   const sticker =
     (!hasImage && !album && !hasFile && hasText && isStickerText(message.content)) ||
     message.rich?.type === 'sticker';
@@ -160,6 +162,7 @@ function MessageRowView(props: Props) {
                     hasImage || album ? 'has-image' : '',
                     hasFile ? 'has-file' : '',
                     hasText ? 'has-text' : '',
+                    hasCard ? 'has-card' : '',
                     sticker ? 'sticker' : '',
                     message.recalled ? 'recalled' : '',
                     message.pinned ? 'pinned' : '',
@@ -293,7 +296,7 @@ function MessageRowView(props: Props) {
         <SeenAvatars readers={props.lastReaders} />
         {props.delivery ? <DeliveryStatus status={props.delivery} /> : null}
         {last ? (
-          <time>
+          <time className="msg-time">
             {new Date(message.createdAt).toLocaleTimeString('vi-VN', {
               hour: '2-digit',
               minute: '2-digit',

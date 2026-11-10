@@ -13,7 +13,7 @@ export const WORKSPACE_REGISTRY: {
   label: string;
   access: WorkspaceAccess;
 }[] = [
-  { id: 'messenger', label: 'Messenger', access: { kind: 'open' } },
+  { id: 'messenger', label: 'Tin nhắn', access: { kind: 'open' } },
   { id: 'tasks', label: 'Công việc', access: { kind: 'open' } },
   { id: 'contacts', label: 'Danh bạ', access: { kind: 'open' } },
   { id: 'email', label: 'Email', access: { kind: 'open' } },

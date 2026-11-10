@@ -93,6 +93,7 @@ export function VoiceBubble({ url, durationMs }: Props) {
       <audio ref={audioRef} src={url} preload="metadata" style={{ display: 'none' }} />
       <Button
         type="text"
+        size="small"
         shape="circle"
         icon={playing ? <PauseOutlined /> : <CaretRightOutlined />}
         className="voice-play-btn"

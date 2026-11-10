@@ -1,4 +1,5 @@
 import { queryClient } from '@/lib/queryClient';
+import '@/styles/ui.css';
 import '@/styles/admin.css';
 import '@/styles/departments.css';
 import '@/styles/gallery.css';

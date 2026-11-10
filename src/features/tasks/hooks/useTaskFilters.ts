@@ -1,23 +1,40 @@
 import { useEffect, useState } from 'react';
 import type { TaskScope } from '@/types';
+import type { CalendarStatus } from '../utils/status';
 
 export type TaskView = 'week' | 'month' | 'list';
 
 type Stored = {
   view: TaskView;
   scope: TaskScope;
-  /** Lưu nhóm bị bỏ tích: nhóm mới có việc sẽ tự hiện. */
-  hiddenRooms: string[];
-  showCancelled: boolean;
+  /** Nhóm được chọn để xem; rỗng là xem mọi nhóm. */
+  roomIds: string[];
+  hiddenStatuses: CalendarStatus[];
 };
 
+/** Bản cũ lưu `showCancelled` và nhóm bị bỏ tích; chỉ giữ lại ý "hiện việc đã hủy". */
+type Legacy = Partial<Stored> & { showCancelled?: boolean };
+
 const KEY = 'chatvcb.taskFilters';
-const DEFAULTS: Stored = { view: 'week', scope: 'all', hiddenRooms: [], showCancelled: false };
+const DEFAULTS: Stored = { view: 'week', scope: 'all', roomIds: [], hiddenStatuses: ['cancelled'] };
 
 function read(): Stored {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Stored>) } : DEFAULTS;
+    if (!raw) {
+      return DEFAULTS;
+    }
+    const stored = JSON.parse(raw) as Legacy;
+    return {
+      view: stored.view ?? DEFAULTS.view,
+      scope: stored.scope ?? DEFAULTS.scope,
+      roomIds: Array.isArray(stored.roomIds) ? stored.roomIds : [],
+      hiddenStatuses: Array.isArray(stored.hiddenStatuses)
+        ? stored.hiddenStatuses
+        : stored.showCancelled
+          ? []
+          : DEFAULTS.hiddenStatuses,
+    };
   } catch {
     return DEFAULTS;
   }
@@ -38,14 +55,13 @@ export function useTaskFilters() {
     ...filters,
     setView: (view: TaskView) => setFilters((f) => ({ ...f, view })),
     setScope: (scope: TaskScope) => setFilters((f) => ({ ...f, scope })),
-    setShowCancelled: (showCancelled: boolean) => setFilters((f) => ({ ...f, showCancelled })),
-    setHiddenRooms: (hiddenRooms: string[]) => setFilters((f) => ({ ...f, hiddenRooms })),
-    toggleRoom: (roomId: string) =>
+    setRoomIds: (roomIds: string[]) => setFilters((f) => ({ ...f, roomIds })),
+    toggleStatus: (status: CalendarStatus) =>
       setFilters((f) => ({
         ...f,
-        hiddenRooms: f.hiddenRooms.includes(roomId)
-          ? f.hiddenRooms.filter((id) => id !== roomId)
-          : [...f.hiddenRooms, roomId],
+        hiddenStatuses: f.hiddenStatuses.includes(status)
+          ? f.hiddenStatuses.filter((entry) => entry !== status)
+          : [...f.hiddenStatuses, status],
       })),
   };
 }

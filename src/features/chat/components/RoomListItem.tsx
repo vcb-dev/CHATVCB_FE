@@ -1,9 +1,10 @@
 import { CloudOutlined, MoreOutlined, MutedOutlined, PushpinFilled } from '@ant-design/icons';
-import { Avatar, Badge } from 'antd';
+import { Avatar } from 'antd';
 import { memo } from 'react';
 import { fileSrc } from '@/api/client';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { ConversationLabel, Room } from '@/types';
+import { formatRoomTime } from '../utils/datetime';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
 import { isRoomMuted, sameRoom } from '../utils/rooms';
 import { RoomMenu } from './RoomMenu';
@@ -28,6 +29,7 @@ function RoomListItemView(props: Props) {
   const showMarkedDot = !showCount && (room.markedUnread ?? false);
   const showOnline = !hasUnread && props.online;
   const muted = isRoomMuted(room);
+  const timeStr = formatRoomTime(room.updatedAt);
 
   return (
     <div className="room-item-wrap">
@@ -45,61 +47,64 @@ function RoomListItemView(props: Props) {
           onClick={() => props.onSelect(room)}
           type="button"
         >
-          <Badge
-            count={showCount ? room.unreadCount : undefined}
-            overflowCount={99}
-            dot={showOnline || showMarkedDot}
-            color={
-              showMarkedDot
-                ? '#0084ff'
-                : showOnline
-                ? '#31a24c'
-                : muted
-                ? '#8a8d91'
-                : undefined
-            }
-            offset={[-2, 4]}
-          >
+          <div className="room-avatar-wrap">
             <Avatar
               size={48}
               className="avatar-initials"
               icon={room.isCloud ? <CloudOutlined /> : undefined}
               src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
-              style={{ background: room.isCloud ? '#0084ff' : avatarColor(name) }}
+              style={{ background: room.isCloud ? 'var(--ui-primary)' : avatarColor(name) }}
             >
               {room.isCloud ? null : initials(name)}
             </Avatar>
-          </Badge>
-          <span className="room-meta">
-            <span className="room-name-row">
-              <strong>{name}</strong>
-              {room.mentioned && !props.active ? (
-                <span className="room-mention" title="Có người tag bạn">
-                  @
+            {showOnline ? <span className="room-online-dot" /> : null}
+          </div>
+
+          <div className="room-meta">
+            <div className="room-top-row">
+              <span className="room-name-row">
+                <strong>{name}</strong>
+                {label ? (
+                  <span
+                    className="room-label-dot"
+                    style={{ background: label.color }}
+                    title={label.name}
+                  />
+                ) : null}
+                {room.pinned ? (
+                  <PushpinFilled className="room-pinned" title="Đã ghim" />
+                ) : null}
+                {muted ? (
+                  <MutedOutlined className="room-muted" title="Đã tắt thông báo" />
+                ) : null}
+              </span>
+              {timeStr ? <time className="room-time">{timeStr}</time> : null}
+            </div>
+
+            <div className="room-bottom-row">
+              <div className="room-preview-col">
+                {room.mentioned && !props.active ? (
+                  <span className="room-mention" title="Có người tag bạn">
+                    @
+                  </span>
+                ) : null}
+                {props.draft && !props.active ? (
+                  <small>
+                    <span className="room-draft">Nháp:</span> {props.draft}
+                  </small>
+                ) : (
+                  <small>{room.lastMessagePreview || 'Chưa có tin nhắn'}</small>
+                )}
+              </div>
+              {showCount ? (
+                <span className={muted ? 'room-badge muted' : 'room-badge'}>
+                  {room.unreadCount > 99 ? '99+' : room.unreadCount}
                 </span>
+              ) : showMarkedDot ? (
+                <span className={muted ? 'room-unread-dot muted' : 'room-unread-dot'} />
               ) : null}
-              {label ? (
-                <span
-                  className="room-label-dot"
-                  style={{ background: label.color }}
-                  title={label.name}
-                />
-              ) : null}
-              {room.pinned ? (
-                <PushpinFilled className="room-pinned" title="Đã ghim" />
-              ) : null}
-              {muted ? (
-                <MutedOutlined className="room-muted" title="Đã tắt thông báo" />
-              ) : null}
-            </span>
-            {props.draft && !props.active ? (
-              <small>
-                <span className="room-draft">Nháp:</span> {props.draft}
-              </small>
-            ) : (
-              <small>{room.lastMessagePreview || 'Chưa có tin nhắn'}</small>
-            )}
-          </span>
+            </div>
+          </div>
         </button>
       </RoomMenu>
       <RoomMenu

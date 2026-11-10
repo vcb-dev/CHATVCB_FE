@@ -35,9 +35,7 @@ export function ComposerActions({
       <Tooltip title="Tải ảnh từ máy">
         <Button
           type="text"
-          shape="circle"
-          size="large"
-          className="composer-icon"
+          className="composer-tool"
           icon={<PictureOutlined />}
           disabled={disabled}
           onClick={() => inputRef.current?.click()}
@@ -46,9 +44,7 @@ export function ComposerActions({
       <Tooltip title="Bộ sưu tập ảnh">
         <Button
           type="text"
-          shape="circle"
-          size="large"
-          className="composer-icon"
+          className="composer-tool"
           icon={<AppstoreOutlined />}
           disabled={disabled}
           onClick={onOpenGallery}

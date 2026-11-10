@@ -38,11 +38,45 @@ export function LoginPage({ onLoggedIn }: Props) {
   return (
     <div className="login-shell">
       <Card className="login-card" variant="borderless">
-        <Typography.Text className="eyebrow">CHATVCB</Typography.Text>
-        <Typography.Title level={2} style={{ marginTop: 8 }}>
+        <div
+          className="login-brand"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            marginBottom: 16,
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              background: 'var(--ui-primary)',
+              color: '#fff',
+              display: 'grid',
+              placeItems: 'center',
+              fontSize: 22,
+              fontWeight: 700,
+            }}
+          >
+            C
+          </div>
+          <span
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              color: 'var(--ui-text)',
+              letterSpacing: '0.04em',
+            }}
+          >
+            CHATVCB
+          </span>
+        </div>
+        <Typography.Title level={2} style={{ margin: '0 0 8px', fontSize: 20 }}>
           {mode === 'login' ? 'Đăng nhập' : 'Tạo tài khoản'}
         </Typography.Title>
-        <Typography.Paragraph type="secondary">
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 20 }}>
           Mỗi team chỉ vào phòng của team đó. Sale: sale1 / sale2 / sale3. Traffic:
           traffic1 / traffic2. Mật khẩu Password123.
         </Typography.Paragraph>

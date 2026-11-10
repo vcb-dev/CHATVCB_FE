@@ -6,9 +6,7 @@ import {
   SyncOutlined,
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
-import type { TaskStatus } from '@/types';
-
-export type CalendarStatus = TaskStatus | 'overdue' | 'planned';
+import type { CalendarStatus } from '../utils/status';
 
 const ICONS: Record<CalendarStatus, ReactNode> = {
   open: <ClockCircleFilled />,

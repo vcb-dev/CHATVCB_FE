@@ -1,16 +1,17 @@
-import { Typography } from 'antd';
+import type { ReactNode } from 'react';
+import { ModuleLayout } from '@/components/ModuleLayout';
+import { PageHeader } from '@/components/PageHeader';
+import { ContentCard } from '@/components/ContentCard';
 
-export function ProjectsPlaceholder() {
+export function ProjectsPlaceholder({ sidebar }: { sidebar?: ReactNode }) {
   return (
-    <main className="dept-page">
-      <div className="dept-hero">
-        <section className="dept-hero-main">
-          <Typography.Text className="dept-eyebrow">Tổ chức</Typography.Text>
-          <h1>Dự án</h1>
-          <p>Quản lý dự án nội bộ — màn hình demo, sẽ bổ sung sau.</p>
-        </section>
-      </div>
-      <div className="dept-empty">Chức năng dự án đang được phát triển.</div>
-    </main>
+    <ModuleLayout
+      sidebar={sidebar}
+      header={<PageHeader title="Dự án" />}
+    >
+      <ContentCard padded>
+        <div className="dept-empty">Chức năng dự án đang được phát triển.</div>
+      </ContentCard>
+    </ModuleLayout>
   );
 }

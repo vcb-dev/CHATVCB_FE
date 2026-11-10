@@ -86,7 +86,7 @@ export function TaskCard({ message, userId }: { message: ChatMessage; userId: st
             </Button>
           ) : null}
           {actions.canCancel ? (
-            <Button size="small" danger loading={busy === 'cancelled'} onClick={confirmCancel}>
+            <Button size="small" type="text" danger loading={busy === 'cancelled'} onClick={confirmCancel}>
               Hủy việc
             </Button>
           ) : null}

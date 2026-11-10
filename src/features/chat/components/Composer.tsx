@@ -172,12 +172,52 @@ export function Composer(props: {
         </Typography.Text>
       ) : null}
       {props.editing ? null : (
+        <div className="composer-toolbar">
+          <StickerButton
+            disabled={props.disabled}
+            onEmoji={(emoji) => props.onDraftChange((current) => `${current}${emoji}`)}
+            onSticker={(emoji) => void props.onSticker(emoji)}
+            onPackSticker={(id) => void props.onPackSticker(id)}
+            onGif={(url) => void props.onGif(url)}
+          />
+          <ComposerActions
+            disabled={props.disabled}
+            onAddFiles={props.onAddImages}
+            onOpenGallery={() => void props.onOpenGallery()}
+          />
+          <AttachButton
+            disabled={props.disabled}
+            onAddFiles={props.onAddDocs}
+          />
+          {voiceRecorder.supported ? (
+            <Tooltip title="Ghi tin nhắn thoại">
+              <Button
+                type="text"
+                icon={<AudioOutlined />}
+                className="composer-tool"
+                disabled={props.disabled}
+                onClick={() => void voiceRecorder.start()}
+              />
+            </Tooltip>
+          ) : null}
+          <ComposerToolsMenu
+            isGroup={Boolean(room && !isDirectRoom(room) && !room.isCloud)}
+            canAssign={Boolean(room && canAssignTask(room))}
+            locked={Boolean(props.locked)}
+            disabled={props.disabled}
+            onPick={(kind) => props.onTool?.(kind)}
+            onLocation={props.onLocation}
+            onCard={props.onCard}
+          />
+        </div>
+      )}
+      {props.editing ? null : (
         <>
           <PendingPreviews items={pendingImages} onRemove={props.onRemoveImage} />
           <PendingFiles items={pendingFiles} onRemove={props.onRemoveDoc} />
         </>
       )}
-      <div className="composer-row">
+      <div className="composer-input-row">
         {props.locked ? (
           <div className="composer-locked">
             Chỉ trưởng nhóm và phó nhóm được gửi tin trong nhóm này.
@@ -197,47 +237,6 @@ export function Composer(props: {
           />
         ) : (
           <>
-            {props.editing ? null : (
-              <>
-                <ComposerActions
-                  disabled={props.disabled}
-                  onAddFiles={props.onAddImages}
-                  onOpenGallery={() => void props.onOpenGallery()}
-                />
-                <AttachButton
-                  disabled={props.disabled}
-                  onAddFiles={props.onAddDocs}
-                />
-                <StickerButton
-                  disabled={props.disabled}
-                  onEmoji={(emoji) => props.onDraftChange((current) => `${current}${emoji}`)}
-                  onSticker={(emoji) => void props.onSticker(emoji)}
-                  onPackSticker={(id) => void props.onPackSticker(id)}
-                  onGif={(url) => void props.onGif(url)}
-                />
-                <ComposerToolsMenu
-                  isGroup={Boolean(room && !isDirectRoom(room) && !room.isCloud)}
-                  canAssign={Boolean(room && canAssignTask(room))}
-                  locked={Boolean(props.locked)}
-                  disabled={props.disabled}
-                  onPick={(kind) => props.onTool?.(kind)}
-                  onLocation={props.onLocation}
-                  onCard={props.onCard}
-                />
-                {voiceRecorder.supported ? (
-                  <Tooltip title="Ghi tin nhắn thoại">
-                    <Button
-                      type="text"
-                      shape="circle"
-                      icon={<AudioOutlined />}
-                      className="composer-icon"
-                      disabled={props.disabled}
-                      onClick={() => void voiceRecorder.start()}
-                    />
-                  </Tooltip>
-                ) : null}
-              </>
-            )}
             <Mentions
               value={draft}
               onChange={props.onDraftChange}
@@ -271,10 +270,8 @@ export function Composer(props: {
               notFoundContent="Không có người khớp"
             />
             <Button
-              type="primary"
-              shape="circle"
-              size="large"
-              className="composer-send"
+              type="text"
+              className={`composer-send ${canSend ? 'can-send' : ''}`}
               htmlType="button"
               icon={<SendOutlined />}
               disabled={!canSend}

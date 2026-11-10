@@ -796,3 +796,17 @@
   height: 1px;
 }
 
+/* Xem trước bình luận */
+.news-comment-new {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.news-comment-replies-more {
+  margin-left: 40px;
+  margin-top: 4px;
+}
+
+

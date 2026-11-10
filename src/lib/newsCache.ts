@@ -1,6 +1,16 @@
 import type { InfiniteData, QueryClient } from '@tanstack/react-query';
+import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
-import type { NewsFeedPage, NewsFeedPost, NewsReactionSummary } from '@/types';
+import type { NewsCommentPage, NewsFeedPage, NewsFeedPost, NewsReactionSummary } from '@/types';
+
+export const NEWS_COMMENT_PREVIEW = 2;
+
+export function previewOf(page: NewsCommentPage): NewsCommentPage {
+  return {
+    nextCursor: page.nextCursor,
+    items: page.items.map((item) => ({ ...item, replies: [] })),
+  };
+}
 
 export function patchFeedPages(
   data: InfiniteData<NewsFeedPage> | undefined,
@@ -35,6 +45,32 @@ export function patchNewsFeedPost(
     { queryKey: queryKeys.newsPosts },
     (data) => patchFeedPages(data, postId, patch),
   );
+}
+
+export function hasFeedPost(queryClient: QueryClient, postId: string): boolean {
+  const queries = queryClient.getQueriesData<InfiniteData<NewsFeedPage>>({
+    queryKey: queryKeys.newsPosts,
+  });
+  for (const [, data] of queries) {
+    if (data?.pages.some((page) => page.items.some((item) => item.id === postId))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export async function refreshNewsCommentPreview(
+  queryClient: QueryClient,
+  postId: string,
+): Promise<void> {
+  if (!hasFeedPost(queryClient, postId)) {
+    return;
+  }
+  const page = await api.newsComments(postId, undefined, NEWS_COMMENT_PREVIEW);
+  patchNewsFeedPost(queryClient, postId, (post) => ({
+    ...post,
+    comments: previewOf(page),
+  }));
 }
 
 /** `mine` chỉ đổi khi chính mình bấm; sự kiện của người khác giữ nguyên lựa chọn của mình */

@@ -46,6 +46,7 @@ export const NewsPostCard = memo(function NewsPostCard(props: {
           me={me}
           canModerate={canPublish}
           composerRef={composerRef}
+          preview={post.comments}
         />
       </section>
     </article>

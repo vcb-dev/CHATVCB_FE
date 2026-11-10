@@ -5,7 +5,7 @@ import { NewsText } from './NewsText';
 export function NewsPostText(props: { title: string; blocks: NewsBlock[] }) {
   const { title, blocks } = props;
   const [expanded, setExpanded] = useState(false);
-  const [canCollapse, setCanCollapse] = useState(false);
+  const [cutHeight, setCutHeight] = useState<number | null>(null);
   const textRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -13,25 +13,34 @@ export function NewsPostText(props: { title: string; blocks: NewsBlock[] }) {
     if (!el) {
       return;
     }
-    const computed = getComputedStyle(el);
-    const line =
-      parseFloat(computed.lineHeight) ||
-      parseFloat(computed.fontSize) * 1.4 ||
-      21;
+    const line = parseFloat(getComputedStyle(el).lineHeight);
     if (el.scrollHeight > line * 6) {
-      setCanCollapse(true);
+      const top = el.getBoundingClientRect().top;
+      const limit = line * 5;
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      const range = document.createRange();
+      let cut = 0;
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        range.selectNodeContents(node);
+        for (const rect of Array.from(range.getClientRects())) {
+          const bottom = rect.bottom - top;
+          if (bottom <= limit + 1 && bottom > cut) cut = bottom;
+        }
+      }
+      setCutHeight(Math.ceil(cut));
     } else {
-      setCanCollapse(false);
+      setCutHeight(null);
     }
   }, [title, blocks]);
 
-  const isCollapsed = canCollapse && !expanded;
+  const isCollapsed = cutHeight !== null && !expanded;
 
   return (
     <>
       <div
         ref={textRef}
         className={`news-post-text${isCollapsed ? ' collapsed' : ''}`}
+        style={isCollapsed && cutHeight !== null ? { maxHeight: cutHeight } : undefined}
       >
         {title ? <div className="news-post-title">{title}</div> : null}
         {blocks.map((block, index) => {

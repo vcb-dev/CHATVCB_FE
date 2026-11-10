@@ -11,8 +11,8 @@ export function NewsImageGrid({ images }: { images: FeedImage[] }) {
     return null;
   }
 
-  const gridCount = Math.min(count, 5);
-  const visibleImages = images.slice(0, Math.min(count, NEWS_GRID_MAX));
+  const gridCount = Math.min(count, NEWS_GRID_MAX);
+  const visibleImages = images.slice(0, gridCount);
 
   return (
     <Image.PreviewGroup
@@ -22,17 +22,9 @@ export function NewsImageGrid({ images }: { images: FeedImage[] }) {
         current,
         onOpenChange: (val) => setOpen(val),
         onChange: (curr) => setCurrent(curr),
-        imageRender: (originalNode, info) => {
-          const idx = info?.current ?? current;
-          const caption = images[idx]?.caption;
-          return (
-            <>
-              {originalNode}
-              {caption ? (
-                <div className="news-grid-caption">{caption}</div>
-              ) : null}
-            </>
-          );
+        countRender: (curr, total) => {
+          const caption = images[curr - 1]?.caption;
+          return caption ? `${curr} / ${total} · ${caption}` : `${curr} / ${total}`;
         },
       }}
     >
@@ -48,8 +40,8 @@ export function NewsImageGrid({ images }: { images: FeedImage[] }) {
             }}
           >
             <img src={item.image.displayUrl} loading="lazy" alt="" />
-            {index === 4 && count > 5 ? (
-              <span className="news-grid-more">+{count - 5}</span>
+            {index === NEWS_GRID_MAX - 1 && count > NEWS_GRID_MAX ? (
+              <span className="news-grid-more">+{count - NEWS_GRID_MAX}</span>
             ) : null}
           </button>
         ))}

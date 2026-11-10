@@ -23,15 +23,15 @@ export function feedImages(
   const orderedIds: string[] = [];
   const seen = new Set<string>();
 
-  if (post.cover && imagesById.has(post.cover.id)) {
+  if (post.cover) {
     seen.add(post.cover.id);
     orderedIds.push(post.cover.id);
   }
 
   for (const block of post.blocks) {
-    if (block.type === 'image' && block.imageId && imagesById.has(block.imageId)) {
+    if (block.type === 'image' && imagesById.has(block.imageId)) {
       if (!captionById.has(block.imageId)) {
-        captionById.set(block.imageId, block.caption ?? '');
+        captionById.set(block.imageId, block.caption);
       }
       if (!seen.has(block.imageId)) {
         seen.add(block.imageId);

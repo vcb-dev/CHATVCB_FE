@@ -88,7 +88,7 @@ export function NewsFeed(props: {
           </button>
         </div>
       ) : null}
-      <div ref={sentinelRef} style={{ height: 1, width: '100%', pointerEvents: 'none' }} />
+      <div ref={sentinelRef} className="news-feed-sentinel" />
     </div>
   );
 }

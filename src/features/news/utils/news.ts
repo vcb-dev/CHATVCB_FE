@@ -1,4 +1,10 @@
+import { ApiError } from '@/api/client';
 import type { NewsReactionKind } from '@/types';
+
+export function isPostGone(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 404;
+}
+
 
 /** Khớp `NEWS_LIMITS` ở BE (`src/news/posts/news-blocks.ts`) */
 export const NEWS_LIMITS = {

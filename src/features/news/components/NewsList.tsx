@@ -1,16 +1,12 @@
-import { FacebookFilled, PictureOutlined } from '@ant-design/icons';
+import { PictureOutlined } from '@ant-design/icons';
 import { Button, Empty, Spin } from 'antd';
 import { useMemo } from 'react';
 import { errorText } from '@/lib/errors';
-import { useNewsList } from '../hooks/useNewsList';
-import { newsDate, reactionOf } from '../utils/news';
+import { useNewsDrafts } from '../hooks/useNewsDrafts';
+import { newsDate } from '../utils/news';
 
-export function NewsList(props: {
-  kind: 'published' | 'drafts';
-  onOpen: (id: string) => void;
-}) {
-  const drafts = props.kind === 'drafts';
-  const query = useNewsList(props.kind);
+export function NewsList(props: { onOpen: (id: string) => void }) {
+  const query = useNewsDrafts();
   const posts = useMemo(() => query.data?.pages.flatMap((page) => page.items) ?? [], [query.data]);
 
   if (query.isLoading) {
@@ -25,7 +21,7 @@ export function NewsList(props: {
     );
   }
   if (!posts.length) {
-    return <Empty description={drafts ? 'Chưa có nháp' : 'Chưa có bản tin'} />;
+    return <Empty description="Chưa có nháp" />;
   }
   return (
     <div className="news-list">
@@ -42,26 +38,9 @@ export function NewsList(props: {
           <span className="news-card-text">
             <strong>{post.title || '(Chưa có tiêu đề)'}</strong>
             <small>
-              {post.source ? (
-                <span className="news-card-source">
-                  <FacebookFilled /> {post.source.name}
-                </span>
-              ) : (
-                (post.author?.name ?? 'Người dùng cũ')
-              )}{' '}
-              · {newsDate(post.publishedAt)}
+              {post.author?.name ?? 'Người dùng cũ'} · {newsDate(post.publishedAt)}
             </small>
             {post.excerpt ? <span className="news-card-excerpt">{post.excerpt}</span> : null}
-            {post.reactions.total || post.commentCount ? (
-              <small className="news-card-stats">
-                {post.reactions.total ? (
-                  <span>
-                    {post.reactions.top.map((kind) => reactionOf(kind).emoji).join('')} {post.reactions.total}
-                  </span>
-                ) : null}
-                {post.commentCount ? <span>{post.commentCount} bình luận</span> : null}
-              </small>
-            ) : null}
           </span>
         </button>
       ))}

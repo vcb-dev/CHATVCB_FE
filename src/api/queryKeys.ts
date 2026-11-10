@@ -37,7 +37,6 @@ export const queryKeys = {
   newsLibrary: ['news-library'] as const,
   newsPosts: ['news-library', 'posts'] as const,
   newsDrafts: ['news-library', 'drafts'] as const,
-  newsPost: (id: string) => ['news-library', 'post', id] as const,
   newsUnread: ['news-library', 'unread'] as const,
   newsComments: (postId: string) => ['news-library', 'comments', postId] as const,
   newsReactionUsers: (postId: string) => ['news-library', 'reaction-users', postId] as const,

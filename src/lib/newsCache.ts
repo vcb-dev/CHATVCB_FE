@@ -1,6 +1,6 @@
 import type { InfiniteData, QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/api/queryKeys';
-import type { NewsFeedPage, NewsFeedPost, NewsPost, NewsReactionSummary } from '@/types';
+import type { NewsFeedPage, NewsFeedPost, NewsReactionSummary } from '@/types';
 
 export function patchFeedPages(
   data: InfiniteData<NewsFeedPage> | undefined,
@@ -37,31 +37,12 @@ export function patchNewsFeedPost(
   );
 }
 
-export function patchNewsPost(
-  queryClient: QueryClient,
-  postId: string,
-  patch: (post: NewsPost) => NewsPost,
-): void {
-  queryClient.setQueryData<NewsPost>(queryKeys.newsPost(postId), (post) =>
-    post ? patch(post) : post,
-  );
-}
-
 /** `mine` chỉ đổi khi chính mình bấm; sự kiện của người khác giữ nguyên lựa chọn của mình */
 export function applyNewsReactions(
   queryClient: QueryClient,
   postId: string,
   summary: Omit<NewsReactionSummary, 'mine'> & { mine?: NewsReactionSummary['mine'] },
 ): void {
-  patchNewsPost(queryClient, postId, (post) => ({
-    ...post,
-    reactions: {
-      total: summary.total,
-      counts: summary.counts,
-      top: summary.top,
-      mine: summary.mine === undefined ? post.reactions.mine : summary.mine,
-    },
-  }));
   patchNewsFeedPost(queryClient, postId, (post) => ({
     ...post,
     reactions: {
@@ -78,6 +59,5 @@ export function applyNewsCommentCount(
   postId: string,
   commentCount: number,
 ): void {
-  patchNewsPost(queryClient, postId, (post) => ({ ...post, commentCount }));
   patchNewsFeedPost(queryClient, postId, (post) => ({ ...post, commentCount }));
 }

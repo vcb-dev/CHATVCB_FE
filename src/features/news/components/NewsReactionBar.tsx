@@ -7,7 +7,7 @@ import { queryKeys } from '@/api/queryKeys';
 import { errorText } from '@/lib/errors';
 import { applyNewsReactions } from '@/lib/newsCache';
 import type { NewsPost, NewsReactionKind } from '@/types';
-import { NEWS_REACTIONS, reactionOf } from '../utils/news';
+import { NEWS_REACTIONS, isPostGone, reactionOf } from '../utils/news';
 
 const NAMES_SHOWN = 15;
 
@@ -41,7 +41,14 @@ export function NewsReactionBar(props: { post: NewsPost; onComment: () => void }
     mutationFn: (kind: NewsReactionKind | null) =>
       kind ? api.setNewsReaction(id, kind) : api.removeNewsReaction(id),
     onSuccess: (summary) => applyNewsReactions(queryClient, id, summary),
-    onError: (err) => void message.error(errorText(err, 'Không thả được cảm xúc.')),
+    onError: (err) => {
+      if (isPostGone(err)) {
+        void message.error('Bài không còn tồn tại');
+        void queryClient.invalidateQueries({ queryKey: queryKeys.newsPosts });
+      } else {
+        void message.error(errorText(err, 'Không thả được cảm xúc.'));
+      }
+    },
   });
   const mine = reactions.mine ? reactionOf(reactions.mine) : null;
 

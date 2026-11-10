@@ -1,21 +1,17 @@
-import { ArrowLeftOutlined, EditOutlined, FacebookFilled, FileTextOutlined } from '@ant-design/icons';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Modal, Spin, message } from 'antd';
-import type { TextAreaRef } from 'antd/es/input/TextArea';
-import { useEffect, useRef, useState } from 'react';
-import { api, ApiError } from '@/api/client';
+import { EditOutlined, FacebookFilled, FileTextOutlined } from '@ant-design/icons';
+import { useQueryClient } from '@tanstack/react-query';
+import { Button, message } from 'antd';
+import { useCallback, useEffect, useState } from 'react';
+import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { P, can } from '@/lib/access';
 import { confirmDiscard } from '@/lib/confirmDiscard';
 import { errorText } from '@/lib/errors';
 import type { User } from '@/types';
-import { NewsArticle } from './components/NewsArticle';
-import { NewsComments } from './components/NewsComments';
 import { NewsEditor } from './components/NewsEditor';
 import { NewsFacebookPages } from './components/NewsFacebookPages';
+import { NewsFeed } from './components/NewsFeed';
 import { NewsList } from './components/NewsList';
-import { NewsReactionBar } from './components/NewsReactionBar';
-import { NewsRelated } from './components/NewsRelated';
 import { ModuleLayout } from '@/components/ModuleLayout';
 import { ModuleSidebar } from '@/components/ModuleSidebar';
 import { PageHeader } from '@/components/PageHeader';
@@ -25,124 +21,7 @@ function facebookReturn(): string | null {
   return new URLSearchParams(window.location.search).get('facebook');
 }
 
-function ArticleView(props: {
-  id: string;
-  user: User;
-  canPublish: boolean;
-  onBack: () => void;
-  onEdit: (id: string) => void;
-  onOpenOther: (id: string) => void;
-}) {
-  const queryClient = useQueryClient();
-  const query = useQuery({
-    queryKey: queryKeys.newsPost(props.id),
-    queryFn: () => api.newsPost(props.id),
-    retry: (count, error) => !(error instanceof ApiError && error.status === 404) && count < 2,
-  });
-  const post = query.data;
-  const composerRef = useRef<TextAreaRef>(null);
-
-  function focusComposer() {
-    composerRef.current?.resizableTextArea?.textArea.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    composerRef.current?.focus({ cursor: 'end' });
-  }
-
-  function confirmAction(title: string, okText: string, danger: boolean, action: () => Promise<unknown>) {
-    Modal.confirm({
-      title,
-      okText,
-      okButtonProps: { danger },
-      cancelText: 'Hủy',
-      onOk: async () => {
-        try {
-          await action();
-          queryClient.removeQueries({ queryKey: queryKeys.newsPost(props.id) });
-          await queryClient.invalidateQueries({ queryKey: queryKeys.newsLibrary });
-          props.onBack();
-        } catch (err) {
-          message.error(errorText(err, 'Không thực hiện được.'));
-        }
-      },
-    });
-  }
-
-  return (
-    <div className="news-reader">
-      <div className="news-reader-bar">
-        <Button icon={<ArrowLeftOutlined />} onClick={props.onBack}>
-          Quay lại
-        </Button>
-        {post && !query.isError && props.canPublish ? (
-          <span className="news-reader-actions">
-            <Button icon={<EditOutlined />} onClick={() => props.onEdit(post.id)}>
-              Sửa
-            </Button>
-            {post.status === 'published' ? (
-              <Button
-                onClick={() =>
-                  confirmAction('Gỡ bài này về nháp?', 'Gỡ', false, () =>
-                    api.unpublishNewsPost(post.id),
-                  )
-                }
-              >
-                Gỡ về nháp
-              </Button>
-            ) : null}
-            <Button
-              danger
-              onClick={() =>
-                confirmAction('Xóa hẳn bài này?', 'Xóa', true, () => api.deleteNewsPost(post.id))
-              }
-            >
-              Xóa
-            </Button>
-          </span>
-        ) : null}
-      </div>
-      {query.isLoading ? <Spin className="news-loading" /> : null}
-      {query.isError ? (
-        <div className="news-state">
-          <p>
-            {query.error instanceof ApiError && query.error.status === 404
-              ? 'Bài không còn tồn tại'
-              : errorText(query.error, 'Không tải được bài.')}
-          </p>
-        </div>
-      ) : null}
-      {post && !query.isError ? (
-        <div className="news-reader-layout">
-          <div className="news-reader-main">
-            <NewsArticle
-              title={post.title}
-              blocks={post.blocks}
-              images={post.images}
-              cover={post.cover}
-              author={post.author}
-              source={post.source}
-              publishedAt={post.publishedAt}
-            />
-            {/* Nháp chưa có ai đọc, cảm xúc và bình luận chỉ mở trên bài đã đăng */}
-            {post.status === 'published' ? (
-              <section className="news-social">
-                <NewsReactionBar post={post} onComment={focusComposer} />
-                <NewsComments
-                  postId={post.id}
-                  me={props.user}
-                  canModerate={props.canPublish}
-                  composerRef={composerRef}
-                />
-              </section>
-            ) : null}
-          </div>
-          <NewsRelated currentId={post.id} onOpen={props.onOpenOther} />
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-type ReadView = { name: 'list' } | { name: 'article'; id: string };
-type View = ReadView | { name: 'editor'; id: string; back: ReadView } | { name: 'facebook' };
+type View = { name: 'list' } | { name: 'editor'; id: string; back: { name: 'list' } } | { name: 'facebook' };
 
 export function NewsPage({
   user,
@@ -190,9 +69,9 @@ export function NewsPage({
     }
   }, []);
 
-  function openArticle(id: string) {
-    setView({ name: 'article', id });
-  }
+  const editPost = useCallback((id: string) => {
+    setView({ name: 'editor', id, back: { name: 'list' } });
+  }, []);
 
   async function writePost() {
     setCreating(true);
@@ -269,36 +148,10 @@ export function NewsPage({
             void queryClient.invalidateQueries({ queryKey: queryKeys.newsLibrary });
             setView(view.back);
           }}
-          onPublished={(post) => {
+          onPublished={() => {
             setTab('published');
-            setView({ name: 'article', id: post.id });
+            setView({ name: 'list' });
           }}
-        />
-      </ModuleLayout>
-    );
-  }
-
-  if (view.name === 'article') {
-    return (
-      <ModuleLayout
-        flush
-        sidebar={
-          <ModuleSidebar
-            title="Bản tin"
-            action={sidebarAction}
-            groups={sidebarGroups}
-            activeKey={tab}
-            onSelect={handleSidebarSelect}
-          />
-        }
-      >
-        <ArticleView
-          id={view.id}
-          user={user}
-          canPublish={canPublish}
-          onBack={() => setView({ name: 'list' })}
-          onEdit={(id) => setView({ name: 'editor', id, back: { name: 'article', id } })}
-          onOpenOther={openArticle}
         />
       </ModuleLayout>
     );
@@ -340,18 +193,17 @@ export function NewsPage({
       }
       header={<PageHeader title={pageTitle} />}
     >
-      <div style={{ maxWidth: 680, margin: '0 auto', width: '100%' }}>
-        <NewsList
-          kind={tab === 'drafts' ? 'drafts' : 'published'}
-          onOpen={(id) => {
-            if (tab === 'drafts') {
+      {tab === 'published' ? (
+        <NewsFeed me={user} canPublish={canPublish} onEdit={editPost} />
+      ) : (
+        <div style={{ maxWidth: 680, margin: '0 auto', width: '100%' }}>
+          <NewsList
+            onOpen={(id) => {
               setView({ name: 'editor', id, back: { name: 'list' } });
-            } else {
-              openArticle(id);
-            }
-          }}
-        />
-      </div>
+            }}
+          />
+        </div>
+      )}
     </ModuleLayout>
   );
 }

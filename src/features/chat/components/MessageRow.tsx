@@ -296,7 +296,7 @@ function MessageRowView(props: Props) {
         <SeenAvatars readers={props.lastReaders} />
         {props.delivery ? <DeliveryStatus status={props.delivery} /> : null}
         {last ? (
-          <time>
+          <time className="msg-time">
             {new Date(message.createdAt).toLocaleTimeString('vi-VN', {
               hour: '2-digit',
               minute: '2-digit',

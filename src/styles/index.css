@@ -1692,10 +1692,9 @@ body {
 }
 
 .msg-time {
+  padding: 0 4px;
   font-size: 11px;
   color: var(--ui-text-3);
-  display: block;
-  margin-top: 4px;
   line-height: 1.2;
 }
 

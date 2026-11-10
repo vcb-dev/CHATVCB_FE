@@ -1,8 +1,9 @@
 import { Button, Empty, Spin } from 'antd';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { errorText } from '@/lib/errors';
 import type { User } from '@/types';
 import { useNewsFeed } from '../hooks/useNewsFeed';
+import { NewsFeedRail } from './NewsFeedRail';
 import { NewsPostCard } from './NewsPostCard';
 
 export function NewsFeed(props: {
@@ -12,6 +13,20 @@ export function NewsFeed(props: {
 }) {
   const query = useNewsFeed();
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const layoutRef = useRef<HTMLDivElement>(null);
+
+  // Cuộn tới bài rồi nháy viền để mắt bắt được bài vừa chọn ở cột phải
+  const jumpTo = useCallback((postId: string) => {
+    const card = layoutRef.current?.querySelector<HTMLElement>(`.news-post-card[data-feed-id="${postId}"]`);
+    if (!card) {
+      return;
+    }
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    card.classList.remove('is-flash');
+    void card.offsetWidth;
+    card.classList.add('is-flash');
+    card.addEventListener('animationend', () => card.classList.remove('is-flash'), { once: true });
+  }, []);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -66,29 +81,34 @@ export function NewsFeed(props: {
   }
 
   return (
-    <div className="news-column">
-      {posts.map((post) => (
-        <NewsPostCard
-          key={post.id}
-          post={post}
-          me={props.me}
-          canPublish={props.canPublish}
-          onEdit={props.onEdit}
-        />
-      ))}
-      {isFetchNextPageError ? (
-        <div className="news-feed-error">
-          Không tải thêm được.{' '}
-          <button
-            type="button"
-            className="news-link-button"
-            onClick={() => void fetchNextPage()}
-          >
-            Thử lại
-          </button>
+    <div className="news-feed">
+      <div ref={layoutRef} className="news-feed-layout">
+        <div className="news-column">
+          {posts.map((post) => (
+            <NewsPostCard
+              key={post.id}
+              post={post}
+              me={props.me}
+              canPublish={props.canPublish}
+              onEdit={props.onEdit}
+            />
+          ))}
+          {isFetchNextPageError ? (
+            <div className="news-feed-error">
+              Không tải thêm được.{' '}
+              <button
+                type="button"
+                className="news-link-button"
+                onClick={() => void fetchNextPage()}
+              >
+                Thử lại
+              </button>
+            </div>
+          ) : null}
+          <div ref={sentinelRef} className="news-feed-sentinel" />
         </div>
-      ) : null}
-      <div ref={sentinelRef} className="news-feed-sentinel" />
+        <NewsFeedRail posts={posts} onJump={jumpTo} />
+      </div>
     </div>
   );
 }

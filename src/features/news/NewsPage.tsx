@@ -5,11 +5,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { P, can } from '@/lib/access';
-import { confirmDiscard } from '@/lib/confirmDiscard';
 import { errorText } from '@/lib/errors';
 import type { User } from '@/types';
+import { NewsComposer } from './components/NewsComposer';
 import { NewsDraftList } from './components/NewsDraftList';
-import { NewsEditor } from './components/NewsEditor';
 import { NewsFacebookPages } from './components/NewsFacebookPages';
 import { NewsFeed } from './components/NewsFeed';
 import { ModuleLayout } from '@/components/ModuleLayout';
@@ -21,11 +20,7 @@ function facebookReturn(): string | null {
   return new URLSearchParams(window.location.search).get('facebook');
 }
 
-type View =
-  | { name: 'feed' }
-  | { name: 'drafts' }
-  | { name: 'facebook' }
-  | { name: 'editor'; id: string; back: 'feed' | 'drafts' };
+type View = { name: 'feed' } | { name: 'drafts' } | { name: 'facebook' };
 
 export function NewsPage({
   user,
@@ -41,15 +36,8 @@ export function NewsPage({
     canFacebook && facebookReturn() ? { name: 'facebook' } : { name: 'feed' },
   );
   const [creating, setCreating] = useState(false);
-  const [dirty, setDirty] = useState(false);
-
-  const handleDirtyChange = useCallback(
-    (d: boolean) => {
-      setDirty(d);
-      onDirtyChange(d);
-    },
-    [onDirtyChange],
-  );
+  /** Id bài đang mở trong hộp đăng bài; hộp nằm đè lên màn đang xem nên không cần đổi view */
+  const [composing, setComposing] = useState<string | null>(null);
 
   useEffect(() => {
     void api
@@ -75,23 +63,13 @@ export function NewsPage({
     }
   }, []);
 
-  function guard(action: () => void) {
-    if (view.name === 'editor' && dirty) {
-      confirmDiscard(action);
-      return;
-    }
-    action();
-  }
+  const editPost = useCallback((id: string) => setComposing(id), []);
 
-  const editPost = useCallback((id: string) => {
-    setView({ name: 'editor', id, back: 'feed' });
-  }, []);
-
-  async function writePost(back: 'feed' | 'drafts') {
+  async function writePost() {
     setCreating(true);
     try {
       const post = await api.createNewsPost();
-      setView({ name: 'editor', id: post.id, back });
+      setComposing(post.id);
     } catch (err) {
       void message.error(errorText(err, 'Không tạo được bài.'));
     } finally {
@@ -99,16 +77,15 @@ export function NewsPage({
     }
   }
 
+  // Lớp phủ của hộp đăng bài chặn sidebar, nên đổi mục không cần hỏi bỏ thay đổi
   const handleSidebarSelect = (key: string) => {
-    guard(() => {
-      if (key === 'facebook') {
-        setView({ name: 'facebook' });
-      } else if (key === 'drafts') {
-        setView({ name: 'drafts' });
-      } else {
-        setView({ name: 'feed' });
-      }
-    });
+    if (key === 'facebook') {
+      setView({ name: 'facebook' });
+    } else if (key === 'drafts') {
+      setView({ name: 'drafts' });
+    } else {
+      setView({ name: 'feed' });
+    }
   };
 
   const sidebarGroups = [
@@ -121,99 +98,72 @@ export function NewsPage({
     },
   ];
 
-  const currentBack: 'feed' | 'drafts' =
-    view.name === 'editor' ? view.back : view.name === 'drafts' ? 'drafts' : 'feed';
+  const sidebar = (
+    <ModuleSidebar
+      title="Bản tin"
+      action={
+        canPublish ? (
+          <Button
+            type="primary"
+            block
+            icon={<EditOutlined />}
+            loading={creating}
+            onClick={() => void writePost()}
+          >
+            Viết bài
+          </Button>
+        ) : undefined
+      }
+      groups={sidebarGroups}
+      activeKey={view.name}
+      onSelect={handleSidebarSelect}
+    />
+  );
 
-  const sidebarAction = canPublish ? (
-    <Button
-      type="primary"
-      block
-      icon={<EditOutlined />}
-      loading={creating}
-      onClick={() => guard(() => void writePost(currentBack))}
-    >
-      Viết bài
-    </Button>
-  ) : undefined;
-
-  const activeKey = view.name === 'editor' ? view.back : view.name;
-
-  if (view.name === 'editor') {
-    return (
-      <ModuleLayout
-        flush
-        sidebar={
-          <ModuleSidebar
-            title="Bản tin"
-            action={sidebarAction}
-            groups={sidebarGroups}
-            activeKey={activeKey}
-            onSelect={handleSidebarSelect}
-          />
-        }
-      >
-        <NewsEditor
-          key={view.id}
-          postId={view.id}
-          onDirtyChange={handleDirtyChange}
-          onClose={() => {
-            void queryClient.invalidateQueries({ queryKey: queryKeys.newsLibrary });
-            setView(view.back === 'drafts' ? { name: 'drafts' } : { name: 'feed' });
-          }}
-          onPublished={() => {
-            setView({ name: 'feed' });
-          }}
-        />
-      </ModuleLayout>
-    );
-  }
+  const composer = composing ? (
+    <NewsComposer
+      key={composing}
+      postId={composing}
+      onDirtyChange={onDirtyChange}
+      onClose={() => {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.newsLibrary });
+        setComposing(null);
+      }}
+      onPublished={() => {
+        setComposing(null);
+        setView({ name: 'feed' });
+      }}
+    />
+  ) : null;
 
   if (view.name === 'facebook') {
     return (
-      <ModuleLayout
-        sidebar={
-          <ModuleSidebar
-            title="Bản tin"
-            action={sidebarAction}
-            groups={sidebarGroups}
-            activeKey={activeKey}
-            onSelect={handleSidebarSelect}
-          />
-        }
-      >
-        <div className="news-column">
-          <NewsFacebookPages />
-        </div>
-      </ModuleLayout>
+      <>
+        <ModuleLayout sidebar={sidebar}>
+          <div className="news-column">
+            <NewsFacebookPages />
+          </div>
+        </ModuleLayout>
+        {composer}
+      </>
     );
   }
 
-  const pageTitle = view.name === 'drafts' ? 'Nháp' : 'Bảng tin';
-
   return (
-    <ModuleLayout
-      sidebar={
-        <ModuleSidebar
-          title="Bản tin"
-          action={sidebarAction}
-          groups={sidebarGroups}
-          activeKey={activeKey}
-          onSelect={handleSidebarSelect}
-        />
-      }
-      header={<PageHeader title={pageTitle} />}
-    >
-      {view.name === 'feed' ? (
-        <NewsFeed me={user} canPublish={canPublish} onEdit={editPost} />
-      ) : (
-        <div className="news-column">
-          <NewsDraftList
-            onOpen={(id) => {
-              setView({ name: 'editor', id, back: 'drafts' });
-            }}
-          />
-        </div>
-      )}
-    </ModuleLayout>
+    <>
+      <ModuleLayout
+        sidebar={sidebar}
+        header={<PageHeader title={view.name === 'drafts' ? 'Nháp' : 'Bảng tin'} />}
+      >
+        {view.name === 'feed' ? (
+          <NewsFeed me={user} canPublish={canPublish} onEdit={editPost} />
+        ) : (
+          <div className="news-column">
+            <NewsDraftList onOpen={setComposing} />
+          </div>
+        )}
+      </ModuleLayout>
+      {composer}
+    </>
   );
 }

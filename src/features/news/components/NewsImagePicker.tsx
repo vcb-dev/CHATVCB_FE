@@ -1,14 +1,12 @@
-import { UploadOutlined } from '@ant-design/icons';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { Alert, Button, Empty, Modal, Select, Spin, Tabs } from 'antd';
-import { useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { Alert, Button, Empty, Modal, Select, Spin } from 'antd';
+import { useMemo, useState } from 'react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { apiErrorText } from '@/lib/errors';
-import { ACCEPT_IMAGES, imageFileError } from '@/lib/image';
 import type { NewsImage } from '@/types';
 
-function LibraryTab(props: { busy: boolean; onPick: (photoId: string) => void }) {
+function GalleryPhotos(props: { busy: boolean; onPick: (photoId: string) => void }) {
   const [albumId, setAlbumId] = useState('');
   const { data: albums = [] } = useQuery({
     queryKey: queryKeys.galleryAlbums,
@@ -60,12 +58,12 @@ function LibraryTab(props: { busy: boolean; onPick: (photoId: string) => void })
   );
 }
 
+/** Chọn một ảnh public trong Thư viện ảnh; ảnh từ máy thì hộp đăng bài tự tải */
 export function NewsImagePicker(props: {
   postId: string;
   onClose: () => void;
   onPicked: (image: NewsImage) => void;
 }) {
-  const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState<(() => void) | null>(null);
@@ -84,26 +82,11 @@ export function NewsImagePicker(props: {
     }
   }
 
-  function onFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) {
-      return;
-    }
-    const invalid = imageFileError(file);
-    if (invalid) {
-      setError(invalid);
-      setRetry(null);
-      return;
-    }
-    void run(() => api.uploadNewsImage(props.postId, file));
-  }
-
   return (
     <Modal
       open
       className="news-picker"
-      title="Chọn ảnh"
+      title="Chọn ảnh từ Thư viện ảnh"
       footer={null}
       width={720}
       onCancel={props.onClose}
@@ -122,36 +105,9 @@ export function NewsImagePicker(props: {
           }
         />
       ) : null}
-      <Tabs
-        items={[
-          {
-            key: 'upload',
-            label: 'Tải từ máy',
-            children: (
-              <div className="news-picker-upload">
-                <input ref={fileRef} type="file" accept={ACCEPT_IMAGES} hidden onChange={onFile} />
-                <Button
-                  icon={<UploadOutlined />}
-                  loading={busy}
-                  onClick={() => fileRef.current?.click()}
-                >
-                  Chọn ảnh từ máy
-                </Button>
-                <small>JPG, PNG, GIF, WebP, tối đa 10 MB.</small>
-              </div>
-            ),
-          },
-          {
-            key: 'library',
-            label: 'Thư viện ảnh',
-            children: (
-              <LibraryTab
-                busy={busy}
-                onPick={(photoId) => void run(() => api.newsImageFromGallery(props.postId, photoId))}
-              />
-            ),
-          },
-        ]}
+      <GalleryPhotos
+        busy={busy}
+        onPick={(photoId) => void run(() => api.newsImageFromGallery(props.postId, photoId))}
       />
     </Modal>
   );

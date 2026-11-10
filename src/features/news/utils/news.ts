@@ -9,6 +9,7 @@ export function isPostGone(err: unknown): boolean {
 /** Khớp `NEWS_LIMITS` ở BE (`src/news/posts/news-blocks.ts`) */
 export const NEWS_LIMITS = {
   blocks: 100,
+  images: 30,
   title: 200,
   heading: 200,
   paragraph: 10000,

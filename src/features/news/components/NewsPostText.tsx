@@ -1,9 +1,11 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { NewsBlock } from '@/types';
+import { titleRepeats } from '../utils/compose';
 import { NewsText } from './NewsText';
 
 export function NewsPostText(props: { title: string; blocks: NewsBlock[] }) {
-  const { title, blocks } = props;
+  const { blocks } = props;
+  const title = titleRepeats(props.title, blocks) ? '' : props.title;
   const [expanded, setExpanded] = useState(false);
   const [cutHeight, setCutHeight] = useState<number | null>(null);
   const textRef = useRef<HTMLDivElement>(null);

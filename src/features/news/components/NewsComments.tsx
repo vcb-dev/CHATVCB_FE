@@ -33,14 +33,14 @@ export function NewsComments(props: {
   });
 
   const roots = useMemo(() => {
-    if (!full) {
-      return props.preview.items.slice().reverse();
+    if (full && query.data) {
+      return query.data.pages.flatMap((page) => page.items).slice().reverse();
     }
-    return (query.data?.pages.flatMap((page) => page.items) ?? []).slice().reverse();
+    return props.preview.items.slice().reverse();
   }, [full, props.preview.items, query.data]);
 
   function refresh() {
-    void refreshNewsCommentPreview(queryClient, props.postId);
+    void refreshNewsCommentPreview(queryClient, props.postId).catch(() => undefined);
     if (full) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.newsComments(props.postId) });
     }
@@ -131,9 +131,6 @@ export function NewsComments(props: {
                     refresh();
                   }}
                   onCancel={() => setReplyTo(null)}
-                  onGone={() => {
-                    void queryClient.invalidateQueries({ queryKey: queryKeys.newsPosts });
-                  }}
                 />
               ) : null}
             </div>

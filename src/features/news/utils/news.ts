@@ -32,6 +32,17 @@ export function reactionOf(kind: NewsReactionKind) {
 /** Khớp giới hạn bình luận ở BE (`src/news/comments/news-comments.service.ts`) */
 export const NEWS_COMMENT_MAX = 2000;
 
+/** Định dạng `dd/mm/yyyy hh:mm` kiểu `vi-VN` */
+export function newsDateTime(value: string): string {
+  return new Date(value).toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 /** "Vừa xong", "5 phút", "3 giờ", quá một ngày thì ghi ngày giờ */
 export function newsTime(value: string): string {
   const diff = Date.now() - new Date(value).getTime();
@@ -45,13 +56,7 @@ export function newsTime(value: string): string {
   if (minutes < 24 * 60) {
     return `${Math.floor(minutes / 60)} giờ`;
   }
-  return new Date(value).toLocaleString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return newsDateTime(value);
 }
 
 export function newsDate(value: string | null): string {

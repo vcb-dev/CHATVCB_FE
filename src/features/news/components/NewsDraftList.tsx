@@ -3,9 +3,9 @@ import { Button, Empty, Spin } from 'antd';
 import { useMemo } from 'react';
 import { errorText } from '@/lib/errors';
 import { useNewsDrafts } from '../hooks/useNewsDrafts';
-import { newsDate } from '../utils/news';
+import { newsDateTime } from '../utils/news';
 
-export function NewsList(props: { onOpen: (id: string) => void }) {
+export function NewsDraftList(props: { onOpen: (id: string) => void }) {
   const query = useNewsDrafts();
   const posts = useMemo(() => query.data?.pages.flatMap((page) => page.items) ?? [], [query.data]);
 
@@ -24,23 +24,20 @@ export function NewsList(props: { onOpen: (id: string) => void }) {
     return <Empty description="Chưa có nháp" />;
   }
   return (
-    <div className="news-list">
+    <div className="news-draft-list">
       {posts.map((post) => (
         <button
           key={post.id}
           type="button"
-          className="news-card"
+          className="news-draft-row"
           onClick={() => props.onOpen(post.id)}
         >
-          <span className="news-card-cover">
+          <span className="news-draft-cover">
             {post.cover ? <img src={post.cover.thumbUrl} alt="" loading="lazy" /> : <PictureOutlined />}
           </span>
-          <span className="news-card-text">
+          <span className="news-draft-text">
             <strong>{post.title || '(Chưa có tiêu đề)'}</strong>
-            <small>
-              {post.author?.name ?? 'Người dùng cũ'} · {newsDate(post.publishedAt)}
-            </small>
-            {post.excerpt ? <span className="news-card-excerpt">{post.excerpt}</span> : null}
+            <small>Sửa lúc {newsDateTime(post.updatedAt)}</small>
           </span>
         </button>
       ))}
@@ -52,3 +49,4 @@ export function NewsList(props: { onOpen: (id: string) => void }) {
     </div>
   );
 }
+

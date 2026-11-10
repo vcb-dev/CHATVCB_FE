@@ -1,4 +1,4 @@
-import { EditOutlined, FacebookFilled, FileTextOutlined } from '@ant-design/icons';
+import { EditOutlined, FacebookFilled, ReadOutlined } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, message } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
@@ -8,10 +8,10 @@ import { P, can } from '@/lib/access';
 import { confirmDiscard } from '@/lib/confirmDiscard';
 import { errorText } from '@/lib/errors';
 import type { User } from '@/types';
+import { NewsDraftList } from './components/NewsDraftList';
 import { NewsEditor } from './components/NewsEditor';
 import { NewsFacebookPages } from './components/NewsFacebookPages';
 import { NewsFeed } from './components/NewsFeed';
-import { NewsList } from './components/NewsList';
 import { ModuleLayout } from '@/components/ModuleLayout';
 import { ModuleSidebar } from '@/components/ModuleSidebar';
 import { PageHeader } from '@/components/PageHeader';
@@ -21,7 +21,11 @@ function facebookReturn(): string | null {
   return new URLSearchParams(window.location.search).get('facebook');
 }
 
-type View = { name: 'list' } | { name: 'editor'; id: string; back: { name: 'list' } } | { name: 'facebook' };
+type View =
+  | { name: 'feed' }
+  | { name: 'drafts' }
+  | { name: 'facebook' }
+  | { name: 'editor'; id: string; back: 'feed' | 'drafts' };
 
 export function NewsPage({
   user,
@@ -34,16 +38,18 @@ export function NewsPage({
   const canPublish = can(user, P.news.publish);
   const canFacebook = can(user, P.news.facebook);
   const [view, setView] = useState<View>(() =>
-    canFacebook && facebookReturn() ? { name: 'facebook' } : { name: 'list' },
+    canFacebook && facebookReturn() ? { name: 'facebook' } : { name: 'feed' },
   );
-  const [tab, setTab] = useState('published');
   const [creating, setCreating] = useState(false);
   const [dirty, setDirty] = useState(false);
 
-  const handleDirtyChange = (d: boolean) => {
-    setDirty(d);
-    onDirtyChange(d);
-  };
+  const handleDirtyChange = useCallback(
+    (d: boolean) => {
+      setDirty(d);
+      onDirtyChange(d);
+    },
+    [onDirtyChange],
+  );
 
   useEffect(() => {
     void api
@@ -69,15 +75,23 @@ export function NewsPage({
     }
   }, []);
 
+  function guard(action: () => void) {
+    if (view.name === 'editor' && dirty) {
+      confirmDiscard(action);
+      return;
+    }
+    action();
+  }
+
   const editPost = useCallback((id: string) => {
-    setView({ name: 'editor', id, back: { name: 'list' } });
+    setView({ name: 'editor', id, back: 'feed' });
   }, []);
 
-  async function writePost() {
+  async function writePost(back: 'feed' | 'drafts') {
     setCreating(true);
     try {
       const post = await api.createNewsPost();
-      setView({ name: 'editor', id: post.id, back: { name: 'list' } });
+      setView({ name: 'editor', id: post.id, back });
     } catch (err) {
       void message.error(errorText(err, 'Không tạo được bài.'));
     } finally {
@@ -86,31 +100,29 @@ export function NewsPage({
   }
 
   const handleSidebarSelect = (key: string) => {
-    const proceed = () => {
+    guard(() => {
       if (key === 'facebook') {
         setView({ name: 'facebook' });
+      } else if (key === 'drafts') {
+        setView({ name: 'drafts' });
       } else {
-        setView({ name: 'list' });
-        setTab(key);
+        setView({ name: 'feed' });
       }
-    };
-
-    if (view.name === 'editor' && dirty) {
-      confirmDiscard(proceed);
-      return;
-    }
-    proceed();
+    });
   };
 
   const sidebarGroups = [
     {
       items: [
-        { key: 'published', label: 'Đã đăng', icon: <FileTextOutlined /> },
+        { key: 'feed', label: 'Bảng tin', icon: <ReadOutlined /> },
         ...(canPublish ? [{ key: 'drafts', label: 'Nháp', icon: <EditOutlined /> }] : []),
         ...(canFacebook ? [{ key: 'facebook', label: 'Page Facebook', icon: <FacebookFilled /> }] : []),
       ],
     },
   ];
+
+  const currentBack: 'feed' | 'drafts' =
+    view.name === 'editor' ? view.back : view.name === 'drafts' ? 'drafts' : 'feed';
 
   const sidebarAction = canPublish ? (
     <Button
@@ -118,13 +130,13 @@ export function NewsPage({
       block
       icon={<EditOutlined />}
       loading={creating}
-      onClick={() => void writePost()}
+      onClick={() => guard(() => void writePost(currentBack))}
     >
       Viết bài
     </Button>
   ) : undefined;
 
-  const activeKey = view.name === 'facebook' ? 'facebook' : tab;
+  const activeKey = view.name === 'editor' ? view.back : view.name;
 
   if (view.name === 'editor') {
     return (
@@ -135,7 +147,7 @@ export function NewsPage({
             title="Bản tin"
             action={sidebarAction}
             groups={sidebarGroups}
-            activeKey="drafts"
+            activeKey={activeKey}
             onSelect={handleSidebarSelect}
           />
         }
@@ -146,11 +158,10 @@ export function NewsPage({
           onDirtyChange={handleDirtyChange}
           onClose={() => {
             void queryClient.invalidateQueries({ queryKey: queryKeys.newsLibrary });
-            setView(view.back);
+            setView(view.back === 'drafts' ? { name: 'drafts' } : { name: 'feed' });
           }}
           onPublished={() => {
-            setTab('published');
-            setView({ name: 'list' });
+            setView({ name: 'feed' });
           }}
         />
       </ModuleLayout>
@@ -165,20 +176,19 @@ export function NewsPage({
             title="Bản tin"
             action={sidebarAction}
             groups={sidebarGroups}
-            activeKey="facebook"
+            activeKey={activeKey}
             onSelect={handleSidebarSelect}
           />
         }
-        header={<PageHeader title="Page Facebook" onBack={() => setView({ name: 'list' })} />}
       >
-        <div style={{ maxWidth: 680, margin: '0 auto', width: '100%' }}>
-          <NewsFacebookPages onBack={() => setView({ name: 'list' })} />
+        <div className="news-column">
+          <NewsFacebookPages />
         </div>
       </ModuleLayout>
     );
   }
 
-  const pageTitle = tab === 'published' ? 'Đã đăng' : 'Nháp';
+  const pageTitle = view.name === 'drafts' ? 'Nháp' : 'Bảng tin';
 
   return (
     <ModuleLayout
@@ -193,13 +203,13 @@ export function NewsPage({
       }
       header={<PageHeader title={pageTitle} />}
     >
-      {tab === 'published' ? (
+      {view.name === 'feed' ? (
         <NewsFeed me={user} canPublish={canPublish} onEdit={editPost} />
       ) : (
-        <div style={{ maxWidth: 680, margin: '0 auto', width: '100%' }}>
-          <NewsList
+        <div className="news-column">
+          <NewsDraftList
             onOpen={(id) => {
-              setView({ name: 'editor', id, back: { name: 'list' } });
+              setView({ name: 'editor', id, back: 'drafts' });
             }}
           />
         </div>

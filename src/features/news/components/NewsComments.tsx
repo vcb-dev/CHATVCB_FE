@@ -9,7 +9,7 @@ import { avatarColor, initials } from '@/lib/avatar';
 import { errorText } from '@/lib/errors';
 import type { NewsComment, User } from '@/types';
 import { NEWS_COMMENT_MAX, newsTime } from '../utils/news';
-import { NewsText } from './NewsArticle';
+import { NewsText } from './NewsText';
 
 function CommentComposer(props: {
   placeholder: string;

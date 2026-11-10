@@ -1,24 +1,8 @@
 import { FacebookFilled } from '@ant-design/icons';
 import { Button, Image } from 'antd';
-import { textParts } from '@/lib/links';
 import type { NewsBlock, NewsCard, NewsImage, NewsSource } from '@/types';
 import { newsDate } from '../utils/news';
-
-export function NewsText({ text }: { text: string }) {
-  return (
-    <>
-      {textParts(text).map((part, index) =>
-        part.href ? (
-          <a key={index} href={part.href} target="_blank" rel="noreferrer">
-            {part.text}
-          </a>
-        ) : (
-          <span key={index}>{part.text}</span>
-        ),
-      )}
-    </>
-  );
-}
+import { NewsText } from './NewsText';
 
 /** Chỉ nhận dữ liệu qua props, nên dùng chung được cho đọc bài và xem trước nội dung chưa lưu. */
 export function NewsArticle(props: {

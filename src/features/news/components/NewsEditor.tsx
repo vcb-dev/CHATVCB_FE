@@ -8,9 +8,10 @@ import { confirmDiscard } from '@/lib/confirmDiscard';
 import type { NewsPost } from '@/types';
 import { useNewsEditor } from '../hooks/useNewsEditor';
 import { NEWS_LIMITS } from '../utils/news';
-import { NewsArticle } from './NewsArticle';
+import { postAuthor } from '../utils/feed';
 import { NewsBlockRow } from './NewsBlockRow';
 import { NewsImagePicker } from './NewsImagePicker';
+import { NewsPostView } from './NewsPostView';
 
 function statusText(dirty: boolean, saving: boolean, savedAt: Date | null): string {
   if (saving) {
@@ -115,22 +116,26 @@ export function NewsEditor(props: {
 
   if (previewing) {
     return (
-      <div className="news-reader">
-        <div className="news-reader-bar">
+      <div className="news-editor-preview">
+        <div className="news-editor-toolbar">
           <Button icon={<ArrowLeftOutlined />} onClick={() => setPreviewing(false)}>
             Tiếp tục soạn
           </Button>
         </div>
-        <NewsArticle
-          title={editor.title.trim()}
-          blocks={editor.blocks.filter(
-            (block) => block.type === 'image' || block.text.trim(),
-          )}
-          images={editor.images}
-          cover={cover}
-          author={post.author}
-          publishedAt={post.publishedAt}
-        />
+        <div className="news-column">
+          <div className="news-post-card">
+            <NewsPostView
+              author={postAuthor(post)}
+              timeLabel="Bản nháp"
+              title={editor.title.trim()}
+              blocks={editor.blocks.filter(
+                (block) => block.type === 'image' || block.text.trim(),
+              )}
+              images={editor.images}
+              cover={cover}
+            />
+          </div>
+        </div>
       </div>
     );
   }

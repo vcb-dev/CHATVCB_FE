@@ -2,9 +2,9 @@ import { P, can } from "@/lib/access";
 import type { User } from "@/types";
 import { PlusOutlined } from "@ant-design/icons";
 import { Button, Input, Modal, Select, Table, Tag, message } from "antd";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { ModuleLayout } from "@/components/ModuleLayout";
-import { PageHeader } from "@/components/PageHeader";
+import { PageHeader, type PageTabs } from "@/components/PageHeader";
 import { ContentCard } from "@/components/ContentCard";
 import { UserEditModal } from "./components/UserEditModal";
 import { UserFormModal } from "./components/UserFormModal";
@@ -23,10 +23,10 @@ import {
 
 interface UsersViewProps {
   user: User;
-  sidebar?: ReactNode;
+  tabs?: PageTabs;
 }
 
-export function UsersView({ user, sidebar }: UsersViewProps) {
+export function UsersView({ user, tabs }: UsersViewProps) {
   const { data: users = [], isPending } = useAdminUsersQuery();
   const { data: roles = [] } = useRolesQuery();
   const { data: groups = [] } = useCatalogQuery();
@@ -66,7 +66,8 @@ export function UsersView({ user, sidebar }: UsersViewProps) {
 
   const header = (
     <PageHeader
-      title="Tài khoản"
+      title="Phân quyền"
+      tabs={tabs}
       actions={
         can(user, P.users.create) ? (
           <Button
@@ -98,7 +99,7 @@ export function UsersView({ user, sidebar }: UsersViewProps) {
   );
 
   return (
-    <ModuleLayout sidebar={sidebar} header={header}>
+    <ModuleLayout header={header}>
       <ContentCard>
         <Table
           rowKey="id"

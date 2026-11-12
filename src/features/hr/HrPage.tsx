@@ -1,7 +1,6 @@
 import { P, can } from "@/lib/access";
 import type { User } from "@/types";
-import { Alert, Button, Modal, Result, Spin } from "antd";
-import { TeamOutlined, UserAddOutlined } from "@ant-design/icons";
+import { Alert, Modal, Result, Spin } from "antd";
 import { useMemo, useState } from "react";
 import { EmployeeCreateModal } from "./components/EmployeeCreateModal";
 import { EmployeeDetailView } from "./EmployeeDetailView";
@@ -13,7 +12,7 @@ import {
 import { useEmployeesQuery } from "./hooks/useEmployeesQuery";
 import type { EmployeeProfile } from "./types";
 import { ModuleLayout } from "@/components/ModuleLayout";
-import { ModuleSidebar } from "@/components/ModuleSidebar";
+import { PageHeader } from "@/components/PageHeader";
 
 interface HrPageProps {
   user: User;
@@ -43,41 +42,11 @@ export function HrPage({ user }: HrPageProps) {
     await updateEmployee.mutateAsync(patch);
   }
 
-  const sidebar = (
-    <ModuleSidebar
-      title="Nhân sự"
-      action={
-        canCreate ? (
-          <Button
-            type="primary"
-            block
-            icon={<UserAddOutlined />}
-            onClick={() => setCreateOpen(true)}
-          >
-            Thêm nhân viên
-          </Button>
-        ) : undefined
-      }
-      groups={[
-        {
-          items: [
-            {
-              key: "all",
-              label: "Tất cả nhân viên",
-              icon: <TeamOutlined />,
-              count: employees.length,
-            },
-          ],
-        },
-      ]}
-      activeKey="all"
-      onSelect={() => setSelectedId(null)}
-    />
-  );
+  const header = <PageHeader title="Nhân sự" />;
 
   if (!canRead) {
     return (
-      <ModuleLayout sidebar={sidebar}>
+      <ModuleLayout header={header}>
         <Result
           status="403"
           title="Không có quyền xem nhân sự"
@@ -89,7 +58,7 @@ export function HrPage({ user }: HrPageProps) {
 
   if (error) {
     return (
-      <ModuleLayout sidebar={sidebar}>
+      <ModuleLayout header={header}>
         <Alert
           type="error"
           showIcon
@@ -104,7 +73,7 @@ export function HrPage({ user }: HrPageProps) {
 
   if (isPending && !employees.length) {
     return (
-      <ModuleLayout sidebar={sidebar}>
+      <ModuleLayout header={header}>
         <Spin size="large" style={{ display: "block", margin: "48px auto" }} />
       </ModuleLayout>
     );
@@ -121,7 +90,6 @@ export function HrPage({ user }: HrPageProps) {
           saveLoading={updateEmployee.isPending}
           onBack={() => setSelectedId(null)}
           onSave={handleSave}
-          sidebar={sidebar}
         />
         <EmployeeCreateModal
           open={createOpen}
@@ -150,7 +118,6 @@ export function HrPage({ user }: HrPageProps) {
         canExport={canExport}
         onOpen={setSelectedId}
         onCreate={() => setCreateOpen(true)}
-        sidebar={sidebar}
       />
       <EmployeeCreateModal
         open={createOpen}

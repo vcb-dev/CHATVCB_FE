@@ -1,7 +1,6 @@
 import type { User } from '@/types';
 import { useState } from 'react';
-import { ApartmentOutlined, ProjectOutlined } from '@ant-design/icons';
-import { ModuleSidebar } from '@/components/ModuleSidebar';
+import type { PageTabs } from '@/components/PageHeader';
 import { DepartmentsGroupsView } from './DepartmentsGroupsView';
 import { ProjectsPlaceholder } from './ProjectsPlaceholder';
 
@@ -14,36 +13,21 @@ interface DepartmentsPageProps {
 export function DepartmentsPage({ user }: DepartmentsPageProps) {
   const [section, setSection] = useState<DepartmentsSection>('departments');
 
-  const sidebar = (
-    <ModuleSidebar
-      title="Phòng ban"
-      activeKey={section}
-      onSelect={(key) => setSection(key as DepartmentsSection)}
-      groups={[
-        {
-          items: [
-            {
-              key: 'departments',
-              label: 'Phòng ban & nhóm',
-              icon: <ApartmentOutlined />,
-            },
-            {
-              key: 'projects',
-              label: 'Dự án',
-              icon: <ProjectOutlined />,
-            },
-          ],
-        },
-      ]}
-    />
-  );
+  const tabs: PageTabs = {
+    items: [
+      { key: 'departments', label: 'Phòng ban & nhóm' },
+      { key: 'projects', label: 'Dự án' },
+    ],
+    activeKey: section,
+    onChange: (key) => setSection(key as DepartmentsSection),
+  };
 
   return (
     <>
       {section === 'departments' ? (
-        <DepartmentsGroupsView user={user} sidebar={sidebar} />
+        <DepartmentsGroupsView user={user} tabs={tabs} />
       ) : null}
-      {section === 'projects' ? <ProjectsPlaceholder sidebar={sidebar} /> : null}
+      {section === 'projects' ? <ProjectsPlaceholder tabs={tabs} /> : null}
     </>
   );
 }

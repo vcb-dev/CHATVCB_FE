@@ -35,7 +35,7 @@ import {
   message,
 } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { employeeKeys } from "./queries/employeeKeys";
 import { uploadCitizenId } from "./services/employeesApi";
 import {
@@ -60,7 +60,6 @@ interface Props {
   onSave: (
     patch: Partial<EmployeeProfile> & { id: string },
   ) => void | Promise<void>;
-  sidebar?: ReactNode;
 }
 
 const TAB_KEYS = [
@@ -141,7 +140,6 @@ export function EmployeeDetailView({
   saveLoading = false,
   onBack,
   onSave,
-  sidebar,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
@@ -233,7 +231,7 @@ export function EmployeeDetailView({
   );
 
   return (
-    <ModuleLayout sidebar={sidebar} header={detailHeader}>
+    <ModuleLayout header={detailHeader}>
       <Form
         form={form}
         layout="vertical"

@@ -1,4 +1,4 @@
-import { EditOutlined, FacebookFilled, ReadOutlined } from '@ant-design/icons';
+import { EditOutlined } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, message } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
@@ -12,7 +12,6 @@ import { NewsDraftList } from './components/NewsDraftList';
 import { NewsFacebookPages } from './components/NewsFacebookPages';
 import { NewsFeed } from './components/NewsFeed';
 import { ModuleLayout } from '@/components/ModuleLayout';
-import { ModuleSidebar } from '@/components/ModuleSidebar';
 import { PageHeader } from '@/components/PageHeader';
 
 /** BE chuyển về `?workspace=news&facebook=ok|error` sau khi kết nối; useWorkspace xóa query trong effect của trang cha, nên đọc ngay lúc render đầu */
@@ -77,8 +76,8 @@ export function NewsPage({
     }
   }
 
-  // Lớp phủ của hộp đăng bài chặn sidebar, nên đổi mục không cần hỏi bỏ thay đổi
-  const handleSidebarSelect = (key: string) => {
+  // Lớp phủ của hộp đăng bài chặn cả màn, nên đổi mục không cần hỏi bỏ thay đổi
+  const handleTabChange = (key: string) => {
     if (key === 'facebook') {
       setView({ name: 'facebook' });
     } else if (key === 'drafts') {
@@ -88,24 +87,14 @@ export function NewsPage({
     }
   };
 
-  const sidebarGroups = [
-    {
-      items: [
-        { key: 'feed', label: 'Bảng tin', icon: <ReadOutlined /> },
-        ...(canPublish ? [{ key: 'drafts', label: 'Nháp', icon: <EditOutlined /> }] : []),
-        ...(canFacebook ? [{ key: 'facebook', label: 'Page Facebook', icon: <FacebookFilled /> }] : []),
-      ],
-    },
-  ];
-
-  const sidebar = (
-    <ModuleSidebar
+  // Người chỉ đọc chỉ có một mục, PageHeader tự ẩn hàng tab
+  const header = (
+    <PageHeader
       title="Bản tin"
-      action={
+      actions={
         canPublish ? (
           <Button
             type="primary"
-            block
             icon={<EditOutlined />}
             loading={creating}
             onClick={() => void writePost()}
@@ -114,9 +103,15 @@ export function NewsPage({
           </Button>
         ) : undefined
       }
-      groups={sidebarGroups}
-      activeKey={view.name}
-      onSelect={handleSidebarSelect}
+      tabs={{
+        items: [
+          { key: 'feed', label: 'Bảng tin' },
+          ...(canPublish ? [{ key: 'drafts', label: 'Nháp' }] : []),
+          ...(canFacebook ? [{ key: 'facebook', label: 'Page Facebook' }] : []),
+        ],
+        activeKey: view.name,
+        onChange: handleTabChange,
+      }}
     />
   );
 
@@ -139,7 +134,7 @@ export function NewsPage({
   if (view.name === 'facebook') {
     return (
       <>
-        <ModuleLayout sidebar={sidebar}>
+        <ModuleLayout header={header}>
           <div className="news-column">
             <NewsFacebookPages />
           </div>
@@ -151,10 +146,7 @@ export function NewsPage({
 
   return (
     <>
-      <ModuleLayout
-        sidebar={sidebar}
-        header={<PageHeader title={view.name === 'drafts' ? 'Nháp' : 'Bảng tin'} />}
-      >
+      <ModuleLayout header={header}>
         {view.name === 'feed' ? (
           <NewsFeed me={user} canPublish={canPublish} onEdit={editPost} />
         ) : (

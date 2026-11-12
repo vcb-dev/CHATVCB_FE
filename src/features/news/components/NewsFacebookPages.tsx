@@ -122,7 +122,6 @@ export function NewsFacebookPages() {
     <div className="news-facebook">
       <section className="news-facebook-panel">
         <header className="news-header">
-          <h1>Page Facebook</h1>
           <Button
             type="primary"
             icon={<FacebookFilled />}

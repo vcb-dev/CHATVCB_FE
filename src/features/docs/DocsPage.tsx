@@ -11,7 +11,6 @@ import {
   PartitionOutlined,
   PlusOutlined,
   ProjectOutlined,
-  ShareAltOutlined,
   StarFilled,
   StarOutlined,
   TableOutlined,
@@ -26,7 +25,6 @@ import { openSheetTab } from './sheet';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { DocItem, DocKind, User } from '@/types';
 import { ModuleLayout } from '@/components/ModuleLayout';
-import { ModuleSidebar } from '@/components/ModuleSidebar';
 import { PageHeader } from '@/components/PageHeader';
 import { ContentCard } from '@/components/ContentCard';
 import { EmptyState } from '@/components/EmptyState';
@@ -329,8 +327,6 @@ export function DocsPage({ user }: Props) {
     );
   }
 
-  const activeTab = TABS.find((item) => item.id === tab);
-
   const newMenuItems = [
     ...NEW_KINDS.map((item) => ({
       key: item.id,
@@ -342,7 +338,7 @@ export function DocsPage({ user }: Props) {
     { key: 'template', icon: <FileTextOutlined />, label: 'Từ mẫu…' },
   ];
 
-  const sidebarAction = (
+  const createButton = (
     <Dropdown
       menu={{
         items: newMenuItems,
@@ -360,37 +356,24 @@ export function DocsPage({ user }: Props) {
       }}
       trigger={['click']}
     >
-      <Button type="primary" block icon={<PlusOutlined />}>
+      <Button type="primary" icon={<PlusOutlined />}>
         Tạo mới <DownOutlined style={{ fontSize: 10, marginLeft: 4 }} />
       </Button>
     </Dropdown>
   );
 
-  const sidebarGroups = [
-    {
-      items: [
-        { key: 'recent', label: 'Gần đây', icon: <ClockCircleOutlined /> },
-        { key: 'shared', label: 'Được chia sẻ với tôi', icon: <ShareAltOutlined /> },
-        { key: 'starred', label: 'Ưa thích', icon: <StarOutlined /> },
-      ],
-    },
-  ];
-
   return (
     <ModuleLayout
-      sidebar={
-        <ModuleSidebar
-          title="Docs"
-          action={sidebarAction}
-          groups={sidebarGroups}
-          activeKey={tab}
-          onSelect={(key) => setTab(key as Tab)}
-        />
-      }
       header={
         <PageHeader
-          title={activeTab?.label || 'Docs'}
-          actions={
+          title="Docs"
+          actions={createButton}
+          tabs={{
+            items: TABS.map((item) => ({ key: item.id, label: item.label })),
+            activeKey: tab,
+            onChange: (key) => setTab(key as Tab),
+          }}
+          tabsExtra={
             <Input.Search
               allowClear
               placeholder="Tìm kiếm"

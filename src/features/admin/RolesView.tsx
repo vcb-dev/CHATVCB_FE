@@ -2,9 +2,9 @@ import { P, can } from "@/lib/access";
 import type { User } from "@/types";
 import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import { Button, Input, Select, Table, Tag } from "antd";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { ModuleLayout } from "@/components/ModuleLayout";
-import { PageHeader } from "@/components/PageHeader";
+import { PageHeader, type PageTabs } from "@/components/PageHeader";
 import { ContentCard } from "@/components/ContentCard";
 import { RoleFormModal } from "./components/RoleFormModal";
 import { confirmDeleteRole } from "./roleDeleteConfirm";
@@ -14,10 +14,10 @@ import type { AdminRole } from "./types";
 
 interface RolesViewProps {
   user: User;
-  sidebar?: ReactNode;
+  tabs?: PageTabs;
 }
 
-export function RolesView({ user, sidebar }: RolesViewProps) {
+export function RolesView({ user, tabs }: RolesViewProps) {
   const { data: roles = [], isPending } = useRolesQuery();
   const { data: groups = [] } = useCatalogQuery();
   const mutations = useAdminMutations();
@@ -52,7 +52,8 @@ export function RolesView({ user, sidebar }: RolesViewProps) {
 
   const header = (
     <PageHeader
-      title="Role"
+      title="Phân quyền"
+      tabs={tabs}
       actions={
         can(user, P.roles.create) ? (
           <Button
@@ -86,7 +87,7 @@ export function RolesView({ user, sidebar }: RolesViewProps) {
   );
 
   return (
-    <ModuleLayout sidebar={sidebar} header={header}>
+    <ModuleLayout header={header}>
       <ContentCard>
         <Table
           rowKey="id"

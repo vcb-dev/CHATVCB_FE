@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 
+/** Không có `sidebar` thì lưới tự về 1 cột (`.ui-module:not(:has(.ui-sidebar))`). */
 export function ModuleLayout(props: {
-  sidebar: ReactNode;
+  sidebar?: ReactNode;
   header?: ReactNode;
   flush?: boolean;
   children: ReactNode;

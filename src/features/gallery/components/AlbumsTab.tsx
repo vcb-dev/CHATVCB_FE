@@ -4,7 +4,6 @@ import {
   EditOutlined,
   InboxOutlined,
   PictureOutlined,
-  PlusOutlined,
 } from '@ant-design/icons';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Empty, Modal, message } from 'antd';
@@ -58,7 +57,7 @@ function AlbumPhotos(props: { albumId: string; name: string; onBack: () => void 
 export function AlbumsTab({ canReview }: { canReview: boolean }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState<{ id: string; name: string } | null>(null);
-  const [editing, setEditing] = useState<{ album: GalleryAlbum | null } | null>(null);
+  const [editing, setEditing] = useState<GalleryAlbum | null>(null);
   const { data: albums = [] } = useQuery({
     queryKey: queryKeys.galleryAlbums,
     queryFn: () => api.galleryAlbums(),
@@ -90,13 +89,6 @@ export function AlbumsTab({ canReview }: { canReview: boolean }) {
 
   return (
     <div>
-      {canReview ? (
-        <div className="gallery-album-bar">
-          <Button icon={<PlusOutlined />} onClick={() => setEditing({ album: null })}>
-            Tạo album
-          </Button>
-        </div>
-      ) : null}
       <div className="gallery-grid-albums">
         {shown.map((album) => (
           <div key={album.id} className="gallery-album-card">
@@ -118,7 +110,7 @@ export function AlbumsTab({ canReview }: { canReview: boolean }) {
                   size="small"
                   icon={<EditOutlined />}
                   aria-label="Sửa album"
-                  onClick={() => setEditing({ album })}
+                  onClick={() => setEditing(album)}
                 />
                 <Button
                   className="gallery-album-delete"
@@ -148,7 +140,7 @@ export function AlbumsTab({ canReview }: { canReview: boolean }) {
       {canReview ? (
         <AlbumFormModal
           open={Boolean(editing)}
-          album={editing?.album ?? null}
+          album={editing}
           onClose={() => setEditing(null)}
         />
       ) : null}

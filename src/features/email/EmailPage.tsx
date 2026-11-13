@@ -245,7 +245,8 @@ export function EmailPage() {
     <PageHeader
       title={account ? (account.displayName || account.email) : 'Email'}
       meta={account ? `${total} thư` : undefined}
-      actions={
+      // Chưa có hộp thư thì "Làm mới" không có gì để tải
+      actions={account ? (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <Button
             icon={<ReloadOutlined />}
@@ -260,20 +261,26 @@ export function EmailPage() {
             </Button>
           ) : null}
         </div>
-      }
+      ) : undefined}
     />
   );
+
+  // Chưa có hộp thư thì ẩn cột trái (chỉ còn nút), màn đăng nhập chiếm cả vùng.
+  // accountId đọc từ localStorage nên lúc đang tải vẫn giữ cột nếu lần trước đã có hộp thư.
+  const hasMailbox = accounts.length > 0 || Boolean(accountId);
 
   return (
     <ModuleLayout
       sidebar={
-        <ModuleSidebar
-          title="Email"
-          action={sidebarAction}
-          groups={sidebarGroups}
-          activeKey={account?.id || accountId}
-          onSelect={(key) => void switchAccount(key)}
-        />
+        hasMailbox ? (
+          <ModuleSidebar
+            title="Email"
+            action={sidebarAction}
+            groups={sidebarGroups}
+            activeKey={account?.id || accountId}
+            onSelect={(key) => void switchAccount(key)}
+          />
+        ) : undefined
       }
       header={pageHeader}
       flush={Boolean(accounts.length)}

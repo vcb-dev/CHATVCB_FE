@@ -1,8 +1,7 @@
 import { P, can } from '@/lib/access';
 import type { User } from '@/types';
 import { useState } from 'react';
-import { SafetyOutlined, UserOutlined } from '@ant-design/icons';
-import { ModuleSidebar } from '@/components/ModuleSidebar';
+import type { PageTabs } from '@/components/PageHeader';
 import { RolesView } from './RolesView';
 import { UsersView } from './UsersView';
 
@@ -18,38 +17,22 @@ export function AdminPage({ user }: AdminPageProps) {
     canReadRoles ? 'roles' : 'users',
   );
 
-  const items = [];
-  if (canReadRoles) {
-    items.push({
-      key: 'roles',
-      label: 'Role',
-      icon: <SafetyOutlined />,
-    });
-  }
-  if (canReadUsers) {
-    items.push({
-      key: 'users',
-      label: 'Tài khoản',
-      icon: <UserOutlined />,
-    });
-  }
-
-  const sidebar = (
-    <ModuleSidebar
-      title="Phân quyền"
-      activeKey={section}
-      onSelect={(key) => setSection(key as 'roles' | 'users')}
-      groups={[{ items }]}
-    />
-  );
+  const tabs: PageTabs = {
+    items: [
+      ...(canReadRoles ? [{ key: 'roles', label: 'Role' }] : []),
+      ...(canReadUsers ? [{ key: 'users', label: 'Tài khoản' }] : []),
+    ],
+    activeKey: section,
+    onChange: (key) => setSection(key as 'roles' | 'users'),
+  };
 
   return (
     <>
       {section === 'roles' && canReadRoles ? (
-        <RolesView user={user} sidebar={sidebar} />
+        <RolesView user={user} tabs={tabs} />
       ) : null}
       {section === 'users' && canReadUsers ? (
-        <UsersView user={user} sidebar={sidebar} />
+        <UsersView user={user} tabs={tabs} />
       ) : null}
     </>
   );

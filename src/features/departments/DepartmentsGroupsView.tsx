@@ -19,9 +19,9 @@ import {
   Tag,
   message,
 } from "antd";
-import { useMemo, useState, type Key, type ReactNode } from "react";
+import { useMemo, useState, type Key } from "react";
 import { ModuleLayout } from "@/components/ModuleLayout";
-import { PageHeader } from "@/components/PageHeader";
+import { PageHeader, type PageTabs } from "@/components/PageHeader";
 import { ContentCard } from "@/components/ContentCard";
 import {
   DepartmentFormModal,
@@ -61,10 +61,10 @@ function statusLabel(status: OrgUnitStatus) {
 
 export function DepartmentsGroupsView({
   user,
-  sidebar,
+  tabs,
 }: {
   user: User;
-  sidebar?: ReactNode;
+  tabs?: PageTabs;
 }) {
   const canCreate = can(user, P.departments.create);
   const canUpdate = can(user, P.departments.update);
@@ -211,7 +211,8 @@ export function DepartmentsGroupsView({
 
   const header = (
     <PageHeader
-      title="Phòng ban & nhóm"
+      title="Phòng ban"
+      tabs={tabs}
       meta={
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <span className="ui-chip">{stats.departmentCount} phòng ban</span>
@@ -271,7 +272,7 @@ export function DepartmentsGroupsView({
   );
 
   return (
-    <ModuleLayout sidebar={sidebar} header={header}>
+    <ModuleLayout header={header}>
       {isError ? (
         <Alert
           type="error"

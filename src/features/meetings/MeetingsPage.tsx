@@ -12,7 +12,6 @@ import { api } from '@/api/client';
 import { openMeetTab } from './meet';
 import type { Meeting, User } from '@/types';
 import { ModuleLayout } from '@/components/ModuleLayout';
-import { ModuleSidebar } from '@/components/ModuleSidebar';
 import { PageHeader } from '@/components/PageHeader';
 import { ContentCard } from '@/components/ContentCard';
 import { EmptyState } from '@/components/EmptyState';
@@ -191,97 +190,44 @@ export function MeetingsPage({ user }: Props) {
     (item) => !q || item.title.toLowerCase().includes(q) || item.code.includes(q),
   );
 
-  const sidebarGroups = [
-    {
-      items: [
-        {
-          key: 'upcoming',
-          label: 'Sắp diễn ra',
-          icon: <VideoCameraOutlined />,
-          count: upcoming.length,
-        },
-        {
-          key: 'history',
-          label: 'Lịch sử',
-          icon: <FileTextOutlined />,
-          count: history.length,
-        },
-      ],
-    },
-  ];
-
-  const sidebarAction = (
-    <Button
-      type="primary"
-      block
-      icon={<VideoCameraOutlined />}
-      onClick={() => openMeetTab()}
-    >
-      Cuộc họp mới
-    </Button>
+  const header = (
+    <PageHeader
+      title="Cuộc họp"
+      actions={
+        <>
+          <Button icon={<UserAddOutlined />} onClick={() => setJoinOpen(true)}>
+            Tham gia bằng mã
+          </Button>
+          <Button icon={<CalendarOutlined />} onClick={openCreateSchedule}>
+            Lên lịch
+          </Button>
+          <Button type="primary" icon={<VideoCameraOutlined />} onClick={() => openMeetTab()}>
+            Cuộc họp mới
+          </Button>
+        </>
+      }
+      tabs={{
+        items: [
+          { key: 'upcoming', label: 'Sắp diễn ra', count: upcoming.length },
+          { key: 'history', label: 'Lịch sử', count: history.length },
+        ],
+        activeKey: section,
+        onChange: (key) => setSection(key as 'upcoming' | 'history'),
+      }}
+      tabsExtra={
+        <Input.Search
+          allowClear
+          placeholder="Tìm cuộc họp hoặc mã"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          style={{ width: 240 }}
+        />
+      }
+    />
   );
 
   return (
-    <ModuleLayout
-      sidebar={
-        <ModuleSidebar
-          title="Cuộc họp"
-          action={sidebarAction}
-          groups={sidebarGroups}
-          activeKey={section}
-          onSelect={(key) => setSection(key as 'upcoming' | 'history')}
-        >
-          <div className="ui-sidebar-quick" style={{ padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <button
-              type="button"
-              className="ui-sidebar-item"
-              onClick={() => setJoinOpen(true)}
-            >
-              <UserAddOutlined />
-              <span className="ui-sidebar-label">Tham gia bằng mã</span>
-            </button>
-            <button
-              type="button"
-              className="ui-sidebar-item"
-              onClick={openCreateSchedule}
-            >
-              <CalendarOutlined />
-              <span className="ui-sidebar-label">Lên lịch</span>
-            </button>
-            <button
-              type="button"
-              className="ui-sidebar-item"
-              onClick={() => {
-                const target = allMeetings[0];
-                if (!target) {
-                  message.info('Chưa có cuộc họp để ghi biên bản.');
-                  return;
-                }
-                setNotesOpen(target);
-                setNotes(target.notes || '');
-              }}
-            >
-              <FileTextOutlined />
-              <span className="ui-sidebar-label">Ghi biên bản</span>
-            </button>
-          </div>
-        </ModuleSidebar>
-      }
-      header={
-        <PageHeader
-          title={section === 'upcoming' ? 'Sắp diễn ra' : 'Lịch sử'}
-          actions={
-            <Input.Search
-              allowClear
-              placeholder="Tìm cuộc họp hoặc mã"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              style={{ width: 240 }}
-            />
-          }
-        />
-      }
-    >
+    <ModuleLayout header={header}>
       <ContentCard>
         {section === 'upcoming' ? (
           upcomingView.length ? (

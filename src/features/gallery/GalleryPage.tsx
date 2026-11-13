@@ -1,61 +1,46 @@
-import {
-  AppstoreOutlined,
-  CheckCircleOutlined,
-  PictureOutlined,
-  UploadOutlined,
-} from '@ant-design/icons';
+import { PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
 import { useState } from 'react';
+import { AlbumFormModal } from './components/AlbumFormModal';
 import { AlbumsTab } from './components/AlbumsTab';
 import { MyPhotosTab } from './components/MyPhotosTab';
 import { ReviewTab } from './components/ReviewTab';
 import { SubmitPhotosModal } from './components/SubmitPhotosModal';
 import { useGalleryAccess } from './hooks/useGalleryAccess';
 import { ModuleLayout } from '@/components/ModuleLayout';
-import { ModuleSidebar } from '@/components/ModuleSidebar';
 import { PageHeader } from '@/components/PageHeader';
 
 export function GalleryPage() {
   const { canReview } = useGalleryAccess();
   const [tab, setTab] = useState('albums');
   const [submitting, setSubmitting] = useState(false);
+  const [creatingAlbum, setCreatingAlbum] = useState(false);
 
-  const sidebarGroups = [
-    {
-      items: [
-        { key: 'albums', label: 'Album', icon: <AppstoreOutlined /> },
-        { key: 'mine', label: 'Ảnh của tôi', icon: <PictureOutlined /> },
-        ...(canReview ? [{ key: 'review', label: 'Duyệt ảnh', icon: <CheckCircleOutlined /> }] : []),
-      ],
-    },
-  ];
+  const tabs = {
+    items: [
+      { key: 'albums', label: 'Album' },
+      { key: 'mine', label: 'Ảnh của tôi' },
+      ...(canReview ? [{ key: 'review', label: 'Duyệt ảnh' }] : []),
+    ],
+    activeKey: tab,
+    onChange: setTab,
+  };
 
-  const sidebarAction = (
-    <Button
-      type="primary"
-      block
-      icon={<UploadOutlined />}
-      onClick={() => setSubmitting(true)}
-    >
-      Gửi ảnh
-    </Button>
+  const actions = (
+    <>
+      {tab === 'albums' && canReview ? (
+        <Button icon={<PlusOutlined />} onClick={() => setCreatingAlbum(true)}>
+          Tạo album
+        </Button>
+      ) : null}
+      <Button type="primary" icon={<UploadOutlined />} onClick={() => setSubmitting(true)}>
+        Gửi ảnh
+      </Button>
+    </>
   );
 
-  const pageTitle = tab === 'albums' ? 'Album' : tab === 'mine' ? 'Ảnh của tôi' : 'Duyệt ảnh';
-
   return (
-    <ModuleLayout
-      sidebar={
-        <ModuleSidebar
-          title="Thư viện ảnh"
-          action={sidebarAction}
-          groups={sidebarGroups}
-          activeKey={tab}
-          onSelect={(key) => setTab(key)}
-        />
-      }
-      header={<PageHeader title={pageTitle} />}
-    >
+    <ModuleLayout header={<PageHeader title="Thư viện ảnh" tabs={tabs} actions={actions} />}>
       {tab === 'albums' ? (
         <AlbumsTab canReview={canReview} />
       ) : tab === 'mine' ? (
@@ -69,6 +54,13 @@ export function GalleryPage() {
         onClose={() => setSubmitting(false)}
         onSent={() => setTab('mine')}
       />
+      {canReview ? (
+        <AlbumFormModal
+          open={creatingAlbum}
+          album={null}
+          onClose={() => setCreatingAlbum(false)}
+        />
+      ) : null}
     </ModuleLayout>
   );
 }

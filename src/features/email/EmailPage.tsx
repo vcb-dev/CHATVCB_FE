@@ -1,8 +1,10 @@
 import {
   DownOutlined,
+  EditOutlined,
   MailOutlined,
   PlusOutlined,
   ReloadOutlined,
+  RollbackOutlined,
 } from '@ant-design/icons';
 import { Button, Dropdown, Form, Input, InputNumber, Modal, Typography, message } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
@@ -12,6 +14,8 @@ import { ModuleLayout } from '@/components/ModuleLayout';
 import { ModuleSidebar } from '@/components/ModuleSidebar';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/EmptyState';
+import { ComposeMailModal } from './ComposeMailModal';
+import { buildReplyDraft, EMPTY_DRAFT, htmlToPlain, type ComposeDraft } from './utils/compose';
 
 const SELECTED_KEY = 'chatvcb.mailAccount';
 
@@ -50,6 +54,7 @@ export function EmailPage() {
   const [connectOpen, setConnectOpen] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [draft, setDraft] = useState<ComposeDraft | null>(null);
   const [form] = Form.useForm();
 
   const account = accounts.find((item) => item.id === accountId) || accounts[0];
@@ -105,7 +110,16 @@ export function EmailPage() {
       });
   }, [loadAccounts, loadInbox]);
 
+  function reply(mail: MailMessage) {
+    const plain = mail.text.trim() ? mail.text : mail.html ? htmlToPlain(mail.html) : '';
+    const when = mail.date
+      ? new Date(mail.date).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
+      : '';
+    setDraft(buildReplyDraft(mail, plain, when));
+  }
+
   async function switchAccount(id: string) {
+    setDraft(null);
     setAccountId(id);
     localStorage.setItem(SELECTED_KEY, id);
     setSelectedUid(null);
@@ -248,6 +262,9 @@ export function EmailPage() {
       // Chưa có hộp thư thì "Làm mới" không có gì để tải
       actions={account ? (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Button type="primary" icon={<EditOutlined />} onClick={() => setDraft({ ...EMPTY_DRAFT })}>
+            Soạn thư
+          </Button>
           <Button
             icon={<ReloadOutlined />}
             onClick={() => account && void loadInbox(account.id)}
@@ -331,7 +348,12 @@ export function EmailPage() {
             ) : opened ? (
               <>
                 <header className="mail-reader-head">
-                  <h2>{opened.subject}</h2>
+                  <div className="mail-reader-title">
+                    <h2>{opened.subject}</h2>
+                    <Button icon={<RollbackOutlined />} onClick={() => reply(opened)}>
+                      Trả lời
+                    </Button>
+                  </div>
                   <p>Từ: {opened.from || '—'}</p>
                   <p>Đến: {opened.to || '—'}</p>
                   <small>{formatWhen(opened.date)}</small>
@@ -364,6 +386,8 @@ export function EmailPage() {
         <Typography.Paragraph type="secondary">Gmail hãy dùng nút Đăng nhập bằng Google.</Typography.Paragraph>
         {loginForm}
       </Modal>
+
+      {account ? <ComposeMailModal account={account} draft={draft} onClose={() => setDraft(null)} /> : null}
     </ModuleLayout>
   );
 }

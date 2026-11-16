@@ -1,11 +1,17 @@
 import { AdminRole, AdminUser, UserAccess } from "@/features/admin/types";
 import type { EmployeeProfile } from "@/features/hr/types";
 import type {
+  ChatDocPage,
+  ChatDocQuery,
   ChatFile,
   ChatMessage,
   ConversationLabel,
   DirectoryUser,
+  DocCard,
+  DocFolder,
   DocItem,
+  DocTemplate,
+  DocsGoogleStatus,
   GalleryAccess,
   GalleryAlbum,
   GalleryImage,
@@ -29,6 +35,7 @@ import type {
   InviteInfo,
   JoinRequest,
   JoinResult,
+  LastSeenMap,
   LinkPreview,
   MailAccount,
   MailItem,
@@ -49,6 +56,7 @@ import type {
   RoomRead,
   RoomSearch,
   RoomsPage,
+  ShareRole,
   Task,
   TaskFrequency,
   TaskRoom,
@@ -310,7 +318,9 @@ export const api = {
     return uploadChatFile(roomId, "voice", blob, filename);
   },
   async download(url: string): Promise<Blob> {
-    const response = await fetch(fileSrc(url));
+    const src = fileSrc(url);
+    // Tệp chat trên Drive đi qua BE nên phải kèm phiên đăng nhập; link Cloudinary công khai thì tải thẳng
+    const response = src.startsWith(API_URL) ? await authedFetch(src) : await fetch(src);
     if (!response.ok) {
       throw new Error("Không tải được tệp.");
     }
@@ -318,6 +328,22 @@ export const api = {
   },
   files(roomId: string) {
     return request<ChatFile[]>(`/rooms/${roomId}/files`);
+  },
+  chatDocs(query: ChatDocQuery, cursor?: string) {
+    const params = new URLSearchParams();
+    if (query.q) {
+      params.set("q", query.q);
+    }
+    if (query.type) {
+      params.set("type", query.type);
+    }
+    if (query.roomId) {
+      params.set("roomId", query.roomId);
+    }
+    if (cursor) {
+      params.set("cursor", cursor);
+    }
+    return request<ChatDocPage>(`/chat-files?${params}`);
   },
   users(q?: string, team?: string) {
     const params = new URLSearchParams();
@@ -341,6 +367,9 @@ export const api = {
   },
   user(id: string) {
     return request<DirectoryUser>(`/users/${id}`);
+  },
+  lastSeen() {
+    return request<LastSeenMap>('/users/last-seen');
   },
   room(roomId: string) {
     return request<Room>(`/rooms/${roomId}`);
@@ -678,6 +707,16 @@ export const api = {
       `/mail/accounts/${id}/messages/${encodeURIComponent(uid)}`,
     );
   },
+  /** Gửi thư mới, hoặc trả lời thư `replyUid` trong hộp đến */
+  sendMail(
+    id: string,
+    payload: { to: string; cc?: string; subject: string; text: string; replyUid?: string },
+  ) {
+    return request<{ ok: boolean; savedToSent: boolean }>(`/mail/accounts/${id}/send`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
   newsPosts(query: { cursor?: string; limit?: number }) {
     const params = new URLSearchParams();
     if (query.cursor) {
@@ -891,24 +930,53 @@ export const api = {
     });
   },
   googleSheetsStatus() {
-    return request<{ ready: boolean; connected: boolean; email: string }>(
-      "/docs/google/status",
-    );
+    return request<DocsGoogleStatus>("/docs/google/status");
   },
-  googleSheetsStart(intent = "connect") {
-    return request<{ url: string }>(
-      `/docs/google?intent=${encodeURIComponent(intent)}`,
-    );
+  /** intent: sau khi kết nối Google thì tạo Doc/Sheet, hoặc mở tài liệu docId */
+  googleSheetsStart(input: {
+    intent?: "connect" | "doc" | "sheet" | "open";
+    template?: DocTemplate;
+    docId?: string;
+  } = {}) {
+    const params = new URLSearchParams({ intent: input.intent ?? "connect" });
+    if (input.template) {
+      params.set("template", input.template);
+    }
+    if (input.docId) {
+      params.set("docId", input.docId);
+    }
+    return request<{ url: string }>(`/docs/google?${params}`);
   },
-  listDocs(tab = "recent", q = "") {
-    const query = new URLSearchParams({ tab, q });
+  docGoogleAccess(id: string) {
+    return request<{ url: string; granted: boolean }>(`/docs/${id}/google-access`, {
+      method: "POST",
+    });
+  },
+  listDocs(tab = "recent", q = "", folderId = "") {
+    const query = new URLSearchParams({ tab, q, ...(tab === "folder" ? { folderId } : {}) });
     return request<DocItem[]>(`/docs?${query.toString()}`);
+  },
+  docFolders() {
+    return request<DocFolder[]>("/docs/folders");
+  },
+  createDocFolder(name: string, parentId?: string | null) {
+    return request<DocFolder>("/docs/folders", {
+      method: "POST",
+      body: JSON.stringify({ name, ...(parentId ? { parentId } : {}) }),
+    });
+  },
+  renameDocFolder(id: string, name: string) {
+    return request<DocFolder>(`/docs/folders/${id}`, { method: "PATCH", body: JSON.stringify({ name }) });
+  },
+  deleteDocFolder(id: string) {
+    return request<{ ok: boolean }>(`/docs/folders/${id}`, { method: "DELETE" });
   },
   createDoc(payload?: {
     title?: string;
     kind?: DocItem["kind"];
-    template?: "blank" | "meeting" | "weekly";
+    template?: DocTemplate;
     content?: string;
+    folderId?: string;
   }) {
     return request<DocItem>("/docs", {
       method: "POST",
@@ -925,6 +993,7 @@ export const api = {
       content?: string;
       folder?: string;
       starred?: boolean;
+      folderId?: string | null;
     },
   ) {
     return request<DocItem>(`/docs/${id}`, {
@@ -934,6 +1003,19 @@ export const api = {
   },
   removeDoc(id: string) {
     return request<{ ok: boolean }>(`/docs/${id}`, { method: "DELETE" });
+  },
+  docCard(url: string, roomId: string) {
+    const query = new URLSearchParams({ url, roomId });
+    return request<DocCard>(`/docs/card?${query.toString()}`);
+  },
+  shareDocToRoom(id: string, roomId: string, role: ShareRole) {
+    return request<DocCard>(`/docs/${id}/shares/${roomId}`, {
+      method: "PUT",
+      body: JSON.stringify({ role }),
+    });
+  },
+  unshareDocFromRoom(id: string, roomId: string) {
+    return request<DocCard>(`/docs/${id}/shares/${roomId}`, { method: "DELETE" });
   },
   // lấy danh sách phòng ban
   departments() {

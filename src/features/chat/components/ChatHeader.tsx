@@ -6,14 +6,17 @@ import {
 } from '@ant-design/icons';
 import { Avatar, Badge, Button, Tooltip } from 'antd';
 import { fileSrc } from '@/api/client';
+import { MenuButton } from '@/components/MenuButton';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { Room } from '@/types';
+import { lastSeenText } from '../utils/presence';
 
 export function ChatHeader(props: {
   room: Room | null;
   isDirect: boolean;
   isPeerOnline: boolean;
-  isGroupOnline: boolean;
+  lastSeenAt?: string;
+  now: number;
   membersCount: number;
   onlineMembersCount: number;
   infoOpen: boolean;
@@ -26,6 +29,7 @@ export function ChatHeader(props: {
 
   return (
     <header className="chat-head">
+      <MenuButton />
       <button
         type="button"
         className="chat-head-info"
@@ -37,7 +41,7 @@ export function ChatHeader(props: {
         }}
       >
         <Badge
-          dot={!isCloud && (isDirect ? isPeerOnline : props.isGroupOnline)}
+          dot={!isCloud && isDirect && isPeerOnline}
           color="#31a24c"
           offset={[-2, 4]}
         >
@@ -61,7 +65,7 @@ export function ChatHeader(props: {
             {isCloud ? (
               'Lưu tin nhắn, ảnh, tệp của riêng bạn'
             ) : isDirect ? (
-              isPeerOnline ? 'Đang hoạt động' : 'Không hoạt động'
+              lastSeenText(isPeerOnline, props.lastSeenAt, props.now)
             ) : (
               <>
                 {membersCount

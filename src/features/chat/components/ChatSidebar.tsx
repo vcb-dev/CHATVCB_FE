@@ -1,20 +1,26 @@
 import { CloudOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
-import { Button, Input, Spin } from 'antd';
+import { Input, Spin, type InputRef } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState, type UIEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
-import type { ConversationLabel, PageMeta, Room, User } from '@/types';
+import type { ConversationLabel, LastSeenMap, PageMeta, PresenceUser, Room, User } from '@/types';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
 import type { Drafts } from '../utils/drafts';
-import { filterRooms, type RoomFilter } from '../utils/rooms';
+import { MenuButton } from '@/components/MenuButton';
+import { lastSeenShort } from '../utils/presence';
+import { countUnreadRooms, filterRooms, isDirectRoom, type RoomFilter } from '../utils/rooms';
 import { LabelManagerModal } from './LabelManagerModal';
+import { OnlineStrip } from './OnlineStrip';
 import { RoomFilterBar } from './RoomFilterBar';
 import { RoomListItem } from './RoomListItem';
 import { SidebarSearch } from './SidebarSearch';
 
 const FILTER_MIN_ROWS = 10;
 const NO_LABELS: ConversationLabel[] = [];
+const SEARCH_SHORTCUT = /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent)
+  ? '⌘K'
+  : 'Ctrl K';
 
 export function ChatSidebar(props: {
   user: User;
@@ -23,7 +29,10 @@ export function ChatSidebar(props: {
   roomsMeta: PageMeta;
   loadingOlderRooms: boolean;
   searchText: string;
+  onlineUsers: PresenceUser[];
   isRoomOnline: (room: Room) => boolean;
+  lastSeen: LastSeenMap;
+  now: number;
   onSearchTextChange: (value: string) => void;
   onSelectRoom: (room: Room) => void;
   onOpenRoom: (room: Room) => void;
@@ -39,6 +48,18 @@ export function ChatSidebar(props: {
   const [filter, setFilter] = useState<RoomFilter>({ kind: 'all' });
   const [managerOpen, setManagerOpen] = useState(false);
   const openManager = useCallback(() => setManagerOpen(true), []);
+  const searchInputRef = useRef<InputRef>(null);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const { data: labels = NO_LABELS } = useQuery({
     queryKey: queryKeys.labels,
@@ -56,6 +77,7 @@ export function ChatSidebar(props: {
 
   const labelMap = useMemo(() => new Map(labels.map((l) => [l.id, l])), [labels]);
   const visibleRooms = useMemo(() => filterRooms(rooms, filter), [rooms, filter]);
+  const unreadRoomsCount = useMemo(() => countUnreadRooms(rooms), [rooms]);
   const autoLoadKeyRef = useRef('');
 
   useEffect(() => {
@@ -92,30 +114,41 @@ export function ChatSidebar(props: {
   return (
     <aside className="sidebar">
       <div className="sidebar-head">
-        <Input
-          className="sidebar-search-input"
-          prefix={<SearchOutlined style={{ color: 'var(--ui-text-3)' }} />}
-          placeholder="Tìm kiếm"
-          allowClear
-          value={searchText}
-          onChange={(e) => props.onSearchTextChange(e.target.value)}
-        />
-        <div className="sidebar-head-actions">
-          <Button
-            type="text"
-            icon={<CloudOutlined />}
-            className="sidebar-new-btn"
-            title="Cloud của tôi"
-            aria-label="Cloud của tôi"
-            onClick={props.onOpenCloud}
-          />
-          <Button
-            type="text"
-            icon={<PlusOutlined />}
-            className="sidebar-new-btn"
-            title="Cuộc trò chuyện mới"
-            aria-label="Cuộc trò chuyện mới"
-            onClick={props.onNewChat}
+        <div className="sidebar-head-top">
+          <MenuButton />
+          <h1 className="sidebar-title">Tin nhắn</h1>
+          <div className="sidebar-head-actions">
+            <button
+              type="button"
+              className="sidebar-icon-btn"
+              title="Cloud của tôi"
+              aria-label="Cloud của tôi"
+              onClick={props.onOpenCloud}
+            >
+              <CloudOutlined />
+            </button>
+            <button
+              type="button"
+              className="sidebar-new-chat-btn"
+              title="Cuộc trò chuyện mới"
+              aria-label="Cuộc trò chuyện mới"
+              onClick={props.onNewChat}
+            >
+              <PlusOutlined />
+            </button>
+          </div>
+        </div>
+        <div className="sidebar-head-search">
+          <Input
+            ref={searchInputRef}
+            className="sidebar-search-input"
+            variant="borderless"
+            prefix={<SearchOutlined style={{ color: 'var(--ui-text-time)' }} />}
+            suffix={<kbd className="sidebar-search-kbd">{SEARCH_SHORTCUT}</kbd>}
+            placeholder="Tìm kiếm"
+            allowClear
+            value={searchText}
+            onChange={(e) => props.onSearchTextChange(e.target.value)}
           />
         </div>
       </div>
@@ -129,30 +162,45 @@ export function ChatSidebar(props: {
         />
       ) : (
         <>
+          <OnlineStrip
+            user={user}
+            onlineUsers={props.onlineUsers}
+            rooms={rooms}
+            onOpenRoom={props.onOpenRoom}
+          />
           <RoomFilterBar
             filter={filter}
             labels={labels}
+            unreadCount={unreadRoomsCount}
             onChange={setFilter}
-            onManage={() => setManagerOpen(true)}
+            onManage={openManager}
           />
           <div className="room-list" onScroll={handleRoomsScroll}>
             {visibleRooms.length === 0 ? (
               <p className="room-list-empty">Không có cuộc trò chuyện nào.</p>
             ) : (
-              visibleRooms.map((item) => (
-                <RoomListItem
-                  key={item.id}
-                  room={item}
-                  active={item.id === props.roomId}
-                  online={props.isRoomOnline(item)}
-                  onSelect={props.onSelectRoom}
-                  actions={props.prefs}
-                  label={item.labelId ? labelMap.get(item.labelId) : undefined}
-                  labels={labels}
-                  draft={props.drafts[item.id]}
-                  onManageLabels={openManager}
-                />
-              ))
+              visibleRooms.map((item) => {
+                const online = props.isRoomOnline(item);
+                const lastSeenLabel =
+                  isDirectRoom(item) && item.peerUserId
+                    ? lastSeenShort(online, props.lastSeen[item.peerUserId], props.now)
+                    : '';
+                return (
+                  <RoomListItem
+                    key={item.id}
+                    room={item}
+                    active={item.id === props.roomId}
+                    online={online}
+                    lastSeenLabel={lastSeenLabel}
+                    onSelect={props.onSelectRoom}
+                    actions={props.prefs}
+                    label={item.labelId ? labelMap.get(item.labelId) : undefined}
+                    labels={labels}
+                    draft={props.drafts[item.id]}
+                    onManageLabels={openManager}
+                  />
+                );
+              })
             )}
             {props.loadingOlderRooms ? (
               <div className="room-list-loading">

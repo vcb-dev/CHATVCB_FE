@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { message as antMessage } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { AdminPage } from '@/features/admin/AdminPage';
@@ -14,6 +14,7 @@ import { SubmitPhotosModal } from '@/features/gallery/components/SubmitPhotosMod
 import { useGalleryAccess } from '@/features/gallery/hooks/useGalleryAccess';
 import { chatImagesOf } from '@/features/gallery/utils/chatImages';
 import { HrPage } from '@/features/hr/HrPage';
+import { AppMenuContext } from '@/lib/appMenu';
 import { canAccessWorkspace } from '@/lib/workspaces';
 import { MeetingsPage } from '@/features/meetings/MeetingsPage';
 import { openMeetTab } from '@/features/meetings/meet';
@@ -31,7 +32,7 @@ import { GalleryModal } from './components/GalleryModal';
 import { GroupDrawer } from './components/GroupDrawer';
 import { JoinGroupModal } from './components/JoinGroupModal';
 import { MessageList } from './components/MessageList';
-import { NavRail } from './components/NavRail';
+import { AppMenuDrawer } from './components/AppMenuDrawer';
 import { NewChatModal } from './components/NewChatModal';
 import { NoteModal } from './components/NoteModal';
 import { PinBar } from './components/PinBar';
@@ -53,10 +54,11 @@ import { useMessageSelection } from './hooks/useMessageSelection';
 import { useOpenTask } from './hooks/useOpenTask';
 import { useRoomList } from './hooks/useRoomList';
 import { useRoomPrefs } from './hooks/useRoomPrefs';
+import { LastSeenContext, useLastSeen } from './hooks/useLastSeen';
 import { useRoomTools } from './hooks/useRoomTools';
 import { useTypingSignal } from './hooks/useTypingSignal';
 import { TaskDueToasts } from '@/features/work/components/TaskDueToasts';
-import { useWorkspace } from './hooks/useWorkspace';
+import { useWorkspace, type Workspace } from './hooks/useWorkspace';
 import { DropOverlay } from './components/DropOverlay';
 import { useFileDrop } from './hooks/useFileDrop';
 import { canForward } from './utils/forward';
@@ -71,13 +73,22 @@ import {
   peerUserIdOf,
   type Presence,
 } from './utils/presence';
-import { isDirectRoom } from './utils/rooms';
+import { countUnreadRooms, isDirectRoom } from './utils/rooms';
 
 type Props = {
   user: User;
   onLogout: () => void;
   onUserUpdate: (payload: { user: User }) => void;
 };
+
+type MenuMode = 'closed' | 'click' | 'hover';
+
+function clearTimer(ref: { current: number | null }) {
+  if (ref.current !== null) {
+    window.clearTimeout(ref.current);
+    ref.current = null;
+  }
+}
 
 export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const narrow = useMediaQuery('(max-width: 1100px)');
@@ -99,12 +110,51 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     } catch {}
   }, [infoHidden]);
   const [error, setError] = useState('');
+  // Ngăn menu: 'click' = mở bằng nút ☰ (có mask); 'hover' = chuột chạm mép trái (không mask, rời chuột thì đóng).
+  const [menuMode, setMenuModeState] = useState<MenuMode>('closed');
+  const menuModeRef = useRef<MenuMode>('closed');
+  const menuOpenTimerRef = useRef<number | null>(null);
+  const menuCloseTimerRef = useRef<number | null>(null);
+
+  const setMenuMode = useCallback((mode: MenuMode) => {
+    clearTimer(menuOpenTimerRef);
+    clearTimer(menuCloseTimerRef);
+    menuModeRef.current = mode;
+    setMenuModeState(mode);
+  }, []);
+
+  useEffect(
+    () => () => {
+      clearTimer(menuOpenTimerRef);
+      clearTimer(menuCloseTimerRef);
+    },
+    [],
+  );
+
+  const openMenu = useCallback(() => setMenuMode('click'), [setMenuMode]);
+  const closeMenu = useCallback(() => setMenuMode('closed'), [setMenuMode]);
+
+  // Chuột ở mép trái 150 ms thì mở; rời ngăn 250 ms thì đóng (quay lại kịp thì huỷ).
+  const hoverEnterMenu = useCallback(() => {
+    clearTimer(menuCloseTimerRef);
+    if (menuModeRef.current === 'closed' && menuOpenTimerRef.current === null) {
+      menuOpenTimerRef.current = window.setTimeout(() => setMenuMode('hover'), 150);
+    }
+  }, [setMenuMode]);
+
+  const hoverLeaveMenu = useCallback(() => {
+    clearTimer(menuOpenTimerRef);
+    if (menuModeRef.current === 'hover' && menuCloseTimerRef.current === null) {
+      menuCloseTimerRef.current = window.setTimeout(() => setMenuMode('closed'), 250);
+    }
+  }, [setMenuMode]);
   const [profileOpen, setProfileOpen] = useState(false);
   const [groupOverlay, setGroupOverlay] = useState(false);
   const [rightPane, setRightPane] = useState<'info' | 'search'>('info');
   const [forwarding, setForwarding] = useState<ChatMessage[]>([]);
   const [sharingImages, setSharingImages] = useState<{ id: string; url: string }[]>([]);
-  const [newChatOpen, setNewChatOpen] = useState(false);
+  /** Đang mở hộp "Cuộc trò chuyện mới" ở tab nào; null là đóng. */
+  const [newChat, setNewChat] = useState<'direct' | 'group' | null>(null);
   const [assigning, setAssigning] = useState<TaskPreset | null>(null);
   const [cardPickerOpen, setCardPickerOpen] = useState(false);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
@@ -144,6 +194,27 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   });
   const roomList = useRoomList({ isViewingChat, setError });
   const { rooms, room, roomId } = roomList;
+
+  const messengerUnread = useMemo(() => countUnreadRooms(rooms), [rooms]);
+  const menuBadges = useMemo<Partial<Record<Workspace, number>>>(
+    () => ({
+      messenger: messengerUnread,
+      ...(canReviewGallery ? { gallery: galleryReview?.pending ?? 0 } : {}),
+      news: newsUnread?.count ?? 0,
+    }),
+    [messengerUnread, canReviewGallery, galleryReview?.pending, newsUnread?.count],
+  );
+  const hasBadge = useMemo(
+    () =>
+      (Object.entries(menuBadges) as [Workspace, number | undefined][]).some(
+        ([ws, count]) => ws !== workspace && (count ?? 0) > 0,
+      ),
+    [menuBadges, workspace],
+  );
+  const menuCtx = useMemo(
+    () => ({ open: openMenu, hasBadge }),
+    [openMenu, hasBadge],
+  );
   const { setBlocked } = useBlockUser({ setRooms: roomList.setRooms });
   const roomPrefs = useRoomPrefs({ setRooms: roomList.setRooms, removeRoom: roomList.removeRoom });
   const tools = useRoomTools({ roomId, setWorkspace, openRoom: roomList.openRoom });
@@ -185,6 +256,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       openRoomFromNotice(task.roomId);
     }
   };
+  // Tab "Tệp từ chat" của Docs: về Messenger và cuộn tới tin chứa tệp
+  const openMessageFromDocs = (targetRoomId: string, messageId: string, createdAt: string) => {
+    setWorkspace('messenger');
+    chat.openMessage(targetRoomId, messageId, createdAt);
+  };
   const chat = useChatRoom({
     user,
     roomId,
@@ -223,7 +299,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     onSelect: selection.start,
     onSavedToCloud: chat.handleForwarded,
   });
-  const { onlineUserIds, typing, emitTyping } = useChatSocket({
+  const { onlineUsers, onlineUserIds, typing, emitTyping } = useChatSocket({
     user,
     myHandle,
     roomId,
@@ -244,6 +320,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setMembers: chat.setMembers,
   });
   useTypingSignal({ roomId, draft: composer.draft, emitTyping });
+  const { lastSeen, now } = useLastSeen();
   const onAssigned = (created: ChatMessage) => {
     if (created.roomId === roomId) {
       chat.appendMessage(created);
@@ -271,8 +348,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const locked = Boolean(room?.settings?.adminOnlySend && room.myRole === 'member');
   const canPin = !(room?.settings?.adminOnlyPin && room.myRole === 'member');
   const presence: Presence = { myId: user.id, online: chat.online, onlineUserIds };
-  const isPeerOnline = isOtherUserOnline(presence, peerUserIdOf(room, chat.members, user.id));
+  const peerUserId = peerUserIdOf(room, chat.members, user.id);
+  const isPeerOnline = isOtherUserOnline(presence, peerUserId);
+  const peerLastSeenAt = peerUserId ? lastSeen[peerUserId] : undefined;
   const isGroupOnline = hasOnlineMember(presence, chat.members);
+  const lastSeenCtx = useMemo(() => ({ lastSeen, now, onlineUserIds }), [lastSeen, now, onlineUserIds]);
   const onlineMembersCount = countOnlineMembers(presence, chat.members);
   const chatPhotos = useMemo(() => photosFromMessages(chat.messages), [chat.messages]);
   const markRead = () => chat.markMessageRead();
@@ -312,25 +392,43 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   }
 
   return (
-    <div
-      className={`app-shell module-${workspace}${
-        !narrow && infoHidden ? ' info-hidden' : ''
-      }`}
-    >
-      <NavRail
-        workspace={workspace}
-        user={user}
-        badges={{
-          ...(canReviewGallery ? { gallery: galleryReview?.pending ?? 0 } : {}),
-          news: newsUnread?.count ?? 0,
+    <AppMenuContext.Provider value={menuCtx}>
+      <div
+        className="menu-edge"
+        aria-hidden="true"
+        onPointerEnter={(e) => {
+          if (e.pointerType === 'mouse') {
+            hoverEnterMenu();
+          }
         }}
-        onSelect={(next) => {
-          setWorkspace(next);
-          setGroupOverlay(false);
+        onPointerLeave={(e) => {
+          if (e.pointerType === 'mouse') {
+            hoverLeaveMenu();
+          }
         }}
-        onOpenProfile={() => setProfileOpen(true)}
-        onLogout={() => confirmLeave(onLogout)}
       />
+      <LastSeenContext.Provider value={lastSeenCtx}>
+        <div
+          className={`app-shell module-${workspace}${
+            !narrow && infoHidden ? ' info-hidden' : ''
+          }`}
+        >
+        <AppMenuDrawer
+          open={menuMode !== 'closed'}
+          hoverMode={menuMode === 'hover'}
+          onClose={closeMenu}
+          onHoverEnter={hoverEnterMenu}
+          onHoverLeave={hoverLeaveMenu}
+          workspace={workspace}
+          user={user}
+          badges={menuBadges}
+          onSelect={(next) => {
+            setWorkspace(next);
+            setGroupOverlay(false);
+          }}
+          onOpenProfile={() => setProfileOpen(true)}
+          onLogout={() => confirmLeave(onLogout)}
+        />
 
       {workspace === 'messenger' ? (
         <ChatSidebar
@@ -340,14 +438,17 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
           roomsMeta={roomList.roomsMeta}
           loadingOlderRooms={roomList.loadingOlderRooms}
           searchText={searchText}
+          onlineUsers={onlineUsers}
           isRoomOnline={isRoomOnline}
           onSearchTextChange={setSearchText}
           onSelectRoom={roomList.selectRoom}
           onOpenRoom={roomList.openRoom}
           onOpenMessage={chat.openMessage}
           onLoadMoreRooms={roomList.loadMoreRooms}
-          onNewChat={() => setNewChatOpen(true)}
+          onNewChat={() => setNewChat('direct')}
           onOpenCloud={tools.openCloud}
+          lastSeen={lastSeen}
+          now={now}
           prefs={roomPrefs}
           drafts={composer.drafts}
         />
@@ -359,7 +460,8 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             room={room}
             isDirect={isDirect}
             isPeerOnline={isPeerOnline}
-            isGroupOnline={isGroupOnline}
+            lastSeenAt={peerLastSeenAt}
+            now={now}
             membersCount={chat.members.length}
             onlineMembersCount={onlineMembersCount}
             infoOpen={narrow ? groupOverlay : !infoHidden}
@@ -387,6 +489,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             members={chat.members}
             loading={Boolean(roomId) && !chat.messagesLoaded}
             readReceipts={Boolean(room) && !isDirect && !room?.isCloud}
+            showAuthorNames={Boolean(room) && !isDirect && !room?.isCloud}
             userId={user.id}
             myHandle={myHandle}
             loadingOlder={chat.loadingOlder}
@@ -473,13 +576,18 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
       ) : workspace === 'contacts' ? (
         <ContactsPage
           onlineUserIds={onlineUserIds}
+          rooms={rooms}
+          roomsMeta={roomList.roomsMeta}
+          loadingOlderRooms={roomList.loadingOlderRooms}
+          onLoadMoreRooms={roomList.loadMoreRooms}
           onViewProfile={setViewProfileId}
           onOpenRoom={openRoomFromContacts}
+          onCreateGroup={() => setNewChat('group')}
         />
       ) : workspace === 'email' ? (
         <EmailPage />
       ) : workspace === 'docs' ? (
-        <DocsPage user={user} />
+        <DocsPage user={user} onOpenMessage={openMessageFromDocs} />
       ) : workspace === 'hr' ? (
         <HrPage user={user} />
       ) : workspace === 'departments' ? (
@@ -526,7 +634,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             currentUserId={user.id}
             chatPhotos={chatPhotos}
             overlay={groupOverlay}
-            onClose={() => setGroupOverlay(false)}
+            onClose={() => (narrow ? setGroupOverlay(false) : setInfoHidden(true))}
             onRoomUpdated={roomList.updateRoom}
             onMembersUpdated={chat.setMembers}
             onRoomRemoved={roomList.removeRoom}
@@ -562,14 +670,18 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         onPick={(userId) => void composer.sendRich({ type: 'card', userId })}
       />
       <NewChatModal
-        open={newChatOpen}
-        onClose={() => setNewChatOpen(false)}
-        onOpenRoom={roomList.openRoom}
+        open={newChat !== null}
+        initialTab={newChat ?? undefined}
+        onClose={() => setNewChat(null)}
+        onOpenRoom={openRoomFromContacts}
       />
       <UserProfileModal
         open={Boolean(viewProfileId)}
         userId={viewProfileId}
         currentUserId={user.id}
+        online={isOtherUserOnline(presence, viewProfileId)}
+        lastSeenAt={viewProfileId ? lastSeen[viewProfileId] : undefined}
+        now={now}
         onClose={() => setViewProfileId(null)}
         onOpenRoom={openRoomFromContacts}
         onSetBlocked={setBlocked}
@@ -632,6 +744,8 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         onClose={() => setAssigning(null)}
         onCreated={onAssigned}
       />
-    </div>
+        </div>
+      </LastSeenContext.Provider>
+    </AppMenuContext.Provider>
   );
 }

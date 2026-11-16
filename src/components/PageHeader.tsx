@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { ArrowLeftOutlined } from '@ant-design/icons';
+import { MenuButton } from './MenuButton';
 
 export type PageTab = {
   key: string;
@@ -56,6 +57,7 @@ export function PageHeader(props: {
   return (
     <header className="ui-page-header">
       <div className="ui-page-header-main">
+        <MenuButton />
         {props.onBack && (
           <button
             type="button"

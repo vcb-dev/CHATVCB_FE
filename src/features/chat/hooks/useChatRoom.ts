@@ -133,6 +133,8 @@ export function useChatRoom({
   const lastMessageIdRef = useRef<string>('');
   const lastRoomIdRef = useRef<string>('');
   const pendingJumpRef = useRef<{ id: string; createdAt?: string } | null>(null);
+  // Tăng khi cần nhảy tới tin trong phòng đang mở, để effect nhảy chạy lại sau khi khung tin đã vẽ
+  const [jumpTick, setJumpTick] = useState(0);
   const lastReadSentRef = useRef('');
   const messagesRef = useRef<ChatMessage[]>([]);
   const userRef = useRef(user);
@@ -216,13 +218,6 @@ export function useChatRoom({
           } else if (isViewingChat()) {
             markMessageRead(latest, roomId);
           }
-          if (pendingJumpRef.current) {
-            const target = pendingJumpRef.current;
-            pendingJumpRef.current = null;
-            requestAnimationFrame(() => {
-              void jumpToMessage(target.id, target.createdAt);
-            });
-          }
         }
       })
       .catch(() => setError('Không tải được tin nhắn.'));
@@ -256,6 +251,18 @@ export function useChatRoom({
       lastMessageIdRef.current = latestId;
     }
   }, [messages, pending, roomId, unreadFromId]);
+
+  // Nhảy tới tin chờ sẵn (mở từ Công việc, Docs…) chỉ khi tin của phòng đã vẽ và khung tin đã mount.
+  // Gọi ngay hoặc trong requestAnimationFrame thì có lúc chạy trước khi React vẽ, báo nhầm "Không tìm thấy tin nhắn".
+  // Đặt sau effect cuộn xuống cuối ở trên để vị trí tin không bị ghi đè.
+  useEffect(() => {
+    const target = pendingJumpRef.current;
+    if (!target || !messagesLoaded || !listRef.current) {
+      return;
+    }
+    pendingJumpRef.current = null;
+    void jumpToMessage(target.id, target.createdAt);
+  }, [messagesLoaded, roomId, jumpTick]);
 
   useEffect(() => {
     function markReadWhenViewing() {
@@ -372,11 +379,12 @@ export function useChatRoom({
   }
 
   function openMessage(targetRoomId: string, messageId: string, createdAt?: string) {
+    pendingJumpRef.current = { id: messageId, createdAt };
     if (roomId !== targetRoomId) {
-      pendingJumpRef.current = { id: messageId, createdAt };
       setRoomId(targetRoomId);
     } else {
-      void jumpToMessage(messageId, createdAt);
+      // Cùng phòng nhưng có thể đang ở màn khác (Docs, Công việc): chờ khung tin mount rồi mới nhảy
+      setJumpTick((tick) => tick + 1);
     }
   }
 

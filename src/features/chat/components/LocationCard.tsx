@@ -4,7 +4,11 @@ import { formatCoords, mapUrl } from '../utils/location';
 export function LocationCard({ lat, lng, label }: { lat: number; lng: number; label?: string }) {
   return (
     <div className="location-card">
-      <EnvironmentOutlined className="location-pin" />
+      <div className="location-card-head">
+        <span className="location-card-kind">
+          <EnvironmentOutlined className="location-pin" /> Vị trí
+        </span>
+      </div>
       <div className="location-info">
         <strong>{label || 'Vị trí được chia sẻ'}</strong>
         <span>{formatCoords(lat, lng)}</span>

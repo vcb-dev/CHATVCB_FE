@@ -1,11 +1,12 @@
 import {
+  AppstoreOutlined,
   BarChartOutlined,
   CheckSquareOutlined,
   ClockCircleOutlined,
   EnvironmentOutlined,
   FileTextOutlined,
   IdcardOutlined,
-  PlusCircleOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import { Button, Dropdown, type MenuProps, Tooltip } from 'antd';
 import type { ToolKind } from '@/types';
@@ -15,11 +16,18 @@ export function ComposerToolsMenu(props: {
   canAssign: boolean;
   locked: boolean;
   disabled: boolean;
+  onOpenGallery: () => void;
   onPick: (kind: ToolKind) => void;
   onLocation: () => void;
   onCard: () => void;
 }) {
-  const items: MenuProps['items'] = [];
+  const items: MenuProps['items'] = [
+    {
+      key: 'gallery',
+      icon: <AppstoreOutlined />,
+      label: 'Bộ sưu tập ảnh',
+    },
+  ];
   if (props.canAssign) {
     items.push({
       key: 'task',
@@ -63,7 +71,9 @@ export function ComposerToolsMenu(props: {
       menu={{
         items,
         onClick: ({ key }) => {
-          if (key === 'location') {
+          if (key === 'gallery') {
+            props.onOpenGallery();
+          } else if (key === 'location') {
             props.onLocation();
           } else if (key === 'card') {
             props.onCard();
@@ -78,8 +88,9 @@ export function ComposerToolsMenu(props: {
       <Tooltip title="Công cụ">
         <Button
           type="text"
-          icon={<PlusCircleOutlined />}
-          className="composer-tool"
+          icon={<PlusOutlined />}
+          className="composer-plus-btn"
+          aria-label="Công cụ"
           disabled={props.disabled}
         />
       </Tooltip>

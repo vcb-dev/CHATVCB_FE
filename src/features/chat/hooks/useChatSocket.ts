@@ -23,6 +23,8 @@ import type {
   NewsReactionsEvent,
   AgentPendingEvent,
   ChatMessage,
+  LastSeenMap,
+  PresenceLastSeenEvent,
   PresenceUser,
   Room,
   RoomMember,
@@ -65,6 +67,7 @@ type Options = {
 };
 
 export function useChatSocket(options: Options) {
+  const [onlineUsers, setOnlineUsers] = useState<PresenceUser[]>([]);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [typing, setTyping] = useState<TypingEvent[]>([]);
   const typingTimersRef = useRef(new Map<string, number>());
@@ -295,8 +298,16 @@ export function useChatSocket(options: Options) {
       }
     });
     socket.on('presence.online', (users: PresenceUser[]) => {
+      setOnlineUsers(users);
       setOnlineUserIds(new Set(users.map((u) => u.id)));
     });
+    const onLastSeen = (payload: PresenceLastSeenEvent) => {
+      queryClient.setQueryData<LastSeenMap>(queryKeys.lastSeen, (m) => ({
+        ...(m ?? {}),
+        [payload.userId]: payload.lastSeenAt,
+      }));
+    };
+    socket.on('presence.lastSeen', onLastSeen);
     socket.on('room.presence', (users: PresenceUser[]) => {
       setOnline(users);
       setOnlineUserIds((current) => {
@@ -415,6 +426,7 @@ export function useChatSocket(options: Options) {
         });
     });
     return () => {
+      socket.off('presence.lastSeen', onLastSeen);
       closeSocket(socket);
       socketRef.current = null;
       for (const timer of typingTimers.values()) {
@@ -442,5 +454,5 @@ export function useChatSocket(options: Options) {
     socketRef.current?.emit('typing', { roomId, typing: active });
   }, []);
 
-  return { onlineUserIds, typing, emitTyping };
+  return { onlineUsers, onlineUserIds, typing, emitTyping };
 }

@@ -10,14 +10,15 @@ type Props = {
 export function MeetingCard({ code, title }: Props) {
   return (
     <div className="rich-meeting-card">
-      <div className="rich-meeting-head">
+      <div className="rich-meeting-top">
         <span className="rich-meeting-ico">
           <VideoCameraOutlined />
         </span>
-        <div className="rich-meeting-meta">
-          <strong>{title}</strong>
-          <small>Mã họp: {code}</small>
-        </div>
+        <span className="rich-meeting-kind">Cuộc họp</span>
+      </div>
+      <div className="rich-meeting-meta">
+        <strong>{title}</strong>
+        <small>Mã họp: {code}</small>
       </div>
       <Button
         type="primary"

@@ -6,13 +6,15 @@ import { avatarColor, initials } from '@/lib/avatar';
 import type { ConversationLabel, Room } from '@/types';
 import { formatRoomTime } from '../utils/datetime';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
-import { isRoomMuted, sameRoom } from '../utils/rooms';
+import { isDirectRoom, isRoomMuted, sameRoom } from '../utils/rooms';
 import { RoomMenu } from './RoomMenu';
 
 type Props = {
   room: Room;
   active: boolean;
   online: boolean;
+  /** Nhãn "N phút" trên avatar phòng 1-1 khi người kia offline; rỗng thì không hiện. */
+  lastSeenLabel: string;
   onSelect: (room: Room) => void;
   actions: ReturnType<typeof useRoomPrefs>;
   label?: ConversationLabel;
@@ -27,7 +29,7 @@ function RoomListItemView(props: Props) {
   const hasUnread = room.unreadCount > 0 || (room.markedUnread ?? false);
   const showCount = room.unreadCount > 0;
   const showMarkedDot = !showCount && (room.markedUnread ?? false);
-  const showOnline = !hasUnread && props.online;
+  const showOnline = isDirectRoom(room) && !hasUnread && props.online;
   const muted = isRoomMuted(room);
   const timeStr = formatRoomTime(room.updatedAt);
 
@@ -58,6 +60,9 @@ function RoomListItemView(props: Props) {
               {room.isCloud ? null : initials(name)}
             </Avatar>
             {showOnline ? <span className="room-online-dot" /> : null}
+            {props.lastSeenLabel ? (
+              <span className="room-last-seen">{props.lastSeenLabel}</span>
+            ) : null}
           </div>
 
           <div className="room-meta">
@@ -97,7 +102,15 @@ function RoomListItemView(props: Props) {
                 )}
               </div>
               {showCount ? (
-                <span className={muted ? 'room-badge muted' : 'room-badge'}>
+                <span
+                  className={
+                    muted
+                      ? 'room-badge muted'
+                      : room.mentioned
+                        ? 'room-badge mentioned'
+                        : 'room-badge'
+                  }
+                >
                   {room.unreadCount > 99 ? '99+' : room.unreadCount}
                 </span>
               ) : showMarkedDot ? (
@@ -133,6 +146,7 @@ export const RoomListItem = memo(
   (a, b) =>
     a.active === b.active &&
     a.online === b.online &&
+    a.lastSeenLabel === b.lastSeenLabel &&
     a.onSelect === b.onSelect &&
     a.actions === b.actions &&
     a.label === b.label &&

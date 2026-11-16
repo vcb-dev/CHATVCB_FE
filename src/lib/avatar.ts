@@ -7,7 +7,7 @@ export function initials(name: string) {
     .join('');
 }
 
-const AVATAR_COLORS = ['#0084ff', '#00a400', '#f02849', '#d696bb', '#ff7a00', '#7b61ff', '#00b8d9'];
+const AVATAR_COLORS = ['#dbeafe', '#dcfce7', '#ffedd5', '#ede9fe', '#fce7f3', '#ccfbf1', '#fef3c7'];
 
 export function avatarColor(name: string) {
   let hash = 0;

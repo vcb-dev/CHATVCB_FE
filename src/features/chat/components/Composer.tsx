@@ -74,9 +74,23 @@ export function Composer(props: {
     () => buildMentionOptions(members, props.online, props.userId, room),
     [members, props.online, room, props.userId],
   );
+  const hasContent = Boolean(draft.trim() || pendingImages.length || pendingFiles.length);
+  // Nút "+" (bộ sưu tập, giao việc, nhắc hẹn, ghi chú, vị trí, danh thiếp): dùng cả khi nhóm khoá gửi tin.
+  const toolsMenu = (
+    <ComposerToolsMenu
+      isGroup={Boolean(room && !isDirectRoom(room) && !room.isCloud)}
+      canAssign={Boolean(room && canAssignTask(room))}
+      locked={Boolean(props.locked)}
+      disabled={props.disabled}
+      onOpenGallery={() => void props.onOpenGallery()}
+      onPick={(kind) => props.onTool?.(kind)}
+      onLocation={props.onLocation}
+      onCard={props.onCard}
+    />
+  );
   const canSend = props.editing
     ? !props.disabled && Boolean(draft.trim())
-    : Boolean(!props.disabled && (draft.trim() || pendingImages.length || pendingFiles.length));
+    : !props.disabled && hasContent;
 
   function shouldSkipSend(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.nativeEvent.isComposing || event.keyCode === 229) {
@@ -172,56 +186,19 @@ export function Composer(props: {
         </Typography.Text>
       ) : null}
       {props.editing ? null : (
-        <div className="composer-toolbar">
-          <StickerButton
-            disabled={props.disabled}
-            onEmoji={(emoji) => props.onDraftChange((current) => `${current}${emoji}`)}
-            onSticker={(emoji) => void props.onSticker(emoji)}
-            onPackSticker={(id) => void props.onPackSticker(id)}
-            onGif={(url) => void props.onGif(url)}
-          />
-          <ComposerActions
-            disabled={props.disabled}
-            onAddFiles={props.onAddImages}
-            onOpenGallery={() => void props.onOpenGallery()}
-          />
-          <AttachButton
-            disabled={props.disabled}
-            onAddFiles={props.onAddDocs}
-          />
-          {voiceRecorder.supported ? (
-            <Tooltip title="Ghi tin nhắn thoại">
-              <Button
-                type="text"
-                icon={<AudioOutlined />}
-                className="composer-tool"
-                disabled={props.disabled}
-                onClick={() => void voiceRecorder.start()}
-              />
-            </Tooltip>
-          ) : null}
-          <ComposerToolsMenu
-            isGroup={Boolean(room && !isDirectRoom(room) && !room.isCloud)}
-            canAssign={Boolean(room && canAssignTask(room))}
-            locked={Boolean(props.locked)}
-            disabled={props.disabled}
-            onPick={(kind) => props.onTool?.(kind)}
-            onLocation={props.onLocation}
-            onCard={props.onCard}
-          />
-        </div>
-      )}
-      {props.editing ? null : (
         <>
           <PendingPreviews items={pendingImages} onRemove={props.onRemoveImage} />
           <PendingFiles items={pendingFiles} onRemove={props.onRemoveDoc} />
         </>
       )}
-      <div className="composer-input-row">
+      <div className="composer-pill">
         {props.locked ? (
-          <div className="composer-locked">
-            Chỉ trưởng nhóm và phó nhóm được gửi tin trong nhóm này.
-          </div>
+          <>
+            {toolsMenu}
+            <div className="composer-locked">
+              Chỉ trưởng nhóm và phó nhóm được gửi tin trong nhóm này.
+            </div>
+          </>
         ) : props.blockedByMe ? (
           <div className="composer-locked">
             Bạn đã chặn người này.{' '}
@@ -237,6 +214,7 @@ export function Composer(props: {
           />
         ) : (
           <>
+            {props.editing ? null : toolsMenu}
             <Mentions
               value={draft}
               onChange={props.onDraftChange}
@@ -269,14 +247,47 @@ export function Composer(props: {
               disabled={props.disabled}
               notFoundContent="Không có người khớp"
             />
-            <Button
-              type="text"
-              className={`composer-send ${canSend ? 'can-send' : ''}`}
-              htmlType="button"
-              icon={<SendOutlined />}
-              disabled={!canSend}
-              onClick={() => void props.onSend(draft)}
-            />
+            {props.editing ? null : (
+              <>
+                <StickerButton
+                  disabled={props.disabled}
+                  onEmoji={(emoji) => props.onDraftChange((current) => `${current}${emoji}`)}
+                  onSticker={(emoji) => void props.onSticker(emoji)}
+                  onPackSticker={(id) => void props.onPackSticker(id)}
+                  onGif={(url) => void props.onGif(url)}
+                />
+                <ComposerActions
+                  disabled={props.disabled}
+                  onAddFiles={props.onAddImages}
+                />
+                <AttachButton
+                  disabled={props.disabled}
+                  onAddFiles={props.onAddDocs}
+                />
+              </>
+            )}
+            {!props.editing && !hasContent && voiceRecorder.supported ? (
+              <Tooltip title="Ghi tin nhắn thoại">
+                <Button
+                  type="text"
+                  icon={<AudioOutlined />}
+                  className="composer-tool composer-voice-btn"
+                  aria-label="Ghi tin nhắn thoại"
+                  disabled={props.disabled}
+                  onClick={() => void voiceRecorder.start()}
+                />
+              </Tooltip>
+            ) : (
+              <Button
+                type="text"
+                className={`composer-send ${canSend ? 'can-send' : ''}`}
+                htmlType="button"
+                icon={<SendOutlined />}
+                aria-label="Gửi"
+                disabled={!canSend}
+                onClick={() => void props.onSend(draft)}
+              />
+            )}
           </>
         )}
       </div>

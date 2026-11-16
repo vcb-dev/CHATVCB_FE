@@ -12,25 +12,42 @@ import {
   PlusOutlined,
   ProjectOutlined,
   StarFilled,
+  SendOutlined,
   StarOutlined,
   TableOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import { Avatar, Button, Dropdown, Input, Modal, message } from 'antd';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Avatar, Button, Dropdown, Input, message } from 'antd';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, fileSrc } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
 import { DocsEditor } from './DocsEditor';
 import { draftContent, draftTitle, kindLabel } from './utils/drafts';
 import { openSheetTab } from './sheet';
 import { avatarColor, initials } from '@/lib/avatar';
-import type { DocItem, DocKind, User } from '@/types';
+import type { ChatDocType, DocItem, DocKind, DocTemplate, DocsGoogleStatus, User } from '@/types';
+import { dropTab, reserveTab, sendTab } from './utils/googleTab';
+import { DocsHome } from './components/DocsHome';
+import { FolderSidebar } from './components/FolderSidebar';
+import { MoveDocModal } from './components/MoveDocModal';
+import { SendDocModal } from './components/SendDocModal';
+import { TemplateCenter } from './components/TemplateCenter';
+import { openDocOnGoogle } from './utils/openDoc';
 import { ModuleLayout } from '@/components/ModuleLayout';
 import { PageHeader } from '@/components/PageHeader';
 import { ContentCard } from '@/components/ContentCard';
 import { EmptyState } from '@/components/EmptyState';
+import { ChatFilesFilters, type ChatDocRoom } from './components/ChatFilesFilters';
+import { ChatFilesTable } from './components/ChatFilesTable';
 
-type Tab = 'recent' | 'shared' | 'starred';
-type Props = { user: User };
+type Tab = 'home' | 'files' | 'recent' | 'shared' | 'starred' | 'folders';
+type Template = DocTemplate;
+type CreateExtra = { title?: string; template?: Template; content?: string; folderId?: string };
+type Props = {
+  user: User;
+  onOpenMessage: (roomId: string, messageId: string, createdAt: string) => void;
+};
 
 function formatWhen(value?: string | null) {
   if (!value) {
@@ -46,19 +63,16 @@ function formatWhen(value?: string | null) {
 }
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'home', label: 'Trang chủ' },
+  { id: 'files', label: 'Tệp từ chat' },
   { id: 'recent', label: 'Gần đây' },
   { id: 'shared', label: 'Được chia sẻ với tôi' },
   { id: 'starred', label: 'Ưa thích' },
-];
-
-const TEMPLATES: { id: 'blank' | 'meeting' | 'weekly'; title: string; hint: string }[] = [
-  { id: 'blank', title: 'Tài liệu trống', hint: 'Trang trắng để viết' },
-  { id: 'meeting', title: 'Biên bản họp', hint: 'Mục tiêu, thành phần, việc cần làm' },
-  { id: 'weekly', title: 'Báo cáo tuần', hint: 'Đã làm, đang làm, kế hoạch' },
+  { id: 'folders', label: 'Thư mục team' },
 ];
 
 const KIND_META: { id: DocKind; label: string; icon: ReactNode; tone: string }[] = [
-  { id: 'doc', label: 'Word', icon: <FileTextOutlined />, tone: 'blue' },
+  { id: 'doc', label: 'Google Doc', icon: <FileTextOutlined />, tone: 'blue' },
   { id: 'sheet', label: 'Google Sheet', icon: <TableOutlined />, tone: 'green' },
   { id: 'slides', label: 'Trang chiếu', icon: <ProjectOutlined />, tone: 'orange' },
   { id: 'form', label: 'Biểu mẫu', icon: <FormOutlined />, tone: 'violet' },
@@ -75,15 +89,42 @@ function KindIcon({ kind }: { kind?: DocKind }) {
   return <span className={`docs-kind ${item.tone}`}>{item.icon}</span>;
 }
 
-export function DocsPage({ user }: Props) {
-  const [tab, setTab] = useState<Tab>('recent');
+export function DocsPage({ user, onOpenMessage }: Props) {
+  // Quay về từ OAuth Google Sheet thì mở danh sách Docs như trước
+  const [tab, setTab] = useState<Tab>(() =>
+    new URLSearchParams(window.location.search).has('google') ? 'recent' : 'home',
+  );
+  // Thư mục đang mở ở tab "Thư mục team"; rỗng = Chưa xếp thư mục
+  const [folderId, setFolderId] = useState('');
+  const [moving, setMoving] = useState<DocItem | null>(null);
+  const [home, setHome] = useState<{ recent: DocItem[]; starred: DocItem[]; loaded: boolean }>({
+    recent: [],
+    starred: [],
+    loaded: false,
+  });
+  const queryClient = useQueryClient();
+  const foldersQuery = useQuery({
+    queryKey: queryKeys.docFolders,
+    queryFn: () => api.docFolders(),
+    enabled: tab === 'folders' || Boolean(moving),
+  });
+  const folders = foldersQuery.data ?? [];
+  const refreshFolders = useCallback(
+    () => void queryClient.invalidateQueries({ queryKey: queryKeys.docFolders }),
+    [queryClient],
+  );
+  const [fileType, setFileType] = useState<ChatDocType | null>(null);
+  const [fileRoom, setFileRoom] = useState<ChatDocRoom | null>(null);
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
   const [items, setItems] = useState<DocItem[]>([]);
   const [opened, setOpened] = useState<DocItem | null>(null);
+  const [sending, setSending] = useState<DocItem | null>(null);
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState('');
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  // null = chưa biết; dùng để quyết định mở sẵn tab ngay lúc bấm
+  const [google, setGoogle] = useState<DocsGoogleStatus | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const saveTimer = useRef<number | undefined>(undefined);
   const realIdRef = useRef('');
@@ -95,20 +136,34 @@ export function DocsPage({ user }: Props) {
   }, [query]);
 
   const load = useCallback(async () => {
+    // Tab tệp từ chat tự tải bằng React Query
+    if (tab === 'files') {
+      return;
+    }
     try {
-      setItems(await api.listDocs(tab, search));
+      if (tab === 'home') {
+        const [recent, starred] = await Promise.all([api.listDocs('recent'), api.listDocs('starred')]);
+        setHome({ recent: recent.slice(0, 8), starred: starred.slice(0, 4), loaded: true });
+        return;
+      }
+      setItems(tab === 'folders' ? await api.listDocs('folder', search, folderId) : await api.listDocs(tab, search));
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không tải được Docs.');
     }
-  }, [tab, search]);
+  }, [tab, search, folderId]);
 
   useEffect(() => {
-    const google = new URLSearchParams(window.location.search).get('google');
+    const params = new URLSearchParams(window.location.search);
+    const google = params.get('google');
     if (google === 'ok') {
-      message.success('Đã kết nối Google. Có thể tạo Google Sheet.');
+      message.success('Đã kết nối Google. Giờ tạo và mở được tài liệu trên Google.');
     } else if (google === 'error') {
-      message.error('Không kết nối được Google Sheets.');
+      message.error(params.get('reason') || 'Không kết nối được Google.');
     }
+  }, []);
+
+  useEffect(() => {
+    void api.googleSheetsStatus().then(setGoogle).catch(() => setGoogle(null));
   }, []);
 
   useEffect(() => {
@@ -126,39 +181,86 @@ export function DocsPage({ user }: Props) {
     };
   }, [load]);
 
-  async function openGoogleSheet(title?: string) {
+  /** Đi kết nối Google; quay về thì BE tự tạo tài liệu hoặc cấp quyền rồi mở luôn */
+  async function connectGoogle(input: { intent: 'connect' | 'doc' | 'sheet' | 'open'; template?: Template; docId?: string }) {
     try {
-      const status = await api.googleSheetsStatus();
+      const next = await api.googleSheetsStart(input);
+      window.location.assign(next.url);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'Không mở được Google.');
+    }
+  }
+
+  async function createOnGoogle(kind: 'doc' | 'sheet', title: string, extra?: CreateExtra) {
+    const tab = google?.ready && google.drive && google.connected ? reserveTab() : null;
+    try {
+      const status = google ?? (await api.googleSheetsStatus());
+      setGoogle(status);
       if (!status.ready) {
-        message.error('Chưa cấu hình Google OAuth. Thêm Client ID/Secret rồi kết nối Google Sheet.');
+        dropTab(tab);
+        message.error('Server chưa cấu hình Google (thiếu Client ID/Secret).');
+        return;
+      }
+      if (!status.drive) {
+        dropTab(tab);
+        if (kind === 'sheet') {
+          message.error('Drive công ty chưa được cấu hình hoặc đang mất kết nối. Báo quản trị viên kiểm tra cấu hình Drive.');
+          return;
+        }
+        createLocal('doc', title, extra);
         return;
       }
       if (!status.connected) {
-        const next = await api.googleSheetsStart('sheet');
-        window.location.assign(next.url);
+        dropTab(tab);
+        // Nội dung tệp tải lên không gửi kèm qua Google được: kết nối xong thì tải lại
+        await connectGoogle({ intent: extra?.content ? 'connect' : kind, template: extra?.template });
         return;
       }
-      const doc = await api.createDoc({ kind: 'sheet', title });
+      const doc = await api.createDoc({
+        kind,
+        title,
+        template: extra?.template,
+        content: extra?.content,
+        folderId: extra?.folderId,
+      });
       setItems((current) => [doc, ...current.filter((item) => item.id !== doc.id)]);
+      if (extra?.folderId) {
+        refreshFolders();
+      }
       if (doc.googleUrl) {
-        window.open(doc.googleUrl, '_blank');
+        sendTab(tab, doc.googleUrl);
         return;
       }
-      openSheetTab({ id: doc.id });
+      // Drive vừa mất kết nối giữa chừng: BE đã lưu Doc trong ChatVCB, mở bằng trình soạn
+      dropTab(tab);
+      setGoogle({ ...status, drive: false });
+      showDoc(doc);
     } catch (err) {
+      dropTab(tab);
       const text = err instanceof Error ? err.message : '';
       if (text.includes('GOOGLE_CONNECT')) {
-        try {
-          const next = await api.googleSheetsStart('sheet');
-          window.location.assign(next.url);
-          return;
-        } catch {
-          message.error('Không mở được Google.');
-          return;
-        }
+        await connectGoogle({ intent: extra?.content ? 'connect' : kind, template: extra?.template });
+        return;
       }
-      message.error(text || 'Không tạo được Google Sheet.');
+      message.error(text || 'Không tạo được tài liệu.');
     }
+  }
+
+  /** Gửi vào chat: tài liệu trên Google và người có quyền sửa. Chuyển thư mục: tài liệu team mình. Xóa: chỉ chủ sở hữu */
+  function rowActions(item: DocItem) {
+    return [
+      ...(item.googleUrl && item.myRole !== 'reader'
+        ? [{ key: 'send', label: 'Gửi vào chat', icon: <SendOutlined /> }]
+        : []),
+      ...(item.team === user.team && item.myRole !== 'reader'
+        ? [{ key: 'move', label: 'Chuyển tới thư mục…', icon: <FolderOutlined /> }]
+        : []),
+      ...(item.ownerId === user.id ? [{ key: 'del', label: 'Xóa', danger: true, icon: <DeleteOutlined /> }] : []),
+    ];
+  }
+
+  function openOnGoogle(item: DocItem) {
+    return openDocOnGoogle(item.id, google?.connected);
   }
 
   function showDoc(doc: DocItem) {
@@ -169,14 +271,27 @@ export function DocsPage({ user }: Props) {
     setSaving('');
   }
 
-  function create(kind: DocKind = 'doc', extra?: { title?: string; template?: 'blank' | 'meeting' | 'weekly'; content?: string }) {
+  function create(kind: DocKind = 'doc', input?: CreateExtra) {
+    setTemplatesOpen(false);
+    // Đang mở một thư mục team thì tài liệu mới nằm luôn trong thư mục đó
+    const extra = tab === 'folders' && folderId ? { ...input, folderId } : input;
+    const title = draftTitle(kind, extra?.template, extra?.title);
+    // Doc/Sheet nằm trong Drive công ty; Drive chưa kết nối thì Doc viết bằng trình soạn trong ChatVCB
+    if (kind === 'sheet' || (kind === 'doc' && google?.drive !== false)) {
+      void createOnGoogle(kind, title, extra);
+      return;
+    }
+    createLocal(kind, title, extra);
+  }
+
+  function createLocal(kind: DocKind, title: string, extra?: CreateExtra) {
     const tmpId = `tmp-${Date.now()}`;
     const now = new Date().toISOString();
     const draft: DocItem = {
       id: tmpId,
       team: user.team || 'sale',
       ownerId: user.id,
-      title: draftTitle(kind, extra?.template, extra?.title),
+      title,
       kind,
       content: draftContent(kind, extra?.template, extra?.content),
       folder: 'Docs của tôi',
@@ -184,15 +299,13 @@ export function DocsPage({ user }: Props) {
       updatedAt: now,
       starred: false,
       owner: { id: user.id, name: user.name, avatarUrl: user.avatarUrl },
+      myRole: 'owner',
+      folderId: extra?.folderId ?? null,
+      folderName: '',
     };
-    setTemplatesOpen(false);
-    if (kind === 'sheet') {
-      void openGoogleSheet(draft.title);
-      return;
-    }
     showDoc(draft);
     void api
-      .createDoc({ kind, title: draft.title, template: extra?.template, content: draft.content })
+      .createDoc({ kind, title: draft.title, template: extra?.template, content: draft.content, folderId: extra?.folderId })
       .then((doc) => {
         realIdRef.current = doc.id;
         setItems((current) => [{ ...doc, title: draft.title }, ...current.filter((item) => item.id !== doc.id)]);
@@ -212,11 +325,11 @@ export function DocsPage({ user }: Props) {
       message.info('Thư mục: dùng để nhóm tài liệu.');
       return;
     }
+    if (item.googleUrl) {
+      void openOnGoogle(item);
+      return;
+    }
     if (item.kind === 'sheet') {
-      if (item.googleUrl) {
-        window.open(item.googleUrl, '_blank');
-        return;
-      }
       openSheetTab({ id: item.id });
       return;
     }
@@ -273,6 +386,9 @@ export function DocsPage({ user }: Props) {
       await api.removeDoc(doc.id);
       setOpened((current) => (current?.id === doc.id ? null : current));
       setItems((current) => current.filter((item) => item.id !== doc.id));
+      if (doc.folderId) {
+        refreshFolders();
+      }
       message.success('Đã xóa tài liệu.');
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không xóa được.');
@@ -364,6 +480,11 @@ export function DocsPage({ user }: Props) {
 
   return (
     <ModuleLayout
+      sidebar={
+        tab === 'folders' ? (
+          <FolderSidebar folders={folders} selected={folderId} onSelect={setFolderId} onChanged={refreshFolders} />
+        ) : undefined
+      }
       header={
         <PageHeader
           title="Docs"
@@ -374,19 +495,47 @@ export function DocsPage({ user }: Props) {
             onChange: (key) => setTab(key as Tab),
           }}
           tabsExtra={
-            <Input.Search
-              allowClear
-              placeholder="Tìm kiếm"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              style={{ width: 240 }}
-            />
+            tab === 'home' ? undefined : (
+              <Input.Search
+                allowClear
+                placeholder={tab === 'files' ? 'Tìm tên tệp' : 'Tìm kiếm'}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                style={{ width: 240 }}
+              />
+            )
           }
-        />
+        >
+          {tab === 'files' ? (
+            <ChatFilesFilters
+              type={fileType}
+              onTypeChange={setFileType}
+              room={fileRoom}
+              onClearRoom={() => setFileRoom(null)}
+            />
+          ) : null}
+        </PageHeader>
       }
     >
       <ContentCard>
-        {items.length ? (
+        {tab === 'home' ? (
+          <DocsHome
+            recent={home.recent}
+            starred={home.starred}
+            loaded={home.loaded}
+            kindIcon={(kind) => <KindIcon kind={kind} />}
+            onOpen={openDoc}
+            onCreate={(card) => create(card.kind, card.template ? { template: card.template } : undefined)}
+            onShowTemplates={() => setTemplatesOpen(true)}
+            onSeeAll={setTab}
+          />
+        ) : tab === 'files' ? (
+          <ChatFilesTable
+            query={{ q: search, type: fileType, roomId: fileRoom?.id ?? null }}
+            onFilterRoom={setFileRoom}
+            onOpenMessage={onOpenMessage}
+          />
+        ) : items.length ? (
           <div className="docs-table">
             <div className="docs-tr head">
               <span>Tên</span>
@@ -411,7 +560,7 @@ export function DocsPage({ user }: Props) {
                     {item.starred ? <StarFilled /> : <StarOutlined />}
                   </button>
                 </span>
-                <span>{item.folder}</span>
+                <span>{item.folderName || item.folder}</span>
                 <span className="docs-owner">
                   <Avatar size={22} src={item.owner.avatarUrl ? fileSrc(item.owner.avatarUrl) : undefined} style={{ background: avatarColor(item.owner.name) }}>
                     {initials(item.owner.name)}
@@ -422,14 +571,20 @@ export function DocsPage({ user }: Props) {
                 <span className="docs-recent">
                   <ClockCircleOutlined />
                   {formatWhen(item.updatedAt)}
-                  {item.ownerId === user.id ? (
+                  {rowActions(item).length > 0 ? (
                     <Dropdown
                       trigger={['click']}
                       menu={{
-                        items: [{ key: 'del', label: 'Xóa', danger: true, icon: <DeleteOutlined /> }],
-                        onClick: ({ domEvent }) => {
+                        items: rowActions(item),
+                        onClick: ({ key, domEvent }) => {
                           domEvent.stopPropagation();
-                          void remove(item);
+                          if (key === 'send') {
+                            setSending(item);
+                          } else if (key === 'move') {
+                            setMoving(item);
+                          } else if (key === 'del') {
+                            void remove(item);
+                          }
                         },
                       }}
                     >
@@ -445,8 +600,12 @@ export function DocsPage({ user }: Props) {
         ) : (
           <EmptyState
             icon={<FileTextOutlined />}
-            title="Chưa có tài liệu"
-            description="Tạo tài liệu mới hoặc tải lên tệp văn bản từ máy tính."
+            title={tab === 'folders' ? 'Thư mục này chưa có tài liệu' : 'Chưa có tài liệu'}
+            description={
+              tab === 'folders'
+                ? 'Tạo tài liệu mới ngay trong thư mục, hoặc dùng "Chuyển tới thư mục…" ở menu ⋯ của một tài liệu.'
+                : 'Tạo tài liệu mới hoặc tải lên tệp văn bản từ máy tính.'
+            }
             action={
               <Button type="primary" icon={<PlusOutlined />} onClick={() => create('doc')}>
                 Tạo mới
@@ -467,17 +626,22 @@ export function DocsPage({ user }: Props) {
         }}
       />
 
-      <Modal title="Mẫu tài liệu" open={templatesOpen} footer={null} onCancel={() => setTemplatesOpen(false)}>
-        <div className="docs-templates">
-          {TEMPLATES.map((item) => (
-            <button key={item.id} type="button" onClick={() => create('doc', { template: item.id })}>
-              <FileTextOutlined />
-              <strong>{item.title}</strong>
-              <small>{item.hint}</small>
-            </button>
-          ))}
-        </div>
-      </Modal>
+      <TemplateCenter
+        open={templatesOpen}
+        kindIcon={(kind) => <KindIcon kind={kind} />}
+        onClose={() => setTemplatesOpen(false)}
+        onPick={(card) => create(card.kind, card.template ? { template: card.template } : undefined)}
+      />
+      <MoveDocModal
+        doc={moving}
+        folders={folders}
+        onClose={() => setMoving(null)}
+        onMoved={() => {
+          refreshFolders();
+          void load();
+        }}
+      />
+      <SendDocModal doc={sending} onClose={() => setSending(null)} />
     </ModuleLayout>
   );
 }

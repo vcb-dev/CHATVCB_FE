@@ -8,6 +8,8 @@ export function NewChatModal(props: {
   open: boolean;
   onClose: () => void;
   onOpenRoom: (room: Room) => void;
+  /** Tab mở sẵn; "Tạo nhóm mới" ở Danh bạ mở thẳng tab nhóm. */
+  initialTab?: 'direct' | 'group';
 }) {
   const [activeTab, setActiveTab] = useState<'direct' | 'group'>('direct');
   const [groupName, setGroupName] = useState('');
@@ -15,13 +17,14 @@ export function NewChatModal(props: {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!props.open) {
+    if (props.open) {
+      setActiveTab(props.initialTab ?? 'direct');
+    } else {
       setGroupName('');
       setSelectedIds([]);
       setSubmitting(false);
-      setActiveTab('direct');
     }
-  }, [props.open]);
+  }, [props.open, props.initialTab]);
 
   async function handleDirectPick(user: DirectoryUser) {
     setSubmitting(true);

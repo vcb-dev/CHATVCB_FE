@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { MessageOutlined, StopOutlined } from '@ant-design/icons';
 import { Avatar, Button, Modal, Spin, message as antMessage } from 'antd';
 import { api, fileSrc } from '@/api/client';
+import { lastSeenText } from '@/features/chat/utils/presence';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { DirectoryUser, Room } from '@/types';
 
@@ -9,6 +10,9 @@ export function UserProfileModal(props: {
   open: boolean;
   userId: string | null;
   currentUserId: string;
+  online: boolean;
+  lastSeenAt?: string;
+  now: number;
   onClose: () => void;
   onOpenRoom: (room: Room) => void;
   onSetBlocked: (userId: string, blocked: boolean) => Promise<boolean>;
@@ -123,6 +127,11 @@ export function UserProfileModal(props: {
               </Avatar>
             </div>
             <h3 className="profile-name">{profile.name}</h3>
+            {!isSelf ? (
+              <p className="profile-last-seen">
+                {lastSeenText(props.online, props.lastSeenAt, props.now)}
+              </p>
+            ) : null}
           </div>
 
           {!isSelf ? (

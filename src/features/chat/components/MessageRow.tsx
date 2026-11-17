@@ -1,5 +1,10 @@
-import { PushpinOutlined, RobotOutlined } from '@ant-design/icons';
-import { Avatar, Dropdown } from 'antd';
+import {
+  MoreOutlined,
+  PushpinOutlined,
+  RobotOutlined,
+  RollbackOutlined,
+} from '@ant-design/icons';
+import { Avatar, Button, Dropdown, type MenuProps } from 'antd';
 import { memo } from 'react';
 import { fileSrc } from '@/api/client';
 import { CopyableImage } from '@/components/CopyableImage';
@@ -14,6 +19,8 @@ import { isStickerText } from '../utils/stickers';
 import { DeliveryStatus } from './DeliveryStatus';
 import { FileCard } from './FileCard';
 import { ImageAlbum } from './ImageAlbum';
+import { googleDocIdFromUrl } from '@/features/docs/utils/googleLinks';
+import { DocLinkCard } from './DocLinkCard';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { PollCard } from './PollCard';
 import { RichBubble } from './RichBubble';
@@ -35,6 +42,7 @@ type Props = {
   mine: boolean;
   first: boolean;
   last: boolean;
+  showName?: boolean;
   tagged: boolean;
   mentionsEnabled?: boolean;
   viewers: RoomRead[];
@@ -65,6 +73,8 @@ function MessageRowView(props: Props) {
   const cls = [
     'row',
     mine ? 'mine' : 'theirs',
+    first ? 'first' : '',
+    last ? 'last' : '',
     agent ? 'agent' : '',
     props.tagged ? 'tagged' : '',
   ]
@@ -73,94 +83,114 @@ function MessageRowView(props: Props) {
   const album = (message.images ?? []).length > 1 && !message.recalled;
   const hasImage = Boolean(message.imageUrl && !message.recalled) && !album;
   const hasFile = Boolean(message.fileUrl && !message.recalled);
+  const hasVoice = hasFile && isVoice(message);
   const isPoll = Boolean(message.poll && !message.recalled);
   const isRich = Boolean(message.rich && !message.recalled);
   const isTask = Boolean(message.task && !message.recalled);
   const hasText = Boolean(message.content && !message.recalled) && !isPoll && !isRich && !isTask;
   const isCardTypeRich = Boolean(isRich && message.rich?.type !== 'sticker');
-  const hasCard = Boolean(isTask || isPoll || isCardTypeRich || hasFile);
+  const hasCard = Boolean(isTask || isPoll || isCardTypeRich || (hasFile && !hasVoice));
   const sticker =
     (!hasImage && !album && !hasFile && hasText && isStickerText(message.content)) ||
     message.rich?.type === 'sticker';
   const link = !isPoll && hasText && !hasImage && !album && !hasFile && !sticker ? firstLink(message.content) : null;
   const previewLink = link && !inviteTokenOf(link) ? link : null;
+  const menuProps: MenuProps = {
+    items: [
+      {
+        key: 'reply',
+        label: 'Trả lời tin nhắn',
+        disabled: message.recalled,
+      },
+      ...(canForward(message) ? [{ key: 'forward', label: 'Chuyển tiếp' }] : []),
+      ...(props.canSaveToCloud && canForward(message)
+        ? [{ key: 'saveCloud', label: 'Lưu vào Cloud' }]
+        : []),
+      ...(chatImagesOf(message).length
+        ? [{ key: 'shareLibrary', label: 'Đưa lên thư viện' }]
+        : []),
+      ...(hasText ? [{ key: 'copy', label: 'Sao chép tin nhắn' }] : []),
+      ...(canEdit(message, props.userId) ? [{ key: 'edit', label: 'Sửa tin nhắn' }] : []),
+      ...(hasImage ? [{ key: 'copyImage', label: 'Sao chép ảnh' }] : []),
+      ...(props.canPin !== false
+        ? [
+            {
+              key: 'pin',
+              label: message.pinned ? 'Bỏ ghim tin nhắn' : 'Ghim tin nhắn',
+              disabled: message.recalled,
+            },
+          ]
+        : []),
+      ...(message.recalled ? [] : [{ key: 'select', label: 'Chọn nhiều tin' }]),
+      { key: 'delete', label: 'Xóa tin nhắn' },
+      ...(mine && !message.recalled
+        ? [{ key: 'recall', label: 'Thu hồi tin nhắn', danger: true }]
+        : []),
+    ],
+    onClick: ({ key }) => void props.onAction(key, message),
+  };
   return (
     <div
       id={`msg-${message.id}`}
       className={cls}
       onClick={() => props.onMarkRead()}
     >
-      {!mine && first ? (
-        <Avatar
-          size={28}
-          className="avatar-initials"
-          src={message.authorAvatarUrl ? fileSrc(message.authorAvatarUrl) : undefined}
-          icon={agent ? <RobotOutlined /> : undefined}
-          style={{
-            background: agent ? '#31a24c' : avatarColor(message.authorName),
-            cursor: !agent && message.userId ? 'pointer' : 'default',
-          }}
-          onClick={(e) => {
-            if (!agent && message.userId) {
-              e?.stopPropagation();
-              props.onViewProfile(message.userId);
-            }
-          }}
-        >
-          {agent ? null : initials(message.authorName)}
-        </Avatar>
-      ) : (
-        <span className="avatar-spacer" />
-      )}
+      <span className="avatar-spacer" />
       <div className="stack">
-        {first && !mine ? (
+        {props.showName ? (
           <span className="who-line">{message.authorName}</span>
         ) : null}
-        <div className="bubble-wrap">
-          <Dropdown
-            trigger={['contextMenu']}
-            menu={{
-              items: [
-                {
-                  key: 'reply',
-                  label: 'Trả lời tin nhắn',
-                  disabled: message.recalled,
-                },
-                ...(canForward(message) ? [{ key: 'forward', label: 'Chuyển tiếp' }] : []),
-                ...(props.canSaveToCloud && canForward(message)
-                  ? [{ key: 'saveCloud', label: 'Lưu vào Cloud' }]
-                  : []),
-                ...(chatImagesOf(message).length
-                  ? [{ key: 'shareLibrary', label: 'Đưa lên thư viện' }]
-                  : []),
-                ...(hasText ? [{ key: 'copy', label: 'Sao chép tin nhắn' }] : []),
-                ...(canEdit(message, props.userId) ? [{ key: 'edit', label: 'Sửa tin nhắn' }] : []),
-                ...(hasImage ? [{ key: 'copyImage', label: 'Sao chép ảnh' }] : []),
-                ...(props.canPin !== false
-                  ? [
-                      {
-                        key: 'pin',
-                        label: message.pinned ? 'Bỏ ghim tin nhắn' : 'Ghim tin nhắn',
-                        disabled: message.recalled,
-                      },
-                    ]
-                  : []),
-                ...(message.recalled ? [] : [{ key: 'select', label: 'Chọn nhiều tin' }]),
-                { key: 'delete', label: 'Xóa tin nhắn' },
-                ...(mine && !message.recalled
-                  ? [{ key: 'recall', label: 'Thu hồi tin nhắn', danger: true }]
-                  : []),
-              ],
-              onClick: ({ key }) => void props.onAction(key, message),
+        {message.replyTo ? (
+          <button
+            type="button"
+            className="reply-quote"
+            onClick={(event) => {
+              event.stopPropagation();
+              props.onMarkRead();
+              void props.onJump(message.replyTo!.id);
             }}
           >
+            <span className="reply-quote-head">↩ Trả lời {message.replyTo.authorName}</span>
+            <span className="reply-quote-body">
+              {message.replyTo.recalled
+                ? 'Tin nhắn đã được thu hồi'
+                : message.replyTo.content ||
+                  (message.replyTo.fileName
+                    ? `[Tệp] ${message.replyTo.fileName}`
+                    : '') ||
+                  (message.replyTo.imageUrl ? '[Ảnh]' : '')}
+            </span>
+          </button>
+        ) : null}
+        <div className="bubble-wrap">
+          {!mine && last ? (
+            <Avatar
+              size={28}
+              className="avatar-initials row-avatar"
+              src={message.authorAvatarUrl ? fileSrc(message.authorAvatarUrl) : undefined}
+              icon={agent ? <RobotOutlined /> : undefined}
+              style={{
+                background: agent ? '#31a24c' : avatarColor(message.authorName),
+                cursor: !agent && message.userId ? 'pointer' : 'default',
+              }}
+              onClick={(e) => {
+                if (!agent && message.userId) {
+                  e?.stopPropagation();
+                  props.onViewProfile(message.userId);
+                }
+              }}
+            >
+              {agent ? null : initials(message.authorName)}
+            </Avatar>
+          ) : null}
+          <Dropdown trigger={['contextMenu']} menu={menuProps}>
             <div className="bubble-hit">
               <SeenBubble viewers={props.viewers} disabled={hasReceipt}>
                 <div
                   className={[
                     'bubble',
                     hasImage || album ? 'has-image' : '',
-                    hasFile ? 'has-file' : '',
+                    hasFile && !hasVoice ? 'has-file' : '',
                     hasText ? 'has-text' : '',
                     hasCard ? 'has-card' : '',
                     sticker ? 'sticker' : '',
@@ -170,28 +200,6 @@ function MessageRowView(props: Props) {
                     .filter(Boolean)
                     .join(' ')}
                 >
-                  {message.replyTo ? (
-                    <button
-                      type="button"
-                      className="reply-quote"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        props.onMarkRead();
-                        void props.onJump(message.replyTo!.id);
-                      }}
-                    >
-                      <strong>{message.replyTo.authorName}</strong>
-                      <span>
-                        {message.replyTo.recalled
-                          ? 'Tin nhắn đã được thu hồi'
-                          : message.replyTo.content ||
-                            (message.replyTo.fileName
-                              ? `[Tệp] ${message.replyTo.fileName}`
-                              : '') ||
-                            (message.replyTo.imageUrl ? '[Ảnh]' : '')}
-                      </span>
-                    </button>
-                  ) : null}
                   {message.recalled ? (
                     <p className="recalled-text">Tin nhắn đã được thu hồi</p>
                   ) : (
@@ -278,16 +286,45 @@ function MessageRowView(props: Props) {
               onOpen={(anchor) => props.onOpenReceipt?.(message, anchor)}
             />
           ) : null}
-          {!message.recalled ? (
-            <ReactionPicker
-              mine={message.reactions
-                .filter((r) => r.userIds.includes(props.userId))
-                .map((r) => r.emoji)}
-              onPick={(emoji) => void props.onReact(message, emoji)}
-            />
-          ) : null}
+          <div className="msg-hover-bar" onClick={(e) => e.stopPropagation()}>
+            {!message.recalled ? (
+              <>
+                <ReactionPicker
+                  mine={message.reactions
+                    .filter((r) => r.userIds.includes(props.userId))
+                    .map((r) => r.emoji)}
+                  onPick={(emoji) => void props.onReact(message, emoji)}
+                />
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<RollbackOutlined />}
+                  className="msg-hover-btn"
+                  aria-label="Trả lời"
+                  title="Trả lời"
+                  onClick={() => void props.onAction('reply', message)}
+                />
+              </>
+            ) : null}
+            <Dropdown trigger={['click']} menu={menuProps} placement="top">
+              <Button
+                type="text"
+                size="small"
+                icon={<MoreOutlined />}
+                className="msg-hover-btn"
+                aria-label="Thêm"
+                title="Thêm"
+              />
+            </Dropdown>
+          </div>
         </div>
-        {previewLink ? <LinkPreviewCard url={previewLink} /> : null}
+        {previewLink ? (
+          googleDocIdFromUrl(previewLink) ? (
+            <DocLinkCard url={previewLink} roomId={message.roomId} />
+          ) : (
+            <LinkPreviewCard url={previewLink} />
+          )
+        ) : null}
         <ReactionSummary
           reactions={message.reactions}
           myId={props.userId}

@@ -24,7 +24,7 @@ export function AppTheme({ children }: { children: ReactNode }) {
           fontSize: 14,
           controlHeight: 32,
           fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+            "'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
         },
         components: {
           Button: { primaryShadow: 'none', defaultShadow: 'none', dangerShadow: 'none' },

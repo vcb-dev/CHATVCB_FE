@@ -6,10 +6,11 @@ import type { RoomFilter } from '../utils/rooms';
 export function RoomFilterBar(props: {
   filter: RoomFilter;
   labels: ConversationLabel[];
+  unreadCount: number;
   onChange: (f: RoomFilter) => void;
   onManage: () => void;
 }) {
-  const { filter, labels, onChange, onManage } = props;
+  const { filter, labels, unreadCount, onChange, onManage } = props;
 
   let moreLabel = 'Phân loại';
   let isMoreActive = false;
@@ -72,7 +73,12 @@ export function RoomFilterBar(props: {
           className={`room-filter-tab${filter.kind === 'unread' ? ' active' : ''}`}
           onClick={() => onChange({ kind: 'unread' })}
         >
-          Chưa đọc
+          <span>Chưa đọc</span>
+          {unreadCount > 0 ? (
+            <span className="room-filter-badge">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          ) : null}
         </button>
       </div>
 

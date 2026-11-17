@@ -36,6 +36,7 @@ export function MessageList(props: {
   loading?: boolean;
   /** Nhóm: tin của mình hiện vòng "đã đọc" kiểu Lark thay cho avatar "đã xem". */
   readReceipts?: boolean;
+  showAuthorNames?: boolean;
   userId: string;
   myHandle: string;
   loadingOlder: boolean;
@@ -134,6 +135,8 @@ export function MessageList(props: {
           );
         }
         const mine = message.userId === userId;
+        const first = index === 0 || !sameCluster(messages[index - 1], message);
+        const last = index === messages.length - 1 || !sameCluster(message, messages[index + 1]);
         const receipt = props.readReceipts ? seen.receiptOf(message) : null;
         const selectable = props.selecting && isSelectable(message);
         const selected = selectable && Boolean(props.selectedIds?.has(message.id));
@@ -143,8 +146,9 @@ export function MessageList(props: {
             userId={userId}
             myHandle={myHandle}
             mine={mine}
-            first={index === 0 || !sameCluster(messages[index - 1], message)}
-            last={index === messages.length - 1 || !sameCluster(message, messages[index + 1])}
+            first={first}
+            last={last}
+            showName={Boolean(props.showAuthorNames) && first && !mine}
             tagged={!mine && Boolean(props.mentionsEnabled) && mentionsUser(message.content, myHandle, true)}
             mentionsEnabled={props.mentionsEnabled}
             viewers={seen.viewersOf(message)}

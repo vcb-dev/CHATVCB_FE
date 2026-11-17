@@ -40,6 +40,11 @@ export function ContactCard(props: {
 
   return (
     <div className="contact-card">
+      <div className="contact-card-top">
+        <span className="contact-card-kind">
+          <UserOutlined /> Danh thiếp
+        </span>
+      </div>
       <div className="contact-card-head">
         <Avatar
           size={44}

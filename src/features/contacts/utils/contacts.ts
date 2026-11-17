@@ -5,11 +5,6 @@ export type ContactGroup = {
   users: DirectoryUser[];
 };
 
-/** "sale" -> "Sale"; team lưu chữ thường trong DB. */
-export function teamLabel(team: string): string {
-  return team ? team.charAt(0).toUpperCase() + team.slice(1) : team;
-}
-
 /** Chữ cái đầu để gom nhóm A-Z; bỏ dấu tiếng Việt (Đ -> D), ký tự lạ rơi vào "#". */
 function letterOf(name: string): string {
   const first = name

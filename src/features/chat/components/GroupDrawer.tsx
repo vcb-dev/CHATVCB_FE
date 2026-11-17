@@ -9,8 +9,10 @@ import {
   LinkOutlined,
   LogoutOutlined,
   PictureOutlined,
+  ProfileOutlined,
   PushpinOutlined,
   SettingOutlined,
+  TeamOutlined,
   UsergroupAddOutlined,
 } from '@ant-design/icons';
 import { Avatar, Button, Input, Modal, Typography, message } from 'antd';
@@ -46,7 +48,7 @@ function GroupAvatar({ room }: { room: Room }) {
   if (room.isCloud) {
     return (
       <Avatar
-        size={64}
+        size={80}
         className="avatar-initials"
         icon={<CloudOutlined />}
         src={src}
@@ -57,7 +59,7 @@ function GroupAvatar({ room }: { room: Room }) {
   const label = room.title || room.name;
   return (
     <Avatar
-      size={64}
+      size={80}
       className="avatar-initials"
       src={src}
       style={{ background: avatarColor(label) }}
@@ -332,14 +334,16 @@ export function GroupDrawer({
       {overlay ? (
         <button type="button" className="group-pane-mask" aria-label="Đóng thông tin nhóm" onClick={onClose} />
       ) : null}
-      <div className="group-pane-head">
-        <strong>{isGroup ? 'Thông tin nhóm' : 'Thông tin cuộc trò chuyện'}</strong>
-        {overlay ? (
-          <button type="button" className="group-pane-close" onClick={onClose} aria-label="Đóng">
-            <CloseOutlined />
-          </button>
-        ) : null}
-      </div>
+      {view === 'manage' || !room ? (
+        <div className="group-pane-head">
+          <strong>{isGroup ? 'Thông tin nhóm' : 'Thông tin cuộc trò chuyện'}</strong>
+          {overlay ? (
+            <button type="button" className="group-pane-close" onClick={onClose} aria-label="Đóng">
+              <CloseOutlined />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {view === 'manage' && room ? (
         <GroupManageView
@@ -351,6 +355,11 @@ export function GroupDrawer({
       ) : room ? (
         <div className="group-scroll">
           <div className="group-card group-hero-card">
+            <div className="group-cover">
+              <button type="button" className="group-pane-close" onClick={onClose} aria-label="Đóng">
+                <CloseOutlined />
+              </button>
+            </div>
             <div className="group-hero">
               {isCloud ? (
                 <>
@@ -496,164 +505,170 @@ export function GroupDrawer({
             </div>
           </div>
 
-          {isGroup ? (
-            <InfoSection title="Thành viên nhóm" count={members.length} defaultOpen>
-              <GroupMembersCard
-                key={room.id}
-                room={room}
-                members={members}
-                currentUserId={currentUserId}
-                addLabel={canAddMember ? (isSuggestMember ? 'Đề xuất thành viên' : 'Thêm thành viên') : null}
-                onAdd={() => setAddMemberOpen(true)}
-                onPick={(member) => {
-                  setNickUser(member);
-                  setNickValue(member.nickname || '');
-                }}
-                onMembersUpdated={onMembersUpdated}
-                onRemove={handleRemoveMember}
-              />
-            </InfoSection>
-          ) : null}
-
-          {!isCloud ? (
-            <InfoSection title="Bảng tin nhóm" defaultOpen={false}>
-              {isGroup && room ? (
-                <GroupTasksCard
-                  room={room}
-                  onCreate={onCreateTask}
-                  onOpen={(task) => {
-                    if (task.messageId) {
-                      onJumpMessage(task.messageId, task.createdAt);
-                    }
-                  }}
-                />
-              ) : null}
-              {room ? (
-                <GroupRemindersCard
-                  room={room}
-                  currentUserId={currentUserId}
-                  onEdit={onEditReminder}
-                  onCreate={onCreateReminder}
-                />
-              ) : null}
-              {room ? (
-                <GroupNotesCard
-                  room={room}
-                  onOpen={onOpenNote}
-                  onCreate={onCreateNote}
-                />
-              ) : null}
-            </InfoSection>
-          ) : null}
-
-          <InfoSection title="Ảnh/Video" count={photos.length} defaultOpen>
-            {photos.length ? (
-              <div className="group-photos">
-                {photos.slice(0, 8).map((image) => (
-                  <button
-                    key={image.id}
-                    type="button"
-                    className="group-thumb"
-                    onClick={() => setPhotoOpen(true)}
-                  >
-                    <img src={fileSrc(image.url)} alt="" />
-                  </button>
-                ))}
-                {photos.length > 8 ? (
-                  <button
-                    type="button"
-                    className="group-more"
-                    onClick={() => setPhotoOpen(true)}
-                  >
-                    Xem tất cả
-                  </button>
-                ) : null}
-              </div>
-            ) : (
-              <p className="group-muted">Chưa có ảnh</p>
-            )}
-          </InfoSection>
-
-          <InfoSection title="File" count={files.length} defaultOpen={false}>
-            {files.length ? (
-              <div className="group-list">
-                {files.map((file) => (
-                  <a
-                    key={file.id}
-                    className="group-member"
-                    href={fileSrc(file.url)}
-                    target="_blank"
-                    rel="noreferrer"
-                    download={file.filename}
-                  >
-                    <span className="group-file-ico">
-                      <FileOutlined />
-                    </span>
-                    <span className="group-member-info">
-                      <strong title={file.filename}>{file.filename}</strong>
-                      <small>{formatBytes(file.sizeBytes)}</small>
-                    </span>
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <p className="group-muted">Chưa có file</p>
-            )}
-          </InfoSection>
-
-          <InfoSection title="Link" count={links.length} defaultOpen={false}>
-            {links.length ? (
-              <div className="group-list">
-                {links.map((item) => (
-                  <a
-                    key={`${item.messageId}-${item.url}`}
-                    className="group-member"
-                    href={item.url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <span className="group-file-ico">
-                      <LinkOutlined />
-                    </span>
-                    <span className="group-member-info">
-                      <strong>{item.url}</strong>
-                      <small>{item.authorName}</small>
-                    </span>
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <p className="group-muted">Chưa có link</p>
-            )}
-          </InfoSection>
-
-          <InfoSection title="Tin đã ghim" count={pins.length} defaultOpen={false}>
-            {pins.length ? (
-              <div className="group-list">
-                {pins.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className="group-member"
-                    onClick={() => {
-                      onJumpMessage(item.id, item.createdAt);
-                      onClose?.();
+          {isGroup || !isCloud ? (
+            <div className="group-section-group">
+              {isGroup ? (
+                <InfoSection icon={<TeamOutlined />} title="Thành viên nhóm" count={members.length} defaultOpen>
+                  <GroupMembersCard
+                    key={room.id}
+                    room={room}
+                    members={members}
+                    currentUserId={currentUserId}
+                    addLabel={canAddMember ? (isSuggestMember ? 'Đề xuất thành viên' : 'Thêm thành viên') : null}
+                    onAdd={() => setAddMemberOpen(true)}
+                    onPick={(member) => {
+                      setNickUser(member);
+                      setNickValue(member.nickname || '');
                     }}
-                  >
-                    <span className="group-file-ico">
-                      <PushpinOutlined />
-                    </span>
-                    <span className="group-member-info">
-                      <strong>{item.authorName}</strong>
-                      <small>{item.content || (item.imageUrl ? '[Ảnh]' : 'Tin đã ghim')}</small>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="group-muted">Chưa ghim tin nào</p>
-            )}
-          </InfoSection>
+                    onMembersUpdated={onMembersUpdated}
+                    onRemove={handleRemoveMember}
+                  />
+                </InfoSection>
+              ) : null}
+
+              {!isCloud ? (
+                <InfoSection icon={<ProfileOutlined />} title="Bảng tin nhóm" defaultOpen={false}>
+                  {isGroup && room ? (
+                    <GroupTasksCard
+                      room={room}
+                      onCreate={onCreateTask}
+                      onOpen={(task) => {
+                        if (task.messageId) {
+                          onJumpMessage(task.messageId, task.createdAt);
+                        }
+                      }}
+                    />
+                  ) : null}
+                  {room ? (
+                    <GroupRemindersCard
+                      room={room}
+                      currentUserId={currentUserId}
+                      onEdit={onEditReminder}
+                      onCreate={onCreateReminder}
+                    />
+                  ) : null}
+                  {room ? (
+                    <GroupNotesCard
+                      room={room}
+                      onOpen={onOpenNote}
+                      onCreate={onCreateNote}
+                    />
+                  ) : null}
+                </InfoSection>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="group-section-group">
+            <InfoSection icon={<PictureOutlined />} title="Ảnh/Video" count={photos.length} defaultOpen>
+              {photos.length ? (
+                <div className="group-photos">
+                  {photos.slice(0, 9).map((image) => (
+                    <button
+                      key={image.id}
+                      type="button"
+                      className="group-thumb"
+                      onClick={() => setPhotoOpen(true)}
+                    >
+                      <img src={fileSrc(image.url)} alt="" />
+                    </button>
+                  ))}
+                  {photos.length > 9 ? (
+                    <button
+                      type="button"
+                      className="group-more"
+                      onClick={() => setPhotoOpen(true)}
+                    >
+                      Xem tất cả
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="group-muted">Chưa có ảnh</p>
+              )}
+            </InfoSection>
+
+            <InfoSection icon={<FileOutlined />} title="File" count={files.length} defaultOpen={false}>
+              {files.length ? (
+                <div className="group-list">
+                  {files.map((file) => (
+                    <a
+                      key={file.id}
+                      className="group-member"
+                      href={fileSrc(file.url)}
+                      target="_blank"
+                      rel="noreferrer"
+                      download={file.filename}
+                    >
+                      <span className="group-file-ico">
+                        <FileOutlined />
+                      </span>
+                      <span className="group-member-info">
+                        <strong title={file.filename}>{file.filename}</strong>
+                        <small>{formatBytes(file.sizeBytes)}</small>
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="group-muted">Chưa có file</p>
+              )}
+            </InfoSection>
+
+            <InfoSection icon={<LinkOutlined />} title="Link" count={links.length} defaultOpen={false}>
+              {links.length ? (
+                <div className="group-list">
+                  {links.map((item) => (
+                    <a
+                      key={`${item.messageId}-${item.url}`}
+                      className="group-member"
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span className="group-file-ico">
+                        <LinkOutlined />
+                      </span>
+                      <span className="group-member-info">
+                        <strong>{item.url}</strong>
+                        <small>{item.authorName}</small>
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="group-muted">Chưa có link</p>
+              )}
+            </InfoSection>
+
+            <InfoSection icon={<PushpinOutlined />} title="Tin đã ghim" count={pins.length} defaultOpen={false}>
+              {pins.length ? (
+                <div className="group-list">
+                  {pins.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="group-member"
+                      onClick={() => {
+                        onJumpMessage(item.id, item.createdAt);
+                        onClose?.();
+                      }}
+                    >
+                      <span className="group-file-ico">
+                        <PushpinOutlined />
+                      </span>
+                      <span className="group-member-info">
+                        <strong>{item.authorName}</strong>
+                        <small>{item.content || (item.imageUrl ? '[Ảnh]' : 'Tin đã ghim')}</small>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="group-muted">Chưa ghim tin nào</p>
+              )}
+            </InfoSection>
+          </div>
 
           {!isCloud && (room.canLeave || room.canDelete) ? (
             <div className="group-danger-actions">

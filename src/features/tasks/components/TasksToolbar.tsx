@@ -8,6 +8,7 @@ import {
 } from '@ant-design/icons';
 import { Button, Segmented, Select } from 'antd';
 import { useRef, type ReactNode } from 'react';
+import { MenuButton } from '@/components/MenuButton';
 import { taskRoomLabel } from '@/lib/tasks';
 import type { TaskRoom, TaskScope } from '@/types';
 import type { TaskView } from '../hooks/useTaskFilters';
@@ -69,6 +70,7 @@ export function TasksToolbar(props: {
   return (
     <div className="tasks-toolbar">
       <div className="tasks-toolbar-row">
+        <MenuButton />
         <div className="tasks-toolbar-title">
           <h2>Công việc</h2>
           {props.rangeTitle ? (

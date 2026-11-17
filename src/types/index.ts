@@ -431,6 +431,29 @@ export type ChatFile = {
   createdAt: string;
 };
 
+/** Nhóm loại tài liệu để lọc ở tab "Tệp từ chat" của Docs */
+export type ChatDocType = 'pdf' | 'word' | 'excel' | 'slide' | 'archive' | 'other';
+
+/** Tài liệu đã gửi trong một tin nhắn, kèm hội thoại và người gửi */
+export type ChatDocFile = {
+  id: string;
+  messageId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+  createdAt: string;
+  room: { id: string; title: string; kind: 'direct' | 'group'; avatarUrl: string };
+  sender: { id: string | null; name: string; avatarUrl: string };
+};
+
+export type ChatDocQuery = { q: string; type: ChatDocType | null; roomId: string | null };
+
+export type ChatDocPage = { items: ChatDocFile[]; nextCursor: string | null };
+
+/** Google của người đang đăng nhập + Drive công ty có dùng được không */
+export type DocsGoogleStatus = { ready: boolean; connected: boolean; email: string; drive: boolean };
+
 export type PendingFile = {
   key: string;
   file: File;
@@ -568,7 +591,32 @@ export type DocItem = {
   updatedAt: string;
   starred: boolean;
   owner: { id: string; name: string; avatarUrl?: string };
+  myRole: DocRole;
+  /** thư mục team; null = chưa xếp */
+  folderId: string | null;
+  folderName: string;
 };
+
+/** GET /docs/folders — danh sách phẳng, dựng cây bằng parentId */
+export type DocFolder = { id: string; name: string; parentId: string | null; docCount: number };
+
+export type DocTemplate = 'blank' | 'meeting' | 'weekly' | 'plan' | 'proposal' | 'oneonone' | 'handover';
+
+/** Mức quyền với tài liệu; chia sẻ cho nhóm chat chỉ có sửa hoặc xem */
+export type DocRole = 'owner' | 'writer' | 'reader';
+export type ShareRole = 'writer' | 'reader';
+
+/** GET /docs/card — thẻ tài liệu cho link Google trong một nhóm chat */
+export type DocCard =
+  | { found: false }
+  | {
+      found: true;
+      doc: { id: string; title: string; kind: DocKind; owner: { id: string; name: string; avatarUrl?: string } };
+      myRole: DocRole | null;
+      canShare: boolean;
+      roomShare: ShareRole | null;
+      missing: number;
+    };
 
 export type MailMessage = {
   uid: string;
@@ -746,4 +794,11 @@ export type GalleryReviewedEvent = {
   photoId: string;
   status: 'approved' | 'rejected';
   rejectReason: string | null;
+};
+
+export type LastSeenMap = Record<string, string>;
+
+export type PresenceLastSeenEvent = {
+  userId: string;
+  lastSeenAt: string;
 };

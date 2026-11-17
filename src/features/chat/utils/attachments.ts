@@ -3,7 +3,8 @@ import type { ChatMessage, PendingFile } from '@/types';
 export const ACCEPT_FILES =
   '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.json,.zip,.rar,.7z,.mp4,.mov';
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
+// Khớp CHAT_FILE_MAX_BYTES ở BE (tệp chat lưu trên Drive công ty)
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
 
 const MAX_PENDING_FILES = 5;
 
@@ -27,7 +28,7 @@ const ALLOWED_EXTS = new Set([
 
 function validateFile(file: File): string | null {
   if (file.size > MAX_FILE_BYTES) {
-    return 'Tệp tối đa 10MB.';
+    return 'Tệp tối đa 50MB.';
   }
   const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
   if (!ALLOWED_EXTS.has(ext)) {

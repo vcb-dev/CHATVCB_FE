@@ -2,6 +2,7 @@ import { DownOutlined, RightOutlined } from '@ant-design/icons';
 import { useState, type ReactNode } from 'react';
 
 export function InfoSection(props: {
+  icon?: ReactNode;
   title: string;
   count?: number;
   defaultOpen?: boolean;
@@ -17,12 +18,8 @@ export function InfoSection(props: {
         className="info-section-head"
         onClick={() => setOpen((c) => !c)}
       >
-        <span className="info-section-title">
-          <span>{props.title}</span>
-          {typeof props.count === 'number' ? (
-            <span className="info-section-count"> ({props.count})</span>
-          ) : null}
-        </span>
+        {props.icon ? <span className="info-section-ico">{props.icon}</span> : null}
+        <span className="info-section-title">{props.title}</span>
         <span className="info-section-extra">
           {props.extra ? (
             <span
@@ -31,6 +28,9 @@ export function InfoSection(props: {
             >
               {props.extra}
             </span>
+          ) : null}
+          {typeof props.count === 'number' ? (
+            <span className="info-section-count">{props.count}</span>
           ) : null}
           {open ? (
             <DownOutlined className="info-section-chev" />

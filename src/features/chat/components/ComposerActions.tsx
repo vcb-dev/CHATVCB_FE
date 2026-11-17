@@ -1,4 +1,4 @@
-import { AppstoreOutlined, PictureOutlined } from '@ant-design/icons';
+import { PictureOutlined } from '@ant-design/icons';
 import { Button, Tooltip } from 'antd';
 import { useRef, type ChangeEvent } from 'react';
 import { ACCEPT_IMAGES } from '@/lib/image';
@@ -6,11 +6,9 @@ import { ACCEPT_IMAGES } from '@/lib/image';
 export function ComposerActions({
   disabled,
   onAddFiles,
-  onOpenGallery,
 }: {
   disabled: boolean;
   onAddFiles: (files: File[]) => void;
-  onOpenGallery: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -39,15 +37,6 @@ export function ComposerActions({
           icon={<PictureOutlined />}
           disabled={disabled}
           onClick={() => inputRef.current?.click()}
-        />
-      </Tooltip>
-      <Tooltip title="Bộ sưu tập ảnh">
-        <Button
-          type="text"
-          className="composer-tool"
-          icon={<AppstoreOutlined />}
-          disabled={disabled}
-          onClick={onOpenGallery}
         />
       </Tooltip>
     </div>

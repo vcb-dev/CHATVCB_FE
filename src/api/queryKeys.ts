@@ -1,4 +1,4 @@
-import type { MyTasksQuery, RoomMessageSearch } from '@/types';
+import type { ChatDocQuery, MyTasksQuery, RoomMessageSearch } from '@/types';
 
 export const queryKeys = {
   rooms: ['rooms'] as const,
@@ -9,12 +9,16 @@ export const queryKeys = {
   gallery: (roomId: string) => ['room-media', roomId, 'gallery'] as const,
   files: (roomId: string) => ['room-media', roomId, 'files'] as const,
   links: (roomId: string) => ['room-media', roomId, 'links'] as const,
+  chatDocs: (query: ChatDocQuery) => ['chat-docs', query] as const,
   labels: ['labels'] as const,
   user: (userId: string) => ['user', userId] as const,
   contacts: (q: string, team: string) => ['contacts', q, team] as const,
   userTeams: ['user-teams'] as const,
+  lastSeen: ['last-seen'] as const,
   roomSearch: (roomId: string, params: RoomMessageSearch) => ['room-search', roomId, params] as const,
   linkPreview: (url: string) => ['link-preview', url] as const,
+  docCard: (googleId: string, roomId: string) => ['doc-card', googleId, roomId] as const,
+  docFolders: ['doc-folders'] as const,
   invite: (roomId: string) => ['invite', roomId] as const,
   joinRequests: (roomId: string) => ['join-requests', roomId] as const,
   inviteInfo: (token: string) => ['invite-info', token] as const,

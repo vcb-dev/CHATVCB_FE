@@ -4,7 +4,9 @@ import { useMemo, useState } from 'react';
 import { fileSrc } from '@/api/client';
 import { avatarColor, initials } from '@/lib/avatar';
 import type { Room, RoomMember } from '@/types';
+import { useLastSeenContext } from '../hooks/useLastSeen';
 import { matchMember, sortByRole } from '../utils/members';
+import { lastSeenText } from '../utils/presence';
 import { MemberActions } from './MemberActions';
 import { RoleTag } from './RoleTag';
 
@@ -20,6 +22,7 @@ type RowProps = {
 };
 
 function MemberRow({ room, member, currentUserId, onPick, onMembersUpdated, onRemove }: RowProps) {
+  const { lastSeen, now, onlineUserIds } = useLastSeenContext();
   const label = member.displayName || member.name;
   return (
     <div className="group-member-wrap">
@@ -36,7 +39,12 @@ function MemberRow({ room, member, currentUserId, onPick, onMembersUpdated, onRe
             <span>{label}</span>
             <RoleTag role={member.role} />
           </strong>
-          <small>@{member.handle}</small>
+          <small>
+            @{member.handle}
+            {member.id !== currentUserId
+              ? ` · ${lastSeenText(onlineUserIds.has(member.id), lastSeen[member.id], now)}`
+              : ''}
+          </small>
         </span>
         <RightOutlined className="chev" />
       </button>

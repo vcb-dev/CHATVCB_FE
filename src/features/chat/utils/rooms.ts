@@ -44,6 +44,11 @@ export function filterRooms(rooms: Room[], filter: RoomFilter): Room[] {
   return rooms.filter((r) => r.isCloud || matchesFilter(r, filter));
 }
 
+/** Số cuộc trò chuyện chưa đọc (cùng điều kiện với bộ lọc "Chưa đọc"), bỏ phòng đã ẩn. */
+export function countUnreadRooms(rooms: Room[]): number {
+  return rooms.filter((r) => !r.hidden && matchesFilter(r, { kind: 'unread' })).length;
+}
+
 export const MUTE_OPTIONS: { minutes: number | null; label: string }[] = [
   { minutes: 60, label: '1 giờ' },
   { minutes: 240, label: '4 giờ' },

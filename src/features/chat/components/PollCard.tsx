@@ -1,4 +1,4 @@
-import { LockOutlined, PlusOutlined } from '@ant-design/icons';
+import { BarChartOutlined, LockOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   Avatar,
   Button,
@@ -116,6 +116,11 @@ export function PollCard({
       className={`poll-card${poll.closed ? ' poll-closed' : ''}`}
       onClick={(e) => e.stopPropagation()}
     >
+      <div className="poll-card-head">
+        <span className="poll-card-kind">
+          <BarChartOutlined /> Bình chọn
+        </span>
+      </div>
       <div className="poll-header">
         <strong className="poll-question">{poll.question}</strong>
         <div className="poll-sub">

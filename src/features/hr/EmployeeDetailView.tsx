@@ -110,14 +110,24 @@ const TAB_FIELDS: Record<TabKey, (keyof EmployeeProfile)[]> = {
 
 const SENSITIVE_TABS: TabKey[] = ["identity", "other"];
 
-const ALL_TAB_FIELD_NAMES = [
-  ...new Set(TAB_KEYS.flatMap((key) => TAB_FIELDS[key])),
-] as (keyof EmployeeProfile)[];
-
 const SAVE_VALIDATE_NAMES: (keyof EmployeeProfile)[] = [
   "employeeCode",
   "fullName",
 ];
+
+const SAVE_VALIDATE_LABELS: Partial<Record<keyof EmployeeProfile, string>> = {
+  employeeCode: "Mã nhân viên",
+  fullName: "Họ và tên",
+};
+
+function firstErrorFieldName(err: unknown): (string | number)[] | undefined {
+  if (err && typeof err === "object" && "errorFields" in err) {
+    const fields = (err as { errorFields: { name: (string | number)[] }[] })
+      .errorFields;
+    return fields[0]?.name;
+  }
+  return undefined;
+}
 
 function stripSensitivePatch(
   patch: Partial<EmployeeProfile>,
@@ -158,24 +168,41 @@ export function EmployeeDetailView({
     setEditing(false);
   }
 
-  function saveEdit() {
-    void form
-      .validateFields(SAVE_VALIDATE_NAMES)
-      .then(async () => {
-        const values = form.getFieldsValue(true);
-        let patch = Object.fromEntries(
-          ALL_TAB_FIELD_NAMES.map((key) => [key, values[key]]),
-        ) as Partial<EmployeeProfile>;
-        if (!canUpdateSensitive) {
-          patch = stripSensitivePatch(patch);
-        }
-        await onSave({ id: profile.id, ...patch });
-        const merged = { ...profile, ...patch } as EmployeeProfile;
-        setDraft(merged);
-        form.setFieldsValue(merged);
-        setEditing(false);
-      })
-      .catch(() => message.warning("Kiểm tra lại các trường bắt buộc."));
+  /** Lưu theo từng tab: chỉ kiểm ô bắt buộc và chỉ gửi trường của tab đang mở. */
+  async function saveEdit() {
+    const tabFields = TAB_FIELDS[activeTab];
+    try {
+      await form.validateFields(
+        SAVE_VALIDATE_NAMES.filter((name) => tabFields.includes(name)),
+      );
+    } catch (err) {
+      const name = firstErrorFieldName(err);
+      if (name) form.scrollToField(name, { block: "center", focus: true });
+      const label = name
+        ? SAVE_VALIDATE_LABELS[name[0] as keyof EmployeeProfile]
+        : undefined;
+      message.warning(
+        label ? `Chưa điền ${label}.` : "Kiểm tra lại các trường bắt buộc.",
+      );
+      return;
+    }
+    const values = form.getFieldsValue(true);
+    let patch = Object.fromEntries(
+      tabFields.map((key) => [key, values[key]]),
+    ) as Partial<EmployeeProfile>;
+    if (!canUpdateSensitive) {
+      patch = stripSensitivePatch(patch);
+    }
+    try {
+      await onSave({ id: profile.id, ...patch });
+    } catch {
+      // useUpdateEmployeeMutation đã hiện lỗi của server; giữ nguyên chế độ sửa.
+      return;
+    }
+    const merged = { ...profile, ...patch } as EmployeeProfile;
+    setDraft(merged);
+    form.setFieldsValue(merged);
+    setEditing(false);
   }
 
   const data = editing ? draft : profile;
@@ -213,7 +240,11 @@ export function EmployeeDetailView({
         editing ? (
           <div style={{ display: "flex", gap: 8 }}>
             <Button onClick={cancelEdit}>Hủy</Button>
-            <Button type="primary" loading={saveLoading} onClick={saveEdit}>
+            <Button
+              type="primary"
+              loading={saveLoading}
+              onClick={() => void saveEdit()}
+            >
               Lưu thay đổi
             </Button>
           </div>
@@ -251,6 +282,8 @@ export function EmployeeDetailView({
           items={TAB_KEYS.map((key) => ({
             key,
             label: tabLabel(key),
+            // Lưu theo từng tab: đang sửa thì khoá tab khác để thay đổi chưa lưu không bị mất.
+            disabled: editing && key !== activeTab,
           }))}
         />
         <div className="hr-detail-tab-scroll">

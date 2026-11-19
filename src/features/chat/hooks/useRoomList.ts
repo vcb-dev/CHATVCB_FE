@@ -48,11 +48,11 @@ export function useRoomList({
     return { data: merged, meta: keepMeta && prev ? prev.meta : page.meta };
   }, [queryClient, isViewingChat]);
 
+  // Không poll: thay đổi tới qua socket (message, room.updated, rooms.changed, room.read…),
+  // nối lại socket thì tải lại; quay lại tab cũng tải lại cho chắc
   const { data, isError } = useQuery({
     queryKey: queryKeys.rooms,
     queryFn: fetchRoomList,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   });
   const rooms = data?.data ?? EMPTY_ROOMS;
@@ -157,7 +157,11 @@ export function useRoomList({
   }
 
   const refreshRooms = useCallback(
-    () => queryClient.fetchQuery({ queryKey: queryKeys.rooms, queryFn: fetchRoomList }).then((page) => page.data),
+    // staleTime 0: gọi khi có tin của phòng chưa có trong danh sách, cache dù mới tải cũng chưa có phòng đó
+    () =>
+      queryClient
+        .fetchQuery({ queryKey: queryKeys.rooms, queryFn: fetchRoomList, staleTime: 0 })
+        .then((page) => page.data),
     [queryClient, fetchRoomList],
   );
 

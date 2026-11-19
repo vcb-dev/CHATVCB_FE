@@ -103,8 +103,9 @@ export function useChatRoom({
     queryKey: queryKeys.reads(roomId),
     queryFn: () => api.reads(roomId),
     enabled: Boolean(roomId),
-    refetchInterval: 2500,
-    refetchIntervalInBackground: true,
+    // Đã nhận/đã xem tới qua socket `room.reads`, mà socket chỉ ở trong phòng đang mở:
+    // mở lại phòng cũ thì tải mới vì lúc vắng mặt đã lỡ sự kiện
+    staleTime: 0,
   });
   const membersQuery = useQuery({
     queryKey: queryKeys.members(roomId),

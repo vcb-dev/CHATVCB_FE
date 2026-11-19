@@ -231,19 +231,14 @@ export function EmployeeDetailView({
   );
 
   return (
-    <ModuleLayout header={detailHeader}>
-      <Form
-        form={form}
-        layout="vertical"
-        className="hr-detail-form"
-        disabled={!editing}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          flex: 1,
-          minHeight: 0,
-        }}
-      >
+    <ModuleLayout header={detailHeader} flush>
+      <main className="hr-page hr-detail-page">
+        <Form
+          form={form}
+          layout="vertical"
+          className="hr-detail-form"
+          disabled={!editing}
+        >
         <Tabs
           activeKey={activeTab}
           onChange={(key) => setActiveTab(key as TabKey)}
@@ -276,7 +271,8 @@ export function EmployeeDetailView({
             </div>
           )}
         </div>
-      </Form>
+        </Form>
+      </main>
     </ModuleLayout>
   );
 }

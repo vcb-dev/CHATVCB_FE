@@ -21,7 +21,7 @@ export function HrSectionCard(props: {
 }
 
 export function HrField(props: { label: string; value: string; highlight?: boolean; wide?: boolean }) {
-  const display = props.value.trim() || '—';
+  const display = (props.value ?? '').trim() || '—';
   return (
     <div
       className={`hr-field${props.highlight ? ' highlight' : ''}${props.wide ? ' wide' : ''}`}
@@ -42,7 +42,7 @@ export function HrPersonRow(props: { label: string; name: string }) {
       <span className="hr-person-avatar" aria-hidden />
       <div>
         <span className="hr-field-label">{props.label}</span>
-        <strong>{props.name.trim() || '—'}</strong>
+        <strong>{(props.name ?? '').trim() || '—'}</strong>
       </div>
     </div>
   );

@@ -59,6 +59,14 @@
   display: inline-block;
 }
 
+/* Detail — fill module body so tab scroll không co về 0 */
+.ui-module-body:has(.hr-detail-page) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* Detail — tab + content nền trắng full chiều cao, không lộ #f0f2f5 */
 .hr-page.hr-detail-page {
   padding: 0;

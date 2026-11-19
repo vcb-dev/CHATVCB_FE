@@ -117,6 +117,13 @@
   margin-left: auto;
 }
 
+/* ModuleLayout để body là khối thường. Form chi tiết cần cha flex cột (như .hr-detail-page cũ),
+   không thì .hr-detail-tab-scroll (flex-basis 0) co về 0px và mọi tab trống trơn. */
+.ui-module-body:has(> .hr-detail-form) {
+  display: flex;
+  flex-direction: column;
+}
+
 .hr-detail-form {
   flex: 1 1 0;
   min-height: 0;

@@ -140,6 +140,8 @@ export function useChatSocket(options: Options) {
       });
     }
 
+    let connectedBefore = false;
+    let roomsTimer = 0;
     socket.on('connect', () => {
       socket.emit('presence.get');
       socket.emit('inbox.subscribe');
@@ -147,9 +149,33 @@ export function useChatSocket(options: Options) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
       void queryClient.invalidateQueries({ queryKey: queryKeys.galleryLibrary });
       void queryClient.invalidateQueries({ queryKey: queryKeys.newsLibrary });
+      // Lần nối đầu thì trang vừa tải xong; chỉ nối lại mới lỡ sự kiện phòng
+      if (connectedBefore) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
+      }
       if (roomIdRef.current) {
         socket.emit('join', roomIdRef.current);
+        if (connectedBefore) {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.reads(roomIdRef.current) });
+        }
       }
+      connectedBefore = true;
+    });
+    // Danh sách phòng đổi mà không có sự kiện riêng (ghim, ẩn, nhãn, thu hồi tin, máy khác…)
+    socket.on('rooms.changed', () => {
+      // Gộp các lần báo liền nhau thành một lần tải
+      window.clearTimeout(roomsTimer);
+      roomsTimer = window.setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
+      }, 300);
+    });
+    // Đã đọc phòng này trên máy khác (hoặc chính máy này)
+    socket.on('room.read', ({ roomId }: RoomRefreshEvent) => {
+      setRooms((current) =>
+        current.map((r) =>
+          r.id === roomId ? { ...r, unreadCount: 0, mentioned: false, markedUnread: false } : r,
+        ),
+      );
     });
     socket.on('message', (message: ChatMessage) => {
       if (message.userId) {
@@ -198,7 +224,11 @@ export function useChatSocket(options: Options) {
             }
           })
           .catch(() => {
-            // poll 10 giây sẽ bù
+            // Lỗi tải mà socket vẫn sống thì không có lần nối lại nào bù: thử lại sau ít giây
+            window.clearTimeout(roomsTimer);
+            roomsTimer = window.setTimeout(() => {
+              void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
+            }, 5000);
           });
         return;
       }
@@ -215,6 +245,8 @@ export function useChatSocket(options: Options) {
           ...target,
           lastMessagePreview: previewOf(message, latestRef.current.user?.id, isDirectRoom(target)),
           updatedAt: message.createdAt,
+          // "Đánh dấu đã đọc" ở menu phòng gửi id này lên
+          lastMessageId: message.id,
           unreadCount: viewing ? 0 : target.unreadCount + inc,
           mentioned: viewing ? false : Boolean(target.mentioned) || tagged,
         };
@@ -426,6 +458,7 @@ export function useChatSocket(options: Options) {
         });
     });
     return () => {
+      window.clearTimeout(roomsTimer);
       socket.off('presence.lastSeen', onLastSeen);
       closeSocket(socket);
       socketRef.current = null;

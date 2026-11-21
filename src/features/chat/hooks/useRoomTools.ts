@@ -22,7 +22,7 @@ export function useRoomTools({
 
   const openNoteById = async (noteId: string) => {
     try {
-      const list = await queryClient.fetchQuery({
+      const list = await queryClient.query({
         queryKey: queryKeys.notes(roomId),
         queryFn: () => api.notes(roomId),
       });

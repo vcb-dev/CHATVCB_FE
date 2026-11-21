@@ -1,8 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Form, Input, Modal, message } from 'antd';
 import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
+import { FormField } from '@/components/FormField';
 import { errorText } from '@/lib/errors';
 import type { GalleryAlbum } from '@/types';
 
@@ -16,14 +18,14 @@ export function AlbumFormModal(props: {
 }) {
   const { open, album, onClose } = props;
   const queryClient = useQueryClient();
-  const [form] = Form.useForm<Values>();
+  const { control, handleSubmit, reset } = useForm<Values>({ mode: 'onChange' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
-      form.setFieldsValue({ name: album?.name ?? '', description: album?.description ?? '' });
+      reset({ name: album?.name ?? '', description: album?.description ?? '' });
     }
-  }, [open, album, form]);
+  }, [open, album, reset]);
 
   async function save(values: Values) {
     setSaving(true);
@@ -49,21 +51,24 @@ export function AlbumFormModal(props: {
       okText="Lưu"
       cancelText="Hủy"
       confirmLoading={saving}
-      onOk={() => form.submit()}
+      onOk={() => void handleSubmit(save)()}
       onCancel={onClose}
       forceRender
     >
-      <Form form={form} layout="vertical" onFinish={(values) => void save(values)}>
-        <Form.Item
+      {/* Enter trong ô tên vẫn lưu như trước: antd gọi onFinish khi form submit */}
+      <Form layout="vertical" onFinish={() => void handleSubmit(save)()}>
+        <FormField
+          control={control}
           name="name"
           label="Tên album"
-          rules={[{ required: true, whitespace: true, message: 'Nhập tên album' }]}
+          rules={{ validate: (value) => Boolean(value?.trim()) || 'Nhập tên album' }}
+          required
         >
           <Input maxLength={100} />
-        </Form.Item>
-        <Form.Item name="description" label="Mô tả">
+        </FormField>
+        <FormField control={control} name="description" label="Mô tả">
           <Input.TextArea rows={2} maxLength={500} />
-        </Form.Item>
+        </FormField>
       </Form>
     </Modal>
   );

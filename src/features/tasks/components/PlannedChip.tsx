@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { PlannedTask } from '@/types';
 import { formatTime, type ItemMenuHandler } from '../utils/calendar';
-import { PersonAvatar } from './PersonAvatar';
 import { chipHandlers } from './TaskChip';
 import { TaskStatusIcon } from './TaskStatusIcon';
 
@@ -34,7 +34,14 @@ export function PlannedChip(props: {
           <span className="task-chip-line">
             <TaskStatusIcon status="planned" />
             <span className="task-chip-time">{time}</span>
-            <PersonAvatar person={planned.assignee} size={14} />
+            <UserAvatar
+              size={14}
+              gap={1}
+              className="task-person-avatar"
+              src={planned.assignee.avatarUrl}
+              name={planned.assignee.name}
+              zoomable={false}
+            />
             <span className="task-chip-person">{planned.assignee.name}</span>
           </span>
           <span className="task-chip-title">{planned.title}</span>

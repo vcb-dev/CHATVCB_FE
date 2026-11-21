@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Button, Form, Input, Modal, message } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
 import { api, ApiError } from '@/api/client';
+import { FormField } from '@/components/FormField';
 import { queryKeys } from '@/api/queryKeys';
 import type { RoomNote } from '@/types';
 import { errorText } from '@/lib/errors';
 import { formatShort } from '../utils/datetime';
+
+type NoteFormValues = { title: string; content: string };
 
 type Props = {
   open: boolean;
@@ -23,30 +27,24 @@ export function NoteModal({
   onClose,
 }: Props) {
   const queryClient = useQueryClient();
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const {
+    control,
+    handleSubmit: submitForm,
+    reset,
+    formState: { isValid },
+  } = useForm<NoteFormValues>({ mode: 'onChange', defaultValues: { title: '', content: '' } });
 
   useEffect(() => {
     if (open) {
-      if (note) {
-        setTitle(note.title);
-        setContent(note.content);
-      } else {
-        setTitle('');
-        setContent('');
-      }
+      reset(note ? { title: note.title, content: note.content } : { title: '', content: '' });
     }
-  }, [open, note]);
+  }, [open, note, reset]);
 
-  const handleSubmit = async () => {
+  // Tiêu đề trống: nút Lưu đã khoá (luật của form), không tới được đây
+  const handleSubmit = async ({ title, content }: NoteFormValues) => {
     const t = title.trim();
-    if (!t) {
-      message.error('Tiêu đề không được trống.');
-      return;
-    }
-
     try {
       setLoading(true);
       if (note) {
@@ -138,8 +136,8 @@ export function NoteModal({
               <Button
                 type="primary"
                 loading={loading}
-                disabled={!title.trim()}
-                onClick={handleSubmit}
+                disabled={!isValid}
+                onClick={() => void submitForm(handleSubmit)()}
               >
                 {isEditing ? 'Lưu' : 'Tạo ghi chú'}
               </Button>
@@ -153,34 +151,32 @@ export function NoteModal({
     >
       {editable ? (
         <Form layout="vertical" className="mt-3">
-          <Form.Item label="Tiêu đề" required>
-            <Input
-              placeholder="Nhập tiêu đề ghi chú..."
-              maxLength={120}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </Form.Item>
+          <FormField
+            control={control}
+            name="title"
+            label="Tiêu đề"
+            rules={{ required: true, validate: (value) => Boolean(value.trim()) }}
+          >
+            <Input placeholder="Nhập tiêu đề ghi chú..." maxLength={120} />
+          </FormField>
 
-          <Form.Item label="Nội dung">
+          <FormField control={control} name="content" label="Nội dung">
             <Input.TextArea
               placeholder="Nhập nội dung ghi chú..."
               maxLength={4000}
               autoSize={{ minRows: 6, maxRows: 16 }}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
             />
-          </Form.Item>
+          </FormField>
         </Form>
       ) : note ? (
         <div className="note-view" style={{ marginTop: 12 }}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: 18, fontWeight: 600 }}>
             {note.title}
           </h3>
-          <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, color: '#333' }}>
+          <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, color: 'var(--ui-text)' }}>
             {note.content}
           </p>
-          <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f0', paddingTop: 8, fontSize: 12, color: '#888' }}>
+          <div style={{ marginTop: 16, borderTop: '1px solid var(--ui-border)', paddingTop: 8, fontSize: 12, color: 'var(--ui-text-3)' }}>
             <div>Tạo bởi: {note.creatorName} lúc {formatShort(note.createdAt)}</div>
             {note.updatedByName && (
               <div style={{ marginTop: 4 }}>

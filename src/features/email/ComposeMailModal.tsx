@@ -1,6 +1,8 @@
 import { Form, Input, Modal, message } from 'antd';
 import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { api } from '@/api/client';
+import { FormField } from '@/components/FormField';
 import type { MailAccount } from '@/types';
 import type { ComposeDraft } from './utils/compose';
 
@@ -11,24 +13,17 @@ export function ComposeMailModal(props: {
   onClose: () => void;
 }) {
   const { account, draft, onClose } = props;
-  const [form] = Form.useForm<ComposeDraft>();
+  const { control, handleSubmit, reset } = useForm<ComposeDraft>({ mode: 'onChange' });
   const [sending, setSending] = useState(false);
   const replying = Boolean(draft?.replyUid);
 
   useEffect(() => {
     if (draft) {
-      form.resetFields();
-      form.setFieldsValue(draft);
+      reset(draft);
     }
-  }, [draft, form]);
+  }, [draft, reset]);
 
-  async function send() {
-    let values: ComposeDraft;
-    try {
-      values = await form.validateFields();
-    } catch {
-      return;
-    }
+  async function send(values: ComposeDraft) {
     setSending(true);
     try {
       const result = await api.sendMail(account.id, {
@@ -52,7 +47,7 @@ export function ComposeMailModal(props: {
       title={replying ? 'Trả lời' : 'Thư mới'}
       open={Boolean(draft)}
       onCancel={onClose}
-      onOk={() => void send()}
+      onOk={() => void handleSubmit(send)()}
       okText="Gửi"
       cancelText="Huỷ"
       confirmLoading={sending}
@@ -65,23 +60,24 @@ export function ComposeMailModal(props: {
       <p className="mail-compose-from">
         Từ: <strong>{account.displayName && account.displayName !== account.email ? `${account.displayName} <${account.email}>` : account.email}</strong>
       </p>
-      <Form form={form} layout="vertical" requiredMark={false}>
-        <Form.Item
+      <Form layout="vertical" requiredMark={false}>
+        <FormField
+          control={control}
           name="to"
           label="Đến"
-          rules={[{ required: true, whitespace: true, message: 'Nhập người nhận.' }]}
+          rules={{ validate: (value) => Boolean(value?.trim()) || 'Nhập người nhận.' }}
         >
           <Input placeholder="ten@congty.com, nhiều người cách nhau dấu phẩy" autoComplete="off" />
-        </Form.Item>
-        <Form.Item name="cc" label="Cc">
+        </FormField>
+        <FormField control={control} name="cc" label="Cc">
           <Input placeholder="Không bắt buộc" autoComplete="off" />
-        </Form.Item>
-        <Form.Item name="subject" label="Tiêu đề">
+        </FormField>
+        <FormField control={control} name="subject" label="Tiêu đề">
           <Input maxLength={500} />
-        </Form.Item>
-        <Form.Item name="text" label="Nội dung">
+        </FormField>
+        <FormField control={control} name="text" label="Nội dung">
           <Input.TextArea autoSize={{ minRows: 8, maxRows: 18 }} maxLength={200_000} />
-        </Form.Item>
+        </FormField>
       </Form>
     </Modal>
   );

@@ -2,6 +2,7 @@ import { CameraOutlined, CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Modal, Segmented, Select, Spin, message } from 'antd';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import { api, fileSrc } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { errorText } from '@/lib/errors';
@@ -17,6 +18,10 @@ export type SubmitItem = {
   state: 'waiting' | 'sending' | 'done' | 'error';
   error?: string;
 } & ({ kind: 'file'; blob: Blob; filename: string } | { kind: 'chat'; imageId: string });
+
+type SubmitPhotosValues = { albumId?: string; caption: string; visibility: GalleryVisibility };
+
+const EMPTY_SUBMIT: SubmitPhotosValues = { albumId: undefined, caption: '', visibility: 'public' };
 
 function revokePreview(item: SubmitItem) {
   if (item.kind === 'file') {
@@ -34,9 +39,7 @@ export function SubmitPhotosModal(props: {
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<SubmitItem[]>([]);
-  const [albumId, setAlbumId] = useState<string | undefined>();
-  const [caption, setCaption] = useState('');
-  const [visibility, setVisibility] = useState<GalleryVisibility>('public');
+  const { control, getValues, reset } = useForm<SubmitPhotosValues>({ defaultValues: EMPTY_SUBMIT });
   const [sending, setSending] = useState(false);
   const [shooting, setShooting] = useState(false);
   const itemsRef = useRef(items);
@@ -61,11 +64,9 @@ export function SubmitPhotosModal(props: {
         state: 'waiting',
       })),
     );
-    setAlbumId(undefined);
-    setCaption('');
-    setVisibility('public');
+    reset(EMPTY_SUBMIT);
     return () => itemsRef.current.forEach(revokePreview);
-  }, [open, chatImages]);
+  }, [open, chatImages, reset]);
 
   function addFiles(files: { blob: Blob; filename: string; size: number; type: string }[]) {
     const room = PHOTO_MAX_PER_SEND - itemsRef.current.length;
@@ -109,6 +110,7 @@ export function SubmitPhotosModal(props: {
   }
 
   async function send() {
+    const { albumId, caption, visibility } = getValues();
     const input = { albumId, caption: caption.trim() || undefined, visibility };
     const pending = items.filter((item) => item.state !== 'done');
     let failed = 0;
@@ -209,30 +211,47 @@ export function SubmitPhotosModal(props: {
             </button>
           ) : null}
         </div>
-        <Select
-          allowClear
-          disabled={started}
-          placeholder="Chọn album (có thể để trống)"
-          value={albumId}
-          onChange={setAlbumId}
-          options={albums.map((album) => ({ value: album.id, label: album.name }))}
+        <Controller
+          control={control}
+          name="albumId"
+          render={({ field }) => (
+            <Select
+              allowClear
+              disabled={started}
+              placeholder="Chọn album (có thể để trống)"
+              value={field.value}
+              onChange={field.onChange}
+              options={albums.map((album) => ({ value: album.id, label: album.name }))}
+            />
+          )}
         />
-        <Input.TextArea
-          rows={2}
-          maxLength={300}
-          disabled={started}
-          placeholder="Mô tả (không bắt buộc)"
-          value={caption}
-          onChange={(event) => setCaption(event.target.value)}
+        <Controller
+          control={control}
+          name="caption"
+          render={({ field }) => (
+            <Input.TextArea
+              {...field}
+              rows={2}
+              maxLength={300}
+              disabled={started}
+              placeholder="Mô tả (không bắt buộc)"
+            />
+          )}
         />
-        <Segmented<GalleryVisibility>
-          disabled={started}
-          value={visibility}
-          onChange={setVisibility}
-          options={[
-            { value: 'public', label: 'Public: mọi nhân viên xem được' },
-            { value: 'private', label: 'Private: chỉ người có quyền' },
-          ]}
+        <Controller
+          control={control}
+          name="visibility"
+          render={({ field }) => (
+            <Segmented<GalleryVisibility>
+              disabled={started}
+              value={field.value}
+              onChange={field.onChange}
+              options={[
+                { value: 'public', label: 'Public: mọi nhân viên xem được' },
+                { value: 'private', label: 'Private: chỉ người có quyền' },
+              ]}
+            />
+          )}
         />
         <CameraCapture
           open={shooting}

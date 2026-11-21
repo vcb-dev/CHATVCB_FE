@@ -6,9 +6,14 @@ import {
   ReloadOutlined,
   RollbackOutlined,
 } from '@ant-design/icons';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Dropdown, Form, Input, InputNumber, Modal, Typography, message } from 'antd';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
+import { FormField } from '@/components/FormField';
+import { LoadingState } from '@/components/LoadingState';
 import type { MailAccount, MailItem, MailMessage } from '@/types';
 import { ModuleLayout } from '@/components/ModuleLayout';
 import { ModuleSidebar } from '@/components/ModuleSidebar';
@@ -18,6 +23,22 @@ import { ComposeMailModal } from './ComposeMailModal';
 import { buildReplyDraft, EMPTY_DRAFT, htmlToPlain, type ComposeDraft } from './utils/compose';
 
 const SELECTED_KEY = 'chatvcb.mailAccount';
+const EMPTY_ACCOUNTS: MailAccount[] = [];
+const EMPTY_ITEMS: MailItem[] = [];
+
+type MailInbox = { total: number; items: MailItem[] };
+
+type ConnectValues = {
+  email: string;
+  password: string;
+  displayName?: string;
+  imapHost?: string;
+  imapPort?: number | null;
+};
+
+// Cùng mẫu với luật `type: 'email'` của antd (@rc-component/async-validator) để kết quả kiểm không đổi
+const EMAIL_PATTERN =
+  /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9 -퟿豈-﷏ﷰ-￯]+\.)+[a-zA-Z -퟿豈-﷏ﷰ-￯]{2,}))$/;
 
 function formatWhen(value?: string | null) {
   if (!value) {
@@ -43,55 +64,58 @@ function GoogleMark() {
 }
 
 export function EmailPage() {
-  const [accounts, setAccounts] = useState<MailAccount[]>([]);
+  const queryClient = useQueryClient();
+  const accountsQuery = useQuery({
+    queryKey: queryKeys.mailAccounts,
+    queryFn: () => api.listMailAccounts(),
+  });
+  const accounts = accountsQuery.data ?? EMPTY_ACCOUNTS;
   const [accountId, setAccountId] = useState(() => localStorage.getItem(SELECTED_KEY) || '');
-  const [items, setItems] = useState<MailItem[]>([]);
-  const [total, setTotal] = useState(0);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
-  const [opened, setOpened] = useState<MailMessage | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [reading, setReading] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [draft, setDraft] = useState<ComposeDraft | null>(null);
-  const [form] = Form.useForm();
+  const { control, handleSubmit, reset } = useForm<ConnectValues>({ mode: 'onChange' });
 
   const account = accounts.find((item) => item.id === accountId) || accounts[0];
+  const activeId = account?.id ?? '';
+  const inboxQuery = useQuery({
+    queryKey: queryKeys.mailInbox(activeId),
+    queryFn: () => api.mailInbox(activeId),
+    enabled: Boolean(activeId),
+  });
+  const items = inboxQuery.data?.items ?? EMPTY_ITEMS;
+  const total = inboxQuery.data?.total ?? 0;
+  const loading = inboxQuery.isFetching;
+  const openedQuery = useQuery({
+    queryKey: queryKeys.mailMessage(activeId, selectedUid ?? ''),
+    queryFn: () => api.mailMessage(activeId, selectedUid ?? ''),
+    enabled: Boolean(activeId && selectedUid),
+    // Thư đã nhận không đổi nội dung
+    staleTime: Infinity,
+  });
+  const opened = openedQuery.data ?? null;
+  const reading = openedQuery.isFetching;
 
-  const loadAccounts = useCallback(async (preferId?: string) => {
-    const next = await api.listMailAccounts();
-    setAccounts(next);
-    const saved = preferId || localStorage.getItem(SELECTED_KEY) || '';
-    const chosen = next.find((item) => item.id === saved)?.id || next[0]?.id || '';
-    setAccountId(chosen);
-    if (chosen) {
-      localStorage.setItem(SELECTED_KEY, chosen);
+  // Nhớ hộp thư đang xem (hoặc hộp đầu tiên khi hộp đã lưu không còn) cho lần mở sau
+  useEffect(() => {
+    if (!accountsQuery.data) {
+      return;
+    }
+    if (activeId) {
+      localStorage.setItem(SELECTED_KEY, activeId);
     } else {
       localStorage.removeItem(SELECTED_KEY);
     }
-    return chosen;
-  }, []);
+  }, [accountsQuery.data, activeId]);
 
-  const loadInbox = useCallback(async (id: string) => {
-    if (!id) {
-      setItems([]);
-      setTotal(0);
-      setSelectedUid(null);
-      setOpened(null);
-      return;
+  const loadError = accountsQuery.error ?? inboxQuery.error;
+  useEffect(() => {
+    if (loadError) {
+      message.error(loadError instanceof Error ? loadError.message : 'Không tải được hộp thư.');
     }
-    setLoading(true);
-    try {
-      const inbox = await api.mailInbox(id);
-      setItems(inbox.items);
-      setTotal(inbox.total);
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : 'Không tải được hộp thư.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  }, [loadError]);
 
   useEffect(() => {
     const status = new URLSearchParams(window.location.search).get('mail');
@@ -102,14 +126,6 @@ export function EmailPage() {
     }
   }, []);
 
-  useEffect(() => {
-    void loadAccounts()
-      .then((id) => loadInbox(id))
-      .catch((err) => {
-        message.error(err instanceof Error ? err.message : 'Không tải được hộp thư.');
-      });
-  }, [loadAccounts, loadInbox]);
-
   function reply(mail: MailMessage) {
     const plain = mail.text.trim() ? mail.text : mail.html ? htmlToPlain(mail.html) : '';
     const when = mail.date
@@ -118,13 +134,10 @@ export function EmailPage() {
     setDraft(buildReplyDraft(mail, plain, when));
   }
 
-  async function switchAccount(id: string) {
+  function switchAccount(id: string) {
     setDraft(null);
     setAccountId(id);
-    localStorage.setItem(SELECTED_KEY, id);
     setSelectedUid(null);
-    setOpened(null);
-    await loadInbox(id);
   }
 
   async function loginGoogle() {
@@ -138,9 +151,8 @@ export function EmailPage() {
     }
   }
 
-  async function connect() {
+  async function connect(values: ConnectValues) {
     try {
-      const values = await form.validateFields();
       setConnecting(true);
       const next = await api.connectMail({
         email: values.email,
@@ -149,15 +161,13 @@ export function EmailPage() {
         imapHost: values.imapHost || undefined,
         imapPort: values.imapPort || undefined,
       });
-      form.resetFields();
+      reset();
       setConnectOpen(false);
       message.success(`Đã đăng nhập ${next.email}`);
-      await loadAccounts(next.id);
-      await loadInbox(next.id);
+      setAccountId(next.id);
+      setSelectedUid(null);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.mailAccounts });
     } catch (err) {
-      if (err && typeof err === 'object' && 'errorFields' in err) {
-        return;
-      }
       message.error(err instanceof Error ? err.message : 'Không đăng nhập được mail.');
     } finally {
       setConnecting(false);
@@ -168,46 +178,70 @@ export function EmailPage() {
     try {
       await api.removeMailAccount(id);
       message.success('Đã gỡ hộp thư.');
-      const chosen = await loadAccounts();
-      await loadInbox(chosen);
+      // Bỏ khỏi cache ngay để không chọn nhầm (và tải hộp thư của) tài khoản vừa gỡ trong lúc tải lại
+      queryClient.setQueryData<MailAccount[]>(queryKeys.mailAccounts, (current) =>
+        current?.filter((item) => item.id !== id),
+      );
+      queryClient.removeQueries({ queryKey: queryKeys.mailInbox(id) });
+      if (id === activeId) {
+        setSelectedUid(null);
+      }
+      await queryClient.invalidateQueries({ queryKey: queryKeys.mailAccounts });
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không gỡ được hộp thư.');
     }
   }
 
-  async function openMail(uid: string) {
-    if (!account) {
+  function openMail(uid: string) {
+    if (!activeId) {
       return;
     }
+    const id = activeId;
     setSelectedUid(uid);
-    setReading(true);
-    try {
-      setOpened(await api.mailMessage(account.id, uid));
-      setItems((current) => current.map((item) => (item.uid === uid ? { ...item, seen: true } : item)));
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : 'Không mở được thư.');
-    } finally {
-      setReading(false);
-    }
+    // Cùng key với openedQuery nên chỉ một lần gọi; mở được thì đánh dấu đã đọc ngay trong danh sách
+    void queryClient
+      .query({
+        queryKey: queryKeys.mailMessage(id, uid),
+        queryFn: () => api.mailMessage(id, uid),
+        staleTime: Infinity,
+      })
+      .then(() => {
+        queryClient.setQueryData<MailInbox>(queryKeys.mailInbox(id), (current) =>
+          current
+            ? { ...current, items: current.items.map((item) => (item.uid === uid ? { ...item, seen: true } : item)) }
+            : current,
+        );
+      })
+      .catch((err) => {
+        message.error(err instanceof Error ? err.message : 'Không mở được thư.');
+      });
   }
 
   const loginForm = (
-    <Form form={form} layout="vertical" className="mail-form" requiredMark={false}>
-      <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email', message: 'Nhập email.' }]}>
+    <Form layout="vertical" className="mail-form" requiredMark={false}>
+      <FormField
+        control={control}
+        name="email"
+        label="Email"
+        rules={{
+          required: 'Nhập email.',
+          validate: (value) => !value || (value.length <= 320 && EMAIL_PATTERN.test(value)) || 'Nhập email.',
+        }}
+      >
         <Input placeholder="ten@vienchibao.com" autoComplete="username" />
-      </Form.Item>
-      <Form.Item name="password" label="Mật khẩu IMAP" rules={[{ required: true, message: 'Nhập mật khẩu.' }]}>
+      </FormField>
+      <FormField control={control} name="password" label="Mật khẩu IMAP" rules={{ required: 'Nhập mật khẩu.' }}>
         <Input.Password placeholder="Mật khẩu IMAP" autoComplete="current-password" />
-      </Form.Item>
-      <Form.Item name="displayName" label="Tên hiển thị">
+      </FormField>
+      <FormField control={control} name="displayName" label="Tên hiển thị">
         <Input placeholder="Hộp thư công ty" />
-      </Form.Item>
-      <Form.Item name="imapHost" label="IMAP host">
+      </FormField>
+      <FormField control={control} name="imapHost" label="IMAP host">
         <Input placeholder="imap.vienchibao.com" />
-      </Form.Item>
-      <Form.Item name="imapPort" label="Cổng IMAP">
+      </FormField>
+      <FormField control={control} name="imapPort" label="Cổng IMAP">
         <InputNumber min={1} max={65535} placeholder="993" style={{ width: '100%' }} />
-      </Form.Item>
+      </FormField>
     </Form>
   );
 
@@ -267,7 +301,7 @@ export function EmailPage() {
           </Button>
           <Button
             icon={<ReloadOutlined />}
-            onClick={() => account && void loadInbox(account.id)}
+            onClick={() => void inboxQuery.refetch()}
             loading={loading}
           >
             Làm mới
@@ -295,14 +329,16 @@ export function EmailPage() {
             action={sidebarAction}
             groups={sidebarGroups}
             activeKey={account?.id || accountId}
-            onSelect={(key) => void switchAccount(key)}
+            onSelect={switchAccount}
           />
         ) : undefined
       }
       header={pageHeader}
       flush={Boolean(accounts.length)}
     >
-      {!accounts.length ? (
+      {accountsQuery.isPending ? (
+        <LoadingState />
+      ) : !accounts.length ? (
         <EmptyState
           icon={<MailOutlined />}
           title="Đăng nhập hộp thư"
@@ -313,7 +349,7 @@ export function EmailPage() {
               <details className="mail-imap">
                 <summary>Tài khoản khác (IMAP)</summary>
                 {loginForm}
-                <Button type="primary" size="large" loading={connecting} onClick={() => void connect()}>
+                <Button type="primary" size="large" loading={connecting} onClick={() => void handleSubmit(connect)()}>
                   Đăng nhập IMAP
                 </Button>
               </details>
@@ -331,7 +367,7 @@ export function EmailPage() {
                   key={item.uid}
                   type="button"
                   className={`mail-row${selectedUid === item.uid ? ' active' : ''}${item.seen ? '' : ' unread'}`}
-                  onClick={() => void openMail(item.uid)}
+                  onClick={() => openMail(item.uid)}
                 >
                   <strong>{item.from || '(Không người gửi)'}</strong>
                   <span>{item.subject}</span>
@@ -378,7 +414,7 @@ export function EmailPage() {
         title="Thêm hộp thư IMAP"
         open={connectOpen}
         onCancel={() => setConnectOpen(false)}
-        onOk={() => void connect()}
+        onOk={() => void handleSubmit(connect)()}
         okText="Đăng nhập"
         confirmLoading={connecting}
         destroyOnHidden

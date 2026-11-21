@@ -1,8 +1,10 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { Alert, Button, Empty, Modal, Select, Spin } from 'antd';
+import { Alert, Button, Modal, Select } from 'antd';
 import { useMemo, useState } from 'react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
 import { apiErrorText } from '@/lib/errors';
 import type { NewsImage } from '@/types';
 
@@ -34,8 +36,8 @@ function GalleryPhotos(props: { busy: boolean; onPick: (photoId: string) => void
           ...albums.map((album) => ({ value: album.id, label: album.name })),
         ]}
       />
-      {query.isLoading ? <Spin className="news-loading" /> : null}
-      {!query.isLoading && !photos.length ? <Empty description="Chưa có ảnh" /> : null}
+      {query.isLoading ? <LoadingState /> : null}
+      {!query.isLoading && !photos.length ? <EmptyState compact title="Chưa có ảnh" /> : null}
       <div className="news-picker-grid">
         {photos.map((photo) => (
           <button

@@ -1,9 +1,4 @@
 /* Bản tin — features/news */
-.news-loading {
-  display: block;
-  margin: 40px auto;
-}
-
 .news-state {
   padding: 40px 16px;
   text-align: center;
@@ -26,9 +21,9 @@
   gap: 12px;
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--ui-border, #f0f0f0);
+  border: 1px solid var(--ui-border, var(--ui-border));
   border-radius: 8px;
-  background: #fff;
+  background: var(--ui-bg-panel);
   cursor: pointer;
   text-align: left;
   font: inherit;
@@ -36,8 +31,8 @@
 }
 
 .news-draft-row:hover {
-  background-color: var(--ui-bg-hover, #fafafa);
-  border-color: #d9d9d9;
+  background-color: var(--ui-bg-hover, var(--ui-bg-subtle));
+  border-color: var(--ui-border-strong);
 }
 
 .news-draft-cover {
@@ -49,8 +44,8 @@
   justify-content: center;
   border-radius: 6px;
   overflow: hidden;
-  background: #f0f2f5;
-  color: #8c8c8c;
+  background: var(--ui-bg-app);
+  color: var(--ui-text-3);
   font-size: 22px;
 }
 
@@ -70,12 +65,12 @@
 
 .news-draft-text strong {
   font-size: 15px;
-  color: var(--ui-text, #262626);
+  color: var(--ui-text, var(--ui-text));
   overflow-wrap: anywhere;
 }
 
 .news-draft-text small {
-  color: var(--ui-text-2, #8c8c8c);
+  color: var(--ui-text-2, var(--ui-text-3));
   font-size: 13px;
 }
 
@@ -83,7 +78,7 @@
   border: 0;
   padding: 0;
   background: none;
-  color: #65676b;
+  color: var(--ui-text-2);
   cursor: pointer;
   font: inherit;
   font-weight: 600;
@@ -107,7 +102,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 0 8px;
-  color: #65676b;
+  color: var(--ui-text-2);
 }
 
 .news-reactions-total {
@@ -131,8 +126,8 @@
 .news-reactions-actions {
   display: flex;
   gap: 4px;
-  border-top: 1px solid #e4e6eb;
-  border-bottom: 1px solid #e4e6eb;
+  border-top: 1px solid var(--ui-border);
+  border-bottom: 1px solid var(--ui-border);
   padding: 4px 0;
 }
 
@@ -155,7 +150,7 @@
   border-radius: 6px;
   padding: 6px 10px;
   background: none;
-  color: #65676b;
+  color: var(--ui-text-2);
   cursor: pointer;
   font: inherit;
   font-weight: 600;
@@ -167,7 +162,7 @@
 
 .news-reaction-main:hover:not(:disabled),
 .news-reaction-more:hover {
-  background: #f0f2f5;
+  background: var(--ui-bg-app);
 }
 
 .news-reaction-main.active {
@@ -204,7 +199,7 @@
 }
 
 .news-reaction-option.active {
-  background: #e7f0fd;
+  background: var(--ui-primary-soft);
 }
 
 .news-comments {
@@ -243,7 +238,7 @@
   max-width: 100%;
   border-radius: 16px;
   padding: 6px 12px;
-  background: #f0f2f5;
+  background: var(--ui-bg-app);
 }
 
 .news-comment-bubble strong {
@@ -260,7 +255,7 @@
   flex-wrap: wrap;
   gap: 12px;
   padding: 2px 12px 0;
-  color: #65676b;
+  color: var(--ui-text-2);
   font-size: 12px;
 }
 
@@ -280,7 +275,7 @@
 
 .news-comment-composer .ant-input {
   border-radius: 16px;
-  background: #f0f2f5;
+  background: var(--ui-bg-app);
 }
 
 .news-comment-composer-actions {
@@ -292,13 +287,13 @@
 .news-facebook-panel {
   border-radius: 10px;
   padding: 20px 28px;
-  background: #fff;
+  background: var(--ui-bg-panel);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .news-facebook-hint {
   margin: 12px 0;
-  color: #65676b;
+  color: var(--ui-text-2);
 }
 
 .news-facebook-page {
@@ -306,7 +301,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--ui-border);
   padding: 14px 0;
 }
 
@@ -319,7 +314,7 @@
 }
 
 .news-facebook-page-text small {
-  color: #8c8c8c;
+  color: var(--ui-text-3);
 }
 
 .news-facebook-page-text .news-facebook-error {
@@ -380,7 +375,7 @@
   border-radius: 8px;
   overflow: hidden;
   padding: 0;
-  background: #f0f2f5;
+  background: var(--ui-bg-app);
   cursor: pointer;
 }
 
@@ -461,7 +456,7 @@
   border: 0;
   border-radius: 50%;
   padding: 0;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--ui-glass);
   box-shadow: var(--ui-shadow-1);
   color: var(--ui-text);
   font-size: 11px;
@@ -469,7 +464,7 @@
 }
 
 .news-composer-remove:hover {
-  background: #fff;
+  background: var(--ui-bg-panel);
 }
 
 .news-composer-remove:disabled {

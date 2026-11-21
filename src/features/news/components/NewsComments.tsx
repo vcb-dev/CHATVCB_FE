@@ -1,10 +1,10 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { Avatar, Spin } from 'antd';
+import { Spin } from 'antd';
 import type { TextAreaRef } from 'antd/es/input/TextArea';
 import { type Ref, useMemo, useState } from 'react';
 import { api } from '@/api/client';
+import { UserAvatar } from '@/components/UserAvatar';
 import { queryKeys } from '@/api/queryKeys';
-import { avatarColor, initials } from '@/lib/avatar';
 import { errorText } from '@/lib/errors';
 import { refreshNewsCommentPreview } from '@/lib/newsCache';
 import type { NewsComment, NewsCommentPage, User } from '@/types';
@@ -139,13 +139,12 @@ export function NewsComments(props: {
       ))}
 
       <div className="news-comment-new">
-        <Avatar
+        <UserAvatar
           size={32}
-          src={props.me.avatarUrl || undefined}
-          style={{ backgroundColor: avatarColor(props.me.name), flex: 'none' }}
-        >
-          {initials(props.me.name)}
-        </Avatar>
+          src={props.me.avatarUrl}
+          name={props.me.name}
+          style={{ flex: 'none' }}
+        />
         <NewsCommentComposer
           inputRef={props.composerRef}
           placeholder="Viết bình luận…"

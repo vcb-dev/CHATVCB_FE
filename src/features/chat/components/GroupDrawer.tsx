@@ -1,6 +1,5 @@
 import {
   BellOutlined,
-  CameraOutlined,
   CloseOutlined,
   CloudOutlined,
   DeleteOutlined,
@@ -12,22 +11,24 @@ import {
   ProfileOutlined,
   PushpinOutlined,
   SettingOutlined,
+  StopOutlined,
   TeamOutlined,
   UsergroupAddOutlined,
 } from '@ant-design/icons';
-import { Avatar, Button, Input, Modal, Typography, message } from 'antd';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button, Input, Modal, Typography, message } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, fileSrc } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { CopyableImage } from '@/components/CopyableImage';
+import { UserAvatar } from '@/components/UserAvatar';
+import { avatarCoverGradient } from '@/lib/avatar';
 import { compressImage } from '@/lib/image';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
 import { mergePhotos } from '../utils/media';
 import { requestNotifyPermission } from '@/lib/notify';
 import { formatBytes } from '../utils/attachments';
 import { UserPicker } from './UserPicker';
-import { avatarColor, initials } from '@/lib/avatar';
 import { isRoomMuted } from '../utils/rooms';
 import { MuteDurationModal } from './MuteDurationModal';
 import { GroupManageView } from './GroupManageView';
@@ -42,32 +43,6 @@ const EMPTY_PHOTOS: GalleryImage[] = [];
 const EMPTY_FILES: ChatFile[] = [];
 const EMPTY_LINKS: RoomLink[] = [];
 const EMPTY_PINS: ChatMessage[] = [];
-
-function GroupAvatar({ room }: { room: Room }) {
-  const src = room.avatarUrl ? fileSrc(room.avatarUrl) : undefined;
-  if (room.isCloud) {
-    return (
-      <Avatar
-        size={80}
-        className="avatar-initials"
-        icon={<CloudOutlined />}
-        src={src}
-        style={{ background: '#0084ff' }}
-      />
-    );
-  }
-  const label = room.title || room.name;
-  return (
-    <Avatar
-      size={80}
-      className="avatar-initials"
-      src={src}
-      style={{ background: avatarColor(label) }}
-    >
-      {initials(label)}
-    </Avatar>
-  );
-}
 
 type Props = {
   room: Room | null;
@@ -87,6 +62,7 @@ type Props = {
   onOpenNote: (note: RoomNote) => void;
   onCreateNote: () => void;
   onCreateTask: () => void;
+  open?: boolean;
 };
 
 export function GroupDrawer({
@@ -107,11 +83,12 @@ export function GroupDrawer({
   onOpenNote,
   onCreateNote,
   onCreateTask,
+  open = true,
 }: Props) {
   const [name, setName] = useState(room?.name ?? '');
   const [editingName, setEditingName] = useState(false);
   const roomKey = room?.id ?? '';
-  const enabled = Boolean(room);
+  const enabled = Boolean(room) && open;
   const galleryQuery = useQuery({
     queryKey: queryKeys.gallery(roomKey),
     queryFn: () => api.gallery(roomKey),
@@ -162,7 +139,6 @@ export function GroupDrawer({
   const [openSection, setOpenSection] = useState<'members' | 'photos' | 'files' | 'links' | 'pins' | null>(
     'members',
   );
-  const avatarRef = useRef<HTMLInputElement>(null);
 
   const isCloud = room?.isCloud ?? false;
   const isGroup = !isCloud && (room?.type === 'group' || room?.kind === 'group');
@@ -183,6 +159,7 @@ export function GroupDrawer({
       room &&
       !(room.settings?.adminOnlyInfo && room.myRole === 'member'),
   );
+  const roomLabel = room ? (room.title || room.name) : '';
 
   const [view, setView] = useState<'info' | 'manage'>('info');
 
@@ -221,7 +198,7 @@ export function GroupDrawer({
       const preview = URL.createObjectURL(file);
       onRoomUpdated({ ...room, avatarUrl: preview });
       try {
-        onRoomUpdated(await api.uploadRoomAvatar(room.id, await compressImage(file, 400)));
+        onRoomUpdated(await api.uploadRoomAvatar(room.id, await compressImage(file, 800)));
         message.success('Đã đổi ảnh nhóm.');
       } finally {
         URL.revokeObjectURL(preview);
@@ -355,51 +332,37 @@ export function GroupDrawer({
       ) : room ? (
         <div className="group-scroll">
           <div className="group-card group-hero-card">
-            <div className="group-cover">
+            <div
+              className="group-cover"
+              style={!isCloud ? { background: avatarCoverGradient(roomLabel) } : undefined}
+            >
               <button type="button" className="group-pane-close" onClick={onClose} aria-label="Đóng">
                 <CloseOutlined />
               </button>
             </div>
             <div className="group-hero">
+              <UserAvatar
+                size={80}
+                className="avatar-initials"
+                src={isCloud ? undefined : room.avatarUrl}
+                name={roomLabel}
+                icon={isCloud ? <CloudOutlined /> : undefined}
+                zoomable={!isCloud}
+                showZoomHint={!isCloud}
+                framed
+                wrapperClassName="is-group-hero"
+                zoomTitle={isGroup ? 'Xem ảnh nhóm' : 'Xem ảnh đại diện'}
+                onUpload={canEditInfo ? (file) => void onAvatar(file) : undefined}
+                uploadTitle="Đổi ảnh nhóm"
+                style={isCloud ? { background: '#0084ff' } : undefined}
+              />
               {isCloud ? (
                 <>
-                  <div className="group-avatar-btn" style={{ cursor: 'default' }}>
-                    <GroupAvatar room={room} />
-                  </div>
-                  <h2>{room.title || room.name}</h2>
+                  <h2>{roomLabel}</h2>
                   <p className="group-sub">Cloud của tôi</p>
                 </>
               ) : isGroup ? (
                 <>
-                  {canEditInfo ? (
-                    <button
-                      type="button"
-                      className="group-avatar-btn"
-                      onClick={() => avatarRef.current?.click()}
-                    >
-                      <GroupAvatar room={room} />
-                      <span className="group-cam">
-                        <CameraOutlined />
-                      </span>
-                    </button>
-                  ) : (
-                    <div className="group-avatar-btn" style={{ cursor: 'default' }}>
-                      <GroupAvatar room={room} />
-                    </div>
-                  )}
-                  <input
-                    ref={avatarRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp"
-                    hidden
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      event.target.value = '';
-                      if (file) {
-                        void onAvatar(file);
-                      }
-                    }}
-                  />
                   {canEditInfo ? (
                     editingName ? (
                       <div className="group-name-edit">
@@ -420,21 +383,18 @@ export function GroupDrawer({
                         className="group-name-btn"
                         onClick={() => setEditingName(true)}
                       >
-                        <h2>{room.title || room.name}</h2>
+                        <h2>{roomLabel}</h2>
                         <EditOutlined />
                       </button>
                     )
                   ) : (
-                    <h2>{room.title || room.name}</h2>
+                    <h2>{roomLabel}</h2>
                   )}
                   <p className="group-sub">{members.length} thành viên</p>
                 </>
               ) : (
                 <>
-                  <div className="group-avatar-btn" style={{ cursor: 'default' }}>
-                    <GroupAvatar room={room} />
-                  </div>
-                  <h2>{room.title || room.name}</h2>
+                  <h2>{roomLabel}</h2>
                   <p className="group-sub">Trò chuyện trực tiếp</p>
                 </>
               )}
@@ -474,6 +434,19 @@ export function GroupDrawer({
                   {room.pinned ? 'Bỏ ghim' : 'Ghim hội thoại'}
                 </span>
               </button>
+
+              {!isGroup && !isCloud && room.peerUserId ? (
+                <button
+                  type="button"
+                  className="info-action"
+                  onClick={() => void prefs.toggleBlock(room)}
+                >
+                  <span className="info-action-btn">
+                    <StopOutlined />
+                  </span>
+                  <span className="info-action-label">{room.blockedByMe ? 'Bỏ chặn' : 'Chặn'}</span>
+                </button>
+              ) : null}
 
               {isGroup && canAddMember ? (
                 <button

@@ -1,9 +1,9 @@
 import { UserAddOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Avatar, Button, message } from 'antd';
-import { api, fileSrc } from '@/api/client';
+import { Button, message } from 'antd';
+import { api } from '@/api/client';
+import { UserAvatar } from '@/components/UserAvatar';
 import { queryKeys } from '@/api/queryKeys';
-import { avatarColor, initials } from '@/lib/avatar';
 import type { Room, RoomMember } from '@/types';
 import { errorText } from '@/lib/errors';
 
@@ -59,13 +59,11 @@ export function JoinRequestsCard({ room, onMembersUpdated }: Props) {
       <div className="join-requests-list">
         {requests.map((req) => (
           <div key={req.userId} className="join-request-row">
-            <Avatar
+            <UserAvatar
               size={36}
-              src={req.avatarUrl ? fileSrc(req.avatarUrl) : undefined}
-              style={{ background: avatarColor(req.name) }}
-            >
-              {initials(req.name)}
-            </Avatar>
+              src={req.avatarUrl}
+              name={req.name}
+            />
             <div className="join-request-info">
               <strong>{req.name}</strong>
               <small>

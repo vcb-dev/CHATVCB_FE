@@ -2,6 +2,8 @@ import { RobotOutlined } from '@ant-design/icons';
 import { Avatar, Checkbox, Popover } from 'antd';
 import { Fragment, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { ChatMessage, Room, RoomMember, RoomRead } from '@/types';
+import { useOnline } from '../hooks/useOutbox';
+import { isTemp } from '../utils/messageCache';
 import { isSelectable } from '../utils/selection';
 import { mentionsUser } from '../utils/mentions';
 import { buildSeen } from '../utils/seen';
@@ -60,10 +62,13 @@ export function MessageList(props: {
   onOpenNote?: (noteId: string) => void;
 }) {
   const { messages, reads, userId, myHandle } = props;
+  // "Đã xem / đã nhận / đã đọc" chỉ tính trên tin thật; tin tạm chưa có id nên chưa ai đọc được
+  const confirmed = useMemo(() => messages.filter((item) => !isTemp(item)), [messages]);
   const seen = useMemo(
-    () => buildSeen(messages, reads, props.members, userId),
-    [messages, reads, props.members, userId],
+    () => buildSeen(confirmed, reads, props.members, userId),
+    [confirmed, reads, props.members, userId],
   );
+  const online = useOnline();
 
   // Các hàm của dòng tin giữ nguyên danh tính giữa các lần vẽ (luôn gọi bản mới nhất), nhờ đó
   // MessageRow chỉ vẽ lại khi dữ liệu của chính nó đổi chứ không phải mỗi lần ChatPage vẽ.
@@ -137,7 +142,8 @@ export function MessageList(props: {
         const mine = message.userId === userId;
         const first = index === 0 || !sameCluster(messages[index - 1], message);
         const last = index === messages.length - 1 || !sameCluster(message, messages[index + 1]);
-        const receipt = props.readReceipts ? seen.receiptOf(message) : null;
+        const temp = isTemp(message);
+        const receipt = props.readReceipts && !temp ? seen.receiptOf(message) : null;
         const selectable = props.selecting && isSelectable(message);
         const selected = selectable && Boolean(props.selectedIds?.has(message.id));
         const row = (
@@ -151,9 +157,10 @@ export function MessageList(props: {
             showName={Boolean(props.showAuthorNames) && first && !mine}
             tagged={!mine && Boolean(props.mentionsEnabled) && mentionsUser(message.content, myHandle, true)}
             mentionsEnabled={props.mentionsEnabled}
-            viewers={seen.viewersOf(message)}
-            lastReaders={receipt ? NO_READERS : seen.lastSeenOn(message)}
-            delivery={props.showDelivery && !receipt ? seen.deliveryOf(message) : null}
+            viewers={temp ? NO_READERS : seen.viewersOf(message)}
+            lastReaders={receipt || temp ? NO_READERS : seen.lastSeenOn(message)}
+            delivery={props.showDelivery && !receipt && !temp ? seen.deliveryOf(message) : null}
+            offline={temp && !online}
             readCount={receipt?.read.length}
             readTotal={receipt ? receipt.read.length + receipt.unread.length : undefined}
             readOpen={receiptAt?.id === message.id}

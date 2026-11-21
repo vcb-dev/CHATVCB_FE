@@ -55,8 +55,3 @@ export function canAccessWorkspace(
 export function visibleWorkspaces(user: User | null | undefined) {
   return WORKSPACE_REGISTRY.filter((item) => canAccessWorkspace(user, item.id));
 }
-
-/** Workspace full-width (không sidebar chat). Dùng khi thêm CSS. */
-export const FULL_WIDTH_WORKSPACE_IDS: Workspace[] = WORKSPACE_REGISTRY.map(
-  (item) => item.id,
-).filter((id) => id !== 'messenger');

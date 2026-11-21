@@ -7,6 +7,8 @@ import { queryKeys } from '@/api/queryKeys';
 import type { ConversationLabel, LastSeenMap, PageMeta, PresenceUser, Room, User } from '@/types';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
 import type { Drafts } from '../utils/drafts';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
 import { MenuButton } from '@/components/MenuButton';
 import { lastSeenShort } from '../utils/presence';
 import { countUnreadRooms, filterRooms, isDirectRoom, type RoomFilter } from '../utils/rooms';
@@ -28,6 +30,8 @@ export function ChatSidebar(props: {
   roomId: string;
   roomsMeta: PageMeta;
   loadingOlderRooms: boolean;
+  /** Lần tải đầu chưa xong: hiện đang tải thay cho "Không có cuộc trò chuyện nào." */
+  loadingRooms?: boolean;
   searchText: string;
   onlineUsers: PresenceUser[];
   isRoomOnline: (room: Room) => boolean;
@@ -177,7 +181,11 @@ export function ChatSidebar(props: {
           />
           <div className="room-list" onScroll={handleRoomsScroll}>
             {visibleRooms.length === 0 ? (
-              <p className="room-list-empty">Không có cuộc trò chuyện nào.</p>
+              props.loadingRooms ? (
+                <LoadingState compact size="small" />
+              ) : (
+                <EmptyState compact title="Không có cuộc trò chuyện nào." />
+              )
             ) : (
               visibleRooms.map((item) => {
                 const online = props.isRoomOnline(item);

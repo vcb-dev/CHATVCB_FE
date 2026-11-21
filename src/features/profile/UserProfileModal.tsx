@@ -1,11 +1,29 @@
-import { useEffect, useState } from 'react';
-import { MessageOutlined, StopOutlined } from '@ant-design/icons';
-import { Avatar, Button, Modal, Spin, message as antMessage } from 'antd';
-import { api, fileSrc } from '@/api/client';
+import { useEffect, useState, type ReactNode } from 'react';
+import {
+  CopyOutlined,
+  DownOutlined,
+  IdcardOutlined,
+  MessageOutlined,
+  PhoneOutlined,
+  StopOutlined,
+  TeamOutlined,
+  VideoCameraOutlined,
+} from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
+import { Button, Modal, Tooltip, message as antMessage } from 'antd';
+import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
+import { UserAvatar } from '@/components/UserAvatar';
 import { lastSeenText } from '@/features/chat/utils/presence';
-import { avatarColor, initials } from '@/lib/avatar';
-import type { DirectoryUser, Room } from '@/types';
+import { avatarCoverGradient } from '@/lib/avatar';
+import { copyText } from '@/lib/clipboard';
+import type { CallMode, CommonRoom, Room } from '@/types';
 
+const EMPTY_COMMON: CommonRoom[] = [];
+
+/** Hồ sơ một người: thông tin công việc, nhắn tin / gọi / gửi danh thiếp, nhóm chung, chặn. */
 export function UserProfileModal(props: {
   open: boolean;
   userId: string | null;
@@ -15,85 +33,138 @@ export function UserProfileModal(props: {
   now: number;
   onClose: () => void;
   onOpenRoom: (room: Room) => void;
-  onSetBlocked: (userId: string, blocked: boolean) => Promise<boolean>;
+  /** Mở chat 1-1 rồi bắt đầu cuộc gọi trong đó. */
+  onCall: (room: Room, mode?: CallMode) => void;
+  onSendCard: (user: { id: string; name: string }) => void;
+  /** useBlockUser.askBlock: chặn (có hỏi lại) / bỏ chặn; `true` khi đã đổi. */
+  onSetBlocked: (userId: string, name: string, blocked: boolean) => Promise<boolean>;
+  /**
+   * Cờ chặn từ chat 1-1 trên danh sách phòng (cập nhật realtime qua rooms.changed). Có thì dùng
+   * thay cho hồ sơ đã cache, để mở lại popup không thoáng hiện trạng thái chặn cũ.
+   */
+  blocked?: { byMe: boolean; me: boolean };
 }) {
-  const [profile, setProfile] = useState<DirectoryUser | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [messaging, setMessaging] = useState(false);
+  const [showCommon, setShowCommon] = useState(false);
+  const [busy, setBusy] = useState<'message' | 'call' | 'room' | null>(null);
+  const userId = props.userId ?? '';
+  const isSelf = props.userId === props.currentUserId;
+  const enabled = props.open && Boolean(userId);
+
+  const profileQuery = useQuery({
+    queryKey: queryKeys.user(userId),
+    queryFn: () => api.user(userId),
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+  // Nhóm chung không có hoặc lỗi thì chỉ ẩn mục đó, không báo lỗi
+  const commonQuery = useQuery({
+    queryKey: queryKeys.commonRooms(userId),
+    queryFn: () => api.userCommonRooms(userId),
+    enabled: enabled && !isSelf,
+  });
+  const profile = enabled ? (profileQuery.data ?? null) : null;
+  const commonRooms = enabled && !isSelf ? (commonQuery.data ?? EMPTY_COMMON) : EMPTY_COMMON;
 
   useEffect(() => {
-    if (!props.open || !props.userId) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    void api
-      .user(props.userId)
-      .then((res) => {
-        if (!cancelled) {
-          setProfile(res);
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setLoading(false);
-          antMessage.error(
-            err instanceof Error ? err.message : 'Không tải được hồ sơ.',
-          );
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
+    setShowCommon(false);
   }, [props.open, props.userId]);
 
-  async function handleDirectChat() {
+  async function withDirectRoom(kind: 'message' | 'call', then: (room: Room) => void) {
     if (!profile) {
       return;
     }
-    setMessaging(true);
+    setBusy(kind);
     try {
       const room = await api.createDirectRoom(profile.id);
-      props.onOpenRoom(room);
+      then(room);
       props.onClose();
     } catch (err) {
-      antMessage.error(
-        err instanceof Error ? err.message : 'Không mở được cuộc trò chuyện.',
-      );
+      antMessage.error(err instanceof Error ? err.message : 'Không mở được cuộc trò chuyện.');
     } finally {
-      setMessaging(false);
+      setBusy(null);
     }
   }
 
-  const isSelf = profile ? profile.id === props.currentUserId : false;
-
-  async function applyBlock(blocked: boolean) {
-    if (!profile || !(await props.onSetBlocked(profile.id, blocked))) {
-      return;
+  async function openCommonRoom(id: string) {
+    setBusy('room');
+    try {
+      props.onOpenRoom(await api.room(id));
+      props.onClose();
+    } catch (err) {
+      antMessage.error(err instanceof Error ? err.message : 'Không mở được nhóm.');
+    } finally {
+      setBusy(null);
     }
-    setProfile({ ...profile, blockedByMe: blocked });
   }
 
-  function handleBlockClick() {
+  async function toggleBlock() {
     if (!profile) {
       return;
     }
-    if (profile.blockedByMe) {
-      void applyBlock(false);
-      return;
-    }
-    Modal.confirm({
-      title: `Chặn ${profile.name}?`,
-      content:
-        'Hai bạn sẽ không nhắn tin riêng được cho nhau. Trong nhóm chung vẫn nhắn bình thường.',
-      okText: 'Chặn',
-      okButtonProps: { danger: true },
-      onOk: () => applyBlock(true),
-    });
+    await props.onSetBlocked(profile.id, profile.name, !blockedByMe);
   }
+
+  async function copyEmail(email: string) {
+    try {
+      await copyText(email);
+      antMessage.success('Đã sao chép email.');
+    } catch {
+      antMessage.error('Không sao chép được.');
+    }
+  }
+
+  const blockedByMe = props.blocked?.byMe ?? Boolean(profile?.blockedByMe);
+  const blockedMe = props.blocked?.me ?? Boolean(profile?.blockedMe);
+  // Chặn một chiều nào cũng không nhắn/gọi riêng được (BE từ chối cả hai chiều)
+  const cannotCall = blockedByMe || blockedMe;
+
+  function statusLine() {
+    if (!profile || isSelf) {
+      return null;
+    }
+    if (blockedByMe) {
+      return <p className="profile-last-seen profile-blocked-tag">Đã chặn</p>;
+    }
+    if (blockedMe) {
+      return null;
+    }
+    return <p className="profile-last-seen">{lastSeenText(props.online, props.lastSeenAt, props.now)}</p>;
+  }
+
+  const rows: { label: string; value: ReactNode; key: string }[] = profile
+    ? [
+        {
+          key: 'email',
+          label: 'Email',
+          value: (
+            <span className="profile-info-copy">
+              {profile.email}
+              <Tooltip title="Sao chép email">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CopyOutlined />}
+                  aria-label="Sao chép email"
+                  onClick={() => void copyEmail(profile.email)}
+                />
+              </Tooltip>
+            </span>
+          ),
+        },
+        ...(profile.phone
+          ? [{ key: 'phone', label: 'Số điện thoại', value: <a href={`tel:${profile.phone}`}>{profile.phone}</a> }]
+          : []),
+        ...(profile.jobTitle ? [{ key: 'job', label: 'Chức danh', value: profile.jobTitle }] : []),
+        {
+          key: 'dept',
+          label: 'Phòng ban',
+          value: profile.department || `Team ${profile.team}`,
+        },
+        ...(profile.departmentGroup
+          ? [{ key: 'group', label: 'Nhóm', value: profile.departmentGroup }]
+          : []),
+      ]
+    : [];
 
   return (
     <Modal
@@ -105,74 +176,152 @@ export function UserProfileModal(props: {
       footer={null}
       className="profile-modal"
     >
-      <div className="profile-cover" />
-      {loading ? (
-        <div className="user-profile-modal-loading">
-          <Spin />
-        </div>
+      <div
+        className="profile-cover"
+        style={profile ? { background: avatarCoverGradient(profile.name) } : undefined}
+      />
+      {profileQuery.isPending ? (
+        <LoadingState />
+      ) : profileQuery.isError ? (
+        <EmptyState
+          compact
+          title="Không tải được hồ sơ"
+          action={
+            <Button size="small" onClick={() => void profileQuery.refetch()}>
+              Thử lại
+            </Button>
+          }
+        />
       ) : profile ? (
         <div className="user-profile-modal-body">
           <div className="profile-head" style={{ marginBottom: 8 }}>
-            <div className="user-avatar-btn" style={{ cursor: 'default' }}>
-              <Avatar
-                size={80}
-                src={profile.avatarUrl ? fileSrc(profile.avatarUrl) : undefined}
-                style={{
-                  background: avatarColor(profile.name),
-                  fontSize: 28,
-                  fontWeight: 700,
-                }}
-              >
-                {initials(profile.name)}
-              </Avatar>
-            </div>
+            <UserAvatar
+              size={80}
+              src={profile.avatarUrl}
+              name={profile.name}
+              showZoomHint
+              framed
+              style={{ fontSize: 28, fontWeight: 700 }}
+            />
             <h3 className="profile-name">{profile.name}</h3>
-            {!isSelf ? (
-              <p className="profile-last-seen">
-                {lastSeenText(props.online, props.lastSeenAt, props.now)}
-              </p>
-            ) : null}
+            {profile.jobTitle ? <p className="profile-job">{profile.jobTitle}</p> : null}
+            {statusLine()}
           </div>
 
           {!isSelf ? (
-            <div
-              className="user-profile-modal-actions"
-              style={{
-                display: 'flex',
-                gap: 8,
-                justifyContent: 'center',
-                width: '100%',
-                marginBottom: 12,
-              }}
-            >
-              <Button
-                type="primary"
-                icon={<MessageOutlined />}
-                loading={messaging}
-                onClick={() => void handleDirectChat()}
+            <div className="info-actions profile-actions">
+              <button
+                type="button"
+                className="info-action is-primary"
+                disabled={blockedMe || busy !== null}
+                onClick={() => void withDirectRoom('message', props.onOpenRoom)}
               >
-                Nhắn tin
-              </Button>
-              <Button
-                danger={!profile.blockedByMe}
-                icon={<StopOutlined />}
-                onClick={handleBlockClick}
+                <span className="info-action-btn">
+                  <MessageOutlined />
+                </span>
+                <span className="info-action-label">Nhắn tin</span>
+              </button>
+              <button
+                type="button"
+                className="info-action"
+                disabled={cannotCall || busy !== null}
+                onClick={() =>
+                  void withDirectRoom('call', (room) => props.onCall(room, 'audio'))
+                }
               >
-                {profile.blockedByMe ? 'Bỏ chặn' : 'Chặn'}
-              </Button>
+                <span className="info-action-btn">
+                  <PhoneOutlined />
+                </span>
+                <span className="info-action-label">Gọi thoại</span>
+              </button>
+              <button
+                type="button"
+                className="info-action"
+                disabled={cannotCall || busy !== null}
+                onClick={() =>
+                  void withDirectRoom('call', (room) => props.onCall(room, 'video'))
+                }
+              >
+                <span className="info-action-btn">
+                  <VideoCameraOutlined />
+                </span>
+                <span className="info-action-label">Gọi video</span>
+              </button>
+              <button
+                type="button"
+                className="info-action"
+                onClick={() => {
+                  props.onSendCard({ id: profile.id, name: profile.name });
+                  props.onClose();
+                }}
+              >
+                <span className="info-action-btn">
+                  <IdcardOutlined />
+                </span>
+                <span className="info-action-label">Gửi danh thiếp</span>
+              </button>
+              <button
+                type="button"
+                className={`info-action ${blockedByMe ? '' : 'is-danger'}`}
+                onClick={() => void toggleBlock()}
+              >
+                <span className="info-action-btn">
+                  <StopOutlined />
+                </span>
+                <span className="info-action-label">{blockedByMe ? 'Bỏ chặn' : 'Chặn'}</span>
+              </button>
             </div>
           ) : null}
 
+          {!isSelf && (blockedByMe || blockedMe) ? (
+            <p className="profile-block-note" role="status">
+              {blockedByMe
+                ? 'Bạn đã chặn người này. Hai bạn không nhắn tin riêng hay gọi cho nhau được.'
+                : 'Bạn không thể nhắn tin hay gọi cho người này.'}
+            </p>
+          ) : null}
+
           <div className="profile-info-list" style={{ width: '100%' }}>
-            <div className="profile-info-row">
-              <span className="profile-info-label">Email</span>
-              <span className="profile-info-value">{profile.email}</span>
-            </div>
-            <div className="profile-info-row">
-              <span className="profile-info-label">Phòng ban</span>
-              <span className="profile-info-value">Team {profile.team}</span>
-            </div>
+            {rows.map((row) => (
+              <div key={row.key} className="profile-info-row">
+                <span className="profile-info-label">{row.label}</span>
+                <span className="profile-info-value">{row.value}</span>
+              </div>
+            ))}
           </div>
+
+          {!isSelf && commonRooms && commonRooms.length > 0 ? (
+            <div className="profile-common">
+              <button
+                type="button"
+                className="profile-common-head"
+                aria-expanded={showCommon}
+                onClick={() => setShowCommon((current) => !current)}
+              >
+                <TeamOutlined />
+                <span>Nhóm chung ({commonRooms.length})</span>
+                <DownOutlined className={showCommon ? 'is-open' : ''} />
+              </button>
+              {showCommon ? (
+                <ul className="profile-common-list">
+                  {commonRooms.map((room) => (
+                    <li key={room.id}>
+                      <button
+                        type="button"
+                        className="profile-common-item"
+                        disabled={busy !== null}
+                        onClick={() => void openCommonRoom(room.id)}
+                      >
+                        <UserAvatar size={32} src={room.avatarUrl} name={room.name} zoomable={false} />
+                        <span className="profile-common-name">{room.name}</span>
+                        <span className="profile-common-count">{room.memberCount} thành viên</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </Modal>

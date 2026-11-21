@@ -26,6 +26,7 @@ const FALLBACK_LABELS: Record<string, string> = {
   "gallery.read_private": "Xem ảnh private trong Thư viện ảnh",
   "news.publish": "Soạn, đăng, sửa và xóa bản tin",
   "news.facebook": "Kết nối Page Facebook để tự đăng bản tin",
+  "profile.rename": "Tự đổi tên hiển thị",
 };
 
 export function normalizeCatalogGroups(
@@ -60,15 +61,4 @@ export function permissionsForRoleEditor(
     return groups.flatMap((group) => permissionKeysInGroup(group));
   }
   return rolePermissions.filter((item) => item !== "*");
-}
-
-export function permissionLabel(
-  groups: PermissionGroup[],
-  key: string,
-): string {
-  for (const group of groups) {
-    const hit = group.items.find((item) => item.key === key);
-    if (hit) return hit.label;
-  }
-  return FALLBACK_LABELS[key] ?? key;
 }

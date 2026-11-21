@@ -1,26 +1,29 @@
-import { useEffect, useState } from 'react';
-import { Avatar, Drawer, Switch } from 'antd';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Drawer, Segmented, Switch } from 'antd';
 import {
   ApartmentOutlined,
   BellOutlined,
   CheckSquareOutlined,
   CloseOutlined,
   ContactsOutlined,
+  DesktopOutlined,
   FileTextOutlined,
   LogoutOutlined,
   MailOutlined,
   MessageOutlined,
+  MoonOutlined,
   NotificationOutlined,
   PictureOutlined,
   SafetyOutlined,
+  SunOutlined,
   TeamOutlined,
   UserOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
-import { fileSrc } from '@/api/client';
-import { avatarColor, initials } from '@/lib/avatar';
+import { UserAvatar } from '@/components/UserAvatar';
 import { notifyEnabled, requestNotifyPermission, setNotifyEnabled } from '@/lib/notify';
 import { visibleWorkspaces } from '@/lib/workspaces';
+import { useThemeMode, type ThemeMode } from '@/theme/themeMode';
 import type { User } from '@/types';
 import type { Workspace } from '../hooks/useWorkspace';
 
@@ -50,6 +53,12 @@ const MAIN_WORKSPACES: Workspace[] = [
 
 const ADMIN_WORKSPACES: Workspace[] = ['gallery', 'hr', 'departments', 'admin'];
 
+const THEME_OPTIONS: { value: ThemeMode; label: string; icon: ReactNode }[] = [
+  { value: 'light', label: 'Sáng', icon: <SunOutlined /> },
+  { value: 'dark', label: 'Tối', icon: <MoonOutlined /> },
+  { value: 'system', label: 'Theo hệ thống', icon: <DesktopOutlined /> },
+];
+
 export function AppMenuDrawer(props: {
   open: boolean;
   hoverMode: boolean;
@@ -64,6 +73,7 @@ export function AppMenuDrawer(props: {
   onLogout: () => void;
 }) {
   const [notifyOn, setNotifyOn] = useState(notifyEnabled);
+  const themeMode = useThemeMode();
   const items = visibleWorkspaces(props.user);
   const mainItems = items.filter((item) => MAIN_WORKSPACES.includes(item.id));
   const adminItems = items.filter((item) => ADMIN_WORKSPACES.includes(item.id));
@@ -137,16 +147,13 @@ export function AppMenuDrawer(props: {
             aria-label="Hồ sơ cá nhân"
             onClick={handleOpenProfile}
           >
-            <Avatar
+            <UserAvatar
               size={48}
-              src={props.user.avatarUrl ? fileSrc(props.user.avatarUrl) : undefined}
-              style={{
-                background: avatarColor(props.user.name),
-                fontWeight: 700,
-              }}
-            >
-              {initials(props.user.name)}
-            </Avatar>
+              src={props.user.avatarUrl}
+              name={props.user.name}
+              zoomable={false}
+              style={{ fontWeight: 700 }}
+            />
             <span className="app-menu-user-meta">
               <strong className="app-menu-user-name">{props.user.name}</strong>
               {profileSub ? (
@@ -192,6 +199,24 @@ export function AppMenuDrawer(props: {
               aria-label="Thông báo tin nhắn"
               checked={notifyOn}
               onChange={handleToggleNotify}
+            />
+          </div>
+
+          <div className="app-menu-foot-item theme">
+            <span className="app-menu-item-icon">
+              {themeMode.resolved === 'dark' ? <MoonOutlined /> : <SunOutlined />}
+            </span>
+            <span className="app-menu-item-label">Giao diện</span>
+            <Segmented<ThemeMode>
+              size="small"
+              aria-label="Giao diện sáng hoặc tối"
+              value={themeMode.mode}
+              onChange={themeMode.setMode}
+              options={THEME_OPTIONS.map((opt) => ({
+                value: opt.value,
+                icon: opt.icon,
+                title: opt.label,
+              }))}
             />
           </div>
 

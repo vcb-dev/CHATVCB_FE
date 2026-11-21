@@ -49,6 +49,16 @@ export function countUnreadRooms(rooms: Room[]): number {
   return rooms.filter((r) => !r.hidden && matchesFilter(r, { kind: 'unread' })).length;
 }
 
+// Số trên tab trình duyệt/Dock: phòng đã tắt thông báo chỉ tính khi có người tag mình (giống alertIncoming)
+export function countAlertingRooms(rooms: Room[]): number {
+  return rooms.filter(
+    (r) =>
+      !r.hidden &&
+      matchesFilter(r, { kind: 'unread' }) &&
+      (!isRoomMuted(r) || Boolean(r.mentioned)),
+  ).length;
+}
+
 export const MUTE_OPTIONS: { minutes: number | null; label: string }[] = [
   { minutes: 60, label: '1 giờ' },
   { minutes: 240, label: '4 giờ' },
@@ -62,25 +72,6 @@ export function isRoomMuted(room: Room, now: number = Date.now()): boolean {
     return new Date(room.mutedUntil).getTime() > now;
   }
   return Boolean(room.muted);
-}
-
-export function muteLabel(room: Room): string {
-  if (room.mutedUntil) {
-    const d = new Date(room.mutedUntil);
-    if (d.getTime() > Date.now()) {
-      const timeStr = d.toLocaleString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit',
-        day: '2-digit',
-        month: '2-digit',
-      });
-      return `Tắt đến ${timeStr}`;
-    }
-  }
-  if (room.muted) {
-    return 'Đã tắt thông báo';
-  }
-  return '';
 }
 
 export function sortRooms(list: Room[]): Room[] {

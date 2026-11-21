@@ -1,0 +1,56 @@
+/* Cắt ảnh đại diện (AvatarCropModal): khung vuông, vòng tròn là phần sẽ hiện ở avatar. */
+.avatar-crop-stage {
+  position: relative;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: var(--ui-radius-lg);
+  background: #111;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.avatar-crop-stage:active {
+  cursor: grabbing;
+}
+
+.avatar-crop-stage:focus-visible {
+  outline: 2px solid var(--ui-primary);
+  outline-offset: 2px;
+}
+
+.avatar-crop-img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: none;
+  pointer-events: none;
+}
+
+.avatar-crop-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.avatar-crop-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.avatar-crop-zoom {
+  flex: 1;
+  margin: 0 6px;
+}
+
+.avatar-crop-hint {
+  margin: 4px 0 0;
+  color: var(--ui-text-2);
+  font-size: 12px;
+  text-align: center;
+}

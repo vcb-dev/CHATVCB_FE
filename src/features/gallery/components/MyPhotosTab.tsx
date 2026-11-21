@@ -1,8 +1,11 @@
+import { PictureOutlined } from '@ant-design/icons';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { Empty, Segmented, Tag } from 'antd';
+import { Button, Segmented, Tag } from 'antd';
 import { useMemo, useState } from 'react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
 import type { GalleryPhoto } from '@/types';
 import { PhotoGrid } from './PhotoGrid';
 import { PhotoViewer } from './PhotoViewer';
@@ -56,7 +59,16 @@ export function MyPhotosTab() {
           }}
         />
       </div>
-      {!query.isLoading && !photos.length ? <Empty description="Chưa có ảnh" /> : null}
+      {query.isPending ? (
+        <LoadingState />
+      ) : query.isError ? (
+        <EmptyState
+          title="Không tải được ảnh"
+          action={<Button onClick={() => void query.refetch()}>Thử lại</Button>}
+        />
+      ) : !photos.length ? (
+        <EmptyState icon={<PictureOutlined />} title="Chưa có ảnh" />
+      ) : null}
       <PhotoGrid
         photos={photos}
         onOpen={setViewing}

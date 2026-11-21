@@ -1,10 +1,11 @@
 import { AppstoreOutlined, CloseOutlined, PictureOutlined } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
-import { Avatar, Button, Input, Modal, Spin, message } from 'antd';
+import { Button, Input, Modal, Spin, message } from 'antd';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
-import { avatarColor, initials } from '@/lib/avatar';
+import { LoadingState } from '@/components/LoadingState';
+import { UserAvatar } from '@/components/UserAvatar';
 import { confirmDiscard } from '@/lib/confirmDiscard';
 import { ACCEPT_IMAGES } from '@/lib/image';
 import type { NewsPost } from '@/types';
@@ -149,17 +150,16 @@ export function NewsComposer(props: {
       }
     >
       {!post || !author ? (
-        composer.problem === 'gone' ? null : <Spin className="news-loading" />
+        composer.problem === 'gone' ? null : <LoadingState />
       ) : (
         <div className="news-composer" data-post-id={postId}>
           <div className="news-composer-author">
-            <Avatar
+            <UserAvatar
               size={40}
-              src={author.avatarUrl || undefined}
-              style={{ backgroundColor: avatarColor(author.name) }}
-            >
-              {initials(author.name)}
-            </Avatar>
+              src={author.avatarUrl}
+              name={author.name}
+              zoomable={false}
+            />
             <strong>{author.name}</strong>
           </div>
           {/* Khóa khi đang lưu: kết quả trả về thay nội dung ô, chữ gõ giữa chừng sẽ mất */}

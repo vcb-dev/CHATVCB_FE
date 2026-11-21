@@ -12,7 +12,7 @@ import {
   VideoCameraOutlined,
 } from '@ant-design/icons';
 import { Avatar, Button, Popover, Tooltip, message } from 'antd';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, fileSrc } from '@/api/client';
 import { closeSocket, connectSocket } from '@/api/socket';
 import { avatarColor, initials } from '@/lib/avatar';
@@ -23,6 +23,7 @@ import {
   type ChatItem,
   type SideTab,
 } from './components/MeetingSidePanel';
+import { PeerHostMenu } from './components/PeerHostMenu';
 import { openCamera } from './meet';
 
 type Signal = {
@@ -84,6 +85,8 @@ export function MeetingRoom({
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [leaveMenuOpen, setLeaveMenuOpen] = useState(false);
   const [chat, setChat] = useState<ChatItem[]>([]);
+  const [unread, setUnread] = useState(0);
+  const [chatToasts, setChatToasts] = useState<ChatItem[]>([]);
   const [draft, setDraft] = useState('');
   const [notes, setNotes] = useState(meeting.notes || '');
   const [savingNotes, setSavingNotes] = useState(false);
@@ -93,6 +96,9 @@ export function MeetingRoom({
 
   const mediaStateRef = useRef({ micOn, camOn, sharing });
   mediaStateRef.current = { micOn, camOn, sharing };
+  // Handler socket chỉ gắn một lần, nên đọc tab đang mở và người dùng qua ref.
+  const chatSeenRef = useRef({ open: false, userId: user.id });
+  chatSeenRef.current = { open: sideTab === 'chat', userId: user.id };
 
   useEffect(() => {
     const onHide = () => {
@@ -402,9 +408,18 @@ export function MeetingRoom({
     );
 
     socket.on('meeting.chat-history', (items: ChatItem[]) => setChat(items));
-    socket.on('meeting.chat', (item: ChatItem) =>
-      setChat((current) => [...current, item]),
-    );
+    socket.on('meeting.chat', (item: ChatItem) => {
+      setChat((current) => [...current, item]);
+      const seen = chatSeenRef.current;
+      if (seen.open || item.userId === seen.userId) {
+        return;
+      }
+      setUnread((count) => count + 1);
+      setChatToasts((current) => [...current.slice(-2), item]);
+      window.setTimeout(() => {
+        setChatToasts((current) => current.filter((row) => row.id !== item.id));
+      }, 6000);
+    });
     socket.on('meeting.hands', (items: { userId: string; name: string }[]) =>
       setHands(items),
     );
@@ -429,6 +444,35 @@ export function MeetingRoom({
           message.info('Cuộc họp đã kết thúc.');
           onLeaveRef.current();
         }
+      },
+    );
+    // Chủ phòng tắt mic hộ: tắt track tại chỗ, effect micOn sẽ phát meeting.media cho mọi người.
+    socket.on(
+      'meeting.force-mute',
+      (payload?: { meetingId?: string; byName?: string }) => {
+        if (payload?.meetingId && payload.meetingId !== meeting.id) {
+          return;
+        }
+        if (!mediaStateRef.current.micOn) {
+          return;
+        }
+        streamRef.current?.getAudioTracks().forEach((track) => {
+          track.enabled = false;
+        });
+        setMicOn(false);
+        message.info(
+          `${payload?.byName || 'Chủ phòng'} đã tắt mic của bạn. Bạn có thể bật lại khi cần nói.`,
+        );
+      },
+    );
+    socket.on(
+      'meeting.kicked',
+      (payload?: { meetingId?: string; byName?: string }) => {
+        if (payload?.meetingId && payload.meetingId !== meeting.id) {
+          return;
+        }
+        message.warning('Bạn đã bị chủ phòng mời ra khỏi cuộc họp.');
+        onLeaveRef.current();
       },
     );
 
@@ -771,6 +815,21 @@ export function MeetingRoom({
     socketRef.current?.emit('meeting.hand', { raised: !handUp });
   }
 
+  function mutePeer(peer: MeetingPeer) {
+    socketRef.current?.emit('meeting.mute', { socketId: peer.socketId });
+    message.success(`Đã tắt mic của ${peer.name}.`);
+  }
+
+  function muteAll() {
+    socketRef.current?.emit('meeting.mute', { all: true });
+    message.success('Đã tắt mic mọi người.');
+  }
+
+  function kickPeer(peer: MeetingPeer) {
+    socketRef.current?.emit('meeting.kick', { userId: peer.userId });
+    message.success(`Đã mời ${peer.name} ra khỏi cuộc họp.`);
+  }
+
   async function leaveOnly() {
     setLeaveMenuOpen(false);
     try {
@@ -791,8 +850,16 @@ export function MeetingRoom({
     onLeaveRef.current();
   }
 
+  function showTab(tab: SideTab | null) {
+    setSideTab(tab);
+    if (tab === 'chat') {
+      setUnread(0);
+      setChatToasts([]);
+    }
+  }
+
   function toggleTab(target: SideTab) {
-    setSideTab((prev) => (prev === target ? null : target));
+    showTab(sideTab === target ? null : target);
   }
 
   const tiles = peers.length + 1;
@@ -812,6 +879,7 @@ export function MeetingRoom({
       ? pinnedId
       : null;
   const sharingPeer = peers.find((p) => p.sharing);
+  const isHost = user.id === meeting.hostId;
   const activeSpotlightId =
     validPinned ??
     (sharingPeer ? sharingPeer.socketId : sharing && peers.length > 0 ? 'local' : null);
@@ -883,11 +951,19 @@ export function MeetingRoom({
         onTogglePin={() =>
           setPinnedId((prev) => (prev === peer.socketId ? null : peer.socketId))
         }
+        hostMenu={
+          isHost && peer.userId !== user.id ? (
+            <PeerHostMenu
+              peer={peer}
+              className="meet-tile-more"
+              onMute={mutePeer}
+              onKick={kickPeer}
+            />
+          ) : null
+        }
       />
     );
   }
-
-  const isHost = user.id === meeting.hostId;
 
   return (
     <div className="meet-room gmeet">
@@ -949,12 +1025,15 @@ export function MeetingRoom({
             draft={draft}
             notes={notes}
             savingNotes={savingNotes}
-            onTabChange={setSideTab}
+            onTabChange={showTab}
             onDraftChange={setDraft}
             onSendChat={sendChat}
             onNotesChange={setNotes}
             onSaveNotes={() => void saveRoomNotes()}
             onClose={() => setSideTab(null)}
+            onMutePeer={mutePeer}
+            onMuteAll={muteAll}
+            onKickPeer={kickPeer}
           />
         ) : null}
       </div>
@@ -970,6 +1049,21 @@ export function MeetingRoom({
         <div className="meet-hands">
           {hands.map((item) => (
             <span key={item.userId}>✋ {item.name}</span>
+          ))}
+        </div>
+      ) : null}
+      {chatToasts.length ? (
+        <div className={`meet-msg-toasts${sideTab ? ' with-side' : ''}`}>
+          {chatToasts.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="meet-msg-toast"
+              onClick={() => showTab('chat')}
+            >
+              <strong>{item.name}</strong>
+              <span>{item.text}</span>
+            </button>
           ))}
         </div>
       ) : null}
@@ -990,13 +1084,16 @@ export function MeetingRoom({
             <SmileOutlined />
           </button>
         </Popover>
-        <Tooltip title="Tin nhắn">
+        <Tooltip title={unread ? `Tin nhắn (${unread} chưa đọc)` : 'Tin nhắn'}>
           <button
             type="button"
             className={sideTab === 'chat' ? 'meet-ctrl on' : 'meet-ctrl light'}
             onClick={() => toggleTab('chat')}
           >
             <CommentOutlined />
+            {unread ? (
+              <span className="meet-ctrl-unread">{unread > 9 ? '9+' : unread}</span>
+            ) : null}
           </button>
         </Tooltip>
         <Tooltip title={`Người tham gia (${tiles})`}>
@@ -1109,12 +1206,14 @@ function RemoteTile({
   hand,
   pinned,
   onTogglePin,
+  hostMenu,
 }: {
   peer: MeetingPeer;
   stream?: MediaStream;
   hand: boolean;
   pinned: boolean;
   onTogglePin: () => void;
+  hostMenu?: ReactNode;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   const hasStreamVideo = Boolean(
@@ -1169,6 +1268,7 @@ function RemoteTile({
       <span className="meet-pin-badge" title="Ghim toàn màn hình">
         <PushpinOutlined />
       </span>
+      {hostMenu}
     </div>
   );
 }

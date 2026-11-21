@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { Avatar, Button, Modal, Spin, message } from 'antd';
+import { Button, Modal, message } from 'antd';
 import { useEffect, useState } from 'react';
-import { api, fileSrc } from '@/api/client';
+import { api } from '@/api/client';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
+import { UserAvatar } from '@/components/UserAvatar';
 import { queryKeys } from '@/api/queryKeys';
-import { avatarColor, initials } from '@/lib/avatar';
 import type { Room } from '@/types';
 import { errorText } from '@/lib/errors';
 
@@ -57,27 +59,25 @@ export function JoinGroupModal({ token, onClose, onOpenRoom }: Props) {
     >
       <div className="join-group-modal">
         {isLoading ? (
-          <div style={{ padding: '40px 0', textAlign: 'center' }}>
-            <Spin />
-          </div>
+          <LoadingState compact />
         ) : error || !info ? (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <p style={{ color: '#fa3e3e', fontSize: 15, marginBottom: 20 }}>
-              Link mời không còn hiệu lực.
-            </p>
-            <Button onClick={onClose}>Đóng</Button>
-          </div>
+          <EmptyState
+            compact
+            title="Link mời không còn hiệu lực."
+            action={<Button onClick={onClose}>Đóng</Button>}
+          />
         ) : (
           <div style={{ textAlign: 'center', padding: '16px 0 8px' }}>
-            <Avatar
+            <UserAvatar
               size={64}
-              src={info.avatarUrl ? fileSrc(info.avatarUrl) : undefined}
-              style={{ background: avatarColor(info.name), marginBottom: 12 }}
-            >
-              {initials(info.name)}
-            </Avatar>
+              src={info.avatarUrl}
+              name={info.name}
+              showZoomHint
+              zoomTitle="Xem ảnh nhóm"
+              wrapperStyle={{ marginBottom: 12 }}
+            />
             <h2 style={{ margin: '0 0 6px', fontSize: 18 }}>{info.name}</h2>
-            <p style={{ color: '#65676b', margin: '0 0 24px', fontSize: 13 }}>
+            <p style={{ color: 'var(--ui-text-2)', margin: '0 0 24px', fontSize: 13 }}>
               {info.memberCount} thành viên
             </p>
             {info.status === 'member' ? (

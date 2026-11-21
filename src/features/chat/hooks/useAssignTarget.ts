@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { canAssignTask } from '@/lib/tasks';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import type { AssignKind, DirectoryUser, Room, RoomHit, RoomMember, TaskPreset } from '@/types';
 import { isDirectRoom } from '../utils/rooms';
 
+const EMPTY_ROOMS: Room[] = [];
 const EMPTY_MEMBERS: RoomMember[] = [];
 const EMPTY_HITS: RoomHit[] = [];
 const EMPTY_USERS: DirectoryUser[] = [];
@@ -49,37 +51,17 @@ export function useAssignTarget(options: {
   const [pickedOption, setPickedOption] = useState<RoomOption | null>(null);
   const [pickedAssignee, setAssigneeId] = useState<string | undefined>();
   const [roomSearch, setRoomSearch] = useState('');
-  const [roomHits, setRoomHits] = useState<RoomHit[]>(EMPTY_HITS);
-
-  // Danh sách phòng chỉ nạp theo trang: tìm thêm trên BE để giao được cả nhóm ít hoạt động
-  useEffect(() => {
-    const q = roomSearch.trim();
-    if (!rooms || !q) {
-      setRoomHits(EMPTY_HITS);
-      return;
-    }
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      void api
-        .searchRooms(q)
-        .then((res) => {
-          if (!cancelled) {
-            setRoomHits(res.rooms);
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setRoomHits(EMPTY_HITS);
-          }
-        });
-    }, 250);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [rooms, roomSearch]);
+  const term = useDebouncedValue(roomSearch.trim());
 
   const picking = Boolean(rooms);
+  // Danh sách phòng chỉ nạp theo trang: tìm thêm trên BE để giao được cả nhóm ít hoạt động
+  const { data: searchedRooms } = useQuery({
+    queryKey: queryKeys.searchAll(term),
+    queryFn: () => api.searchRooms(term),
+    enabled: picking && term.length > 0,
+    staleTime: 30_000,
+  });
+  const roomHits = term ? (searchedRooms?.rooms ?? EMPTY_HITS) : EMPTY_HITS;
   const pickingPerson = picking && kind === 'direct';
   const pickingSelf = pickingPerson && pickedAssignee === currentUserId;
   const { data: pickedMembers = EMPTY_MEMBERS } = useQuery({
@@ -89,7 +71,7 @@ export function useAssignTarget(options: {
   });
   // Không dựa vào phòng 1-1 đã nạp: danh sách phòng có trang, và người chưa từng chat thì chưa có phòng
   const { data: directory = EMPTY_USERS } = useQuery({
-    queryKey: queryKeys.taskPeople,
+    queryKey: queryKeys.contacts('', ''),
     queryFn: () => api.users(),
     enabled: pickingPerson,
   });
@@ -97,7 +79,8 @@ export function useAssignTarget(options: {
   const peerId = !picking && options.isDirect
     ? memberList.find((m) => m.id !== currentUserId)?.id
     : undefined;
-  const assignable = (rooms ?? []).filter(
+  const loadedRooms = rooms ?? EMPTY_ROOMS;
+  const assignable = loadedRooms.filter(
     (room) => canAssignTask(room) && !isDirectRoom(room),
   );
   const listed: RoomOption[] = [
@@ -118,7 +101,6 @@ export function useAssignTarget(options: {
     setPickedOption(null);
     setAssigneeId(undefined);
     setRoomSearch('');
-    setRoomHits(EMPTY_HITS);
   };
 
   return {
@@ -132,7 +114,7 @@ export function useAssignTarget(options: {
     memberOptions: memberList.map((m) => ({ value: m.id, label: m.displayName || m.name })),
     personOptions: [
       { value: currentUserId, label: 'Bản thân (tôi)' },
-      ...peopleOptions(directory, rooms ?? []),
+      ...peopleOptions(directory, loadedRooms),
     ],
     setRoomSearch,
     setAssigneeId,
@@ -162,7 +144,6 @@ export function useAssignTarget(options: {
       );
       setAssigneeId(preset?.assigneeId);
       setRoomSearch('');
-      setRoomHits(EMPTY_HITS);
     },
   };
 }

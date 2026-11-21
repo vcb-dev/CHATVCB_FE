@@ -1,6 +1,8 @@
+import { useQuery } from '@tanstack/react-query';
 import { Spin, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
 import { MeetingLobby, type LobbyReady } from './MeetingLobby';
 import { MeetingRoom } from './MeetingRoom';
 import { closeMeetTab } from './meet';
@@ -12,10 +14,17 @@ type Props = {
 };
 
 export function MeetingSession({ user, code }: Props) {
-  const [seed, setSeed] = useState<Meeting | null>(null);
+  // Không tìm thấy mã (lỗi) thì seed = null như trước; mã sai không cần thử lại
+  const seedQuery = useQuery({
+    queryKey: queryKeys.meetingByCode(code ?? ''),
+    queryFn: () => api.getMeetingByCode(code ?? ''),
+    enabled: Boolean(code),
+    retry: false,
+  });
+  const seed = seedQuery.data ?? null;
+  const loading = Boolean(code) && seedQuery.isPending;
   const [active, setActive] = useState<Meeting | null>(null);
   const [session, setSession] = useState<LobbyReady | null>(null);
-  const [loading, setLoading] = useState(Boolean(code));
 
   useEffect(() => {
     document.title = 'Cuộc họp · CHATVCB';
@@ -23,35 +32,6 @@ export function MeetingSession({ user, code }: Props) {
       document.title = 'CHATVCB';
     };
   }, []);
-
-  useEffect(() => {
-    if (!code) {
-      return;
-    }
-    let alive = true;
-    void api
-      .getMeetingByCode(code)
-      .then((found) => {
-        if (!alive) {
-          return;
-        }
-        setSeed(found);
-      })
-      .catch(() => {
-        if (!alive) {
-          return;
-        }
-        setSeed(null);
-      })
-      .finally(() => {
-        if (alive) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      alive = false;
-    };
-  }, [code]);
 
   async function start(next: LobbyReady) {
     try {

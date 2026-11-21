@@ -65,7 +65,13 @@ export function useNewsComposer(postId: string) {
   const reload = useCallback(
     async (isCancelled: () => boolean = () => false) => {
       try {
-        const next = await api.newsPost(postId);
+        const next = await queryClient.query({
+          queryKey: queryKeys.newsPost(postId),
+          queryFn: () => api.newsPost(postId),
+          staleTime: 0,
+          // Mở để sửa: 404/409 phải báo ngay, không thử lại
+          retry: false,
+        });
         if (isCancelled()) {
           return;
         }
@@ -77,7 +83,7 @@ export function useNewsComposer(postId: string) {
         }
       }
     },
-    [apply, handleFailure, postId],
+    [apply, handleFailure, postId, queryClient],
   );
 
   useEffect(() => {

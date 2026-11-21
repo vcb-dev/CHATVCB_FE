@@ -6,15 +6,21 @@ import {
   UserAddOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Modal, Select, Tooltip, Typography, message } from 'antd';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
 import { openMeetTab } from './meet';
 import type { Meeting, User } from '@/types';
 import { ModuleLayout } from '@/components/ModuleLayout';
 import { PageHeader } from '@/components/PageHeader';
 import { ContentCard } from '@/components/ContentCard';
 import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
+import { foldText } from '@/lib/text';
+
+const EMPTY_MEETINGS: Meeting[] = [];
 
 type Props = {
   user: User;
@@ -39,8 +45,15 @@ function toLocalInput(date: Date) {
 
 export function MeetingsPage({ user }: Props) {
   const [section, setSection] = useState<'upcoming' | 'history'>('upcoming');
-  const [upcoming, setUpcoming] = useState<Meeting[]>([]);
-  const [history, setHistory] = useState<Meeting[]>([]);
+  const queryClient = useQueryClient();
+  // Họp xong ở tab cuộc họp rồi quay lại thì tải lại ngay (refetchOnWindowFocus: 'always')
+  const meetingsQuery = useQuery({
+    queryKey: queryKeys.meetings,
+    queryFn: () => api.listMeetings(),
+    refetchOnWindowFocus: 'always',
+  });
+  const upcoming = meetingsQuery.data?.upcoming ?? EMPTY_MEETINGS;
+  const history = meetingsQuery.data?.history ?? EMPTY_MEETINGS;
   const [query, setQuery] = useState('');
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinCode, setJoinCode] = useState('');
@@ -51,30 +64,16 @@ export function MeetingsPage({ user }: Props) {
   const [notesOpen, setNotesOpen] = useState<Meeting | null>(null);
   const [notes, setNotes] = useState('');
 
-  const load = useCallback(async () => {
-    try {
-      const next = await api.listMeetings();
-      setUpcoming(next.upcoming);
-      setHistory(next.history);
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : 'Không tải được cuộc họp.');
-    }
-  }, []);
-
+  const loadError = meetingsQuery.error;
   useEffect(() => {
-    void load();
-    const refresh = () => {
-      if (document.visibilityState === 'visible') {
-        void load();
-      }
-    };
-    window.addEventListener('focus', refresh);
-    document.addEventListener('visibilitychange', refresh);
-    return () => {
-      window.removeEventListener('focus', refresh);
-      document.removeEventListener('visibilitychange', refresh);
-    };
-  }, [load]);
+    if (loadError) {
+      message.error(loadError instanceof Error ? loadError.message : 'Không tải được cuộc họp.');
+    }
+  }, [loadError]);
+
+  function refresh() {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.meetings });
+  }
 
   const allMeetings = useMemo(() => {
     const seen = new Set<string>();
@@ -143,7 +142,7 @@ export function MeetingsPage({ user }: Props) {
       setEditingMeeting(null);
       setScheduleTitle('');
       setScheduleInput('');
-      void load();
+      refresh();
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không lên lịch được.');
     }
@@ -160,7 +159,7 @@ export function MeetingsPage({ user }: Props) {
         try {
           await api.deleteMeeting(item.id);
           message.success('Đã hủy cuộc họp.');
-          void load();
+          refresh();
         } catch (err) {
           message.error(err instanceof Error ? err.message : 'Không hủy được cuộc họp.');
         }
@@ -176,19 +175,16 @@ export function MeetingsPage({ user }: Props) {
       await api.saveMeetingNotes(notesOpen.id, notes);
       setNotesOpen(null);
       message.success('Đã lưu biên bản.');
-      void load();
+      refresh();
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không lưu được biên bản.');
     }
   }
 
-  const q = query.trim().toLowerCase();
-  const upcomingView = upcoming.filter(
-    (item) => !q || item.title.toLowerCase().includes(q) || item.code.includes(q),
-  );
-  const historyView = history.filter(
-    (item) => !q || item.title.toLowerCase().includes(q) || item.code.includes(q),
-  );
+  const q = foldText(query.trim());
+  const matches = (item: Meeting) => !q || foldText(item.title).includes(q) || item.code.includes(q);
+  const upcomingView = upcoming.filter(matches);
+  const historyView = history.filter(matches);
 
   const header = (
     <PageHeader
@@ -229,7 +225,9 @@ export function MeetingsPage({ user }: Props) {
   return (
     <ModuleLayout header={header}>
       <ContentCard>
-        {section === 'upcoming' ? (
+        {meetingsQuery.isPending ? (
+          <LoadingState />
+        ) : section === 'upcoming' ? (
           upcomingView.length ? (
             <div className="meet-list">
               {upcomingView.map((item) => {

@@ -1,5 +1,6 @@
+import { clearTabAlert, flashTabAlert } from './tabBadge';
+
 const STORAGE_KEY = 'chatvcb.notify';
-const BASE_TITLE = 'CHATVCB';
 
 export function isChatVisible() {
   if (document.visibilityState !== 'visible') {
@@ -87,7 +88,9 @@ export function notifyIncoming(input: {
   const title = input.title.trim() || 'CHATVCB';
   const body = input.body.trim() || 'Tin nhắn mới';
   const subtitle = input.subtitle?.trim() || '';
-  document.title = input.mentioned ? `${title} đã tag bạn` : `${title}: ${body.slice(0, 40)}`;
+  if (!isChatVisible()) {
+    flashTabAlert(input.mentioned ? `${title} đã tag bạn` : `${title}: ${body.slice(0, 40)}`);
+  }
 
   if (input.mentioned) {
     showMentionBanner(title, subtitle, body, input.onOpen);
@@ -128,5 +131,5 @@ export function notifyIncoming(input: {
 }
 
 export function restoreTitle() {
-  document.title = BASE_TITLE;
+  clearTabAlert();
 }

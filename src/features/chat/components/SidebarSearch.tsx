@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react';
-import { Avatar, Spin, message } from 'antd';
-import { api, fileSrc } from '@/api/client';
+import { useQuery } from '@tanstack/react-query';
+import { message } from 'antd';
+import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
+import { UserAvatar } from '@/components/UserAvatar';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { roomFromHit } from '../utils/rooms';
-import { avatarColor, initials } from '@/lib/avatar';
 import type { DirectoryUser, MessageHit, Room, RoomHit, RoomSearch } from '@/types';
+
+const EMPTY_SEARCH: RoomSearch = { users: [], rooms: [], messages: [] };
 
 export function SidebarSearch(props: {
   query: string;
@@ -12,41 +18,14 @@ export function SidebarSearch(props: {
   onOpenMessage: (roomId: string, messageId: string, createdAt: string) => void;
   rooms: Room[];
 }) {
-  const [results, setResults] = useState<RoomSearch | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const trimmed = props.query.trim();
-    if (!trimmed) {
-      setResults(null);
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setLoading(true);
-    const timer = window.setTimeout(() => {
-      void api
-        .searchRooms(trimmed)
-        .then((res) => {
-          if (!cancelled) {
-            setResults(res);
-            setLoading(false);
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setResults({ users: [], rooms: [], messages: [] });
-            setLoading(false);
-          }
-        });
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [props.query]);
+  const trimmed = props.query.trim();
+  const term = useDebouncedValue(trimmed);
+  const { data, isPending, isError } = useQuery({
+    queryKey: queryKeys.searchAll(term),
+    queryFn: () => api.searchRooms(term),
+    enabled: term.length > 0,
+    staleTime: 30_000,
+  });
 
   async function handleUserClick(u: DirectoryUser) {
     try {
@@ -82,23 +61,25 @@ export function SidebarSearch(props: {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="sidebar-search-loading">
-        <Spin size="small" />
-      </div>
-    );
-  }
-
-  if (!results) {
+  if (!trimmed) {
     return null;
   }
+
+  if (term !== trimmed || isPending) {
+    return <LoadingState compact size="small" />;
+  }
+
+  if (isError) {
+    return <EmptyState compact title="Không tải được kết quả" />;
+  }
+
+  const results = data ?? EMPTY_SEARCH;
 
   const hasAny =
     results.users.length > 0 || results.rooms.length > 0 || results.messages.length > 0;
 
   if (!hasAny) {
-    return <div className="sidebar-search-empty">Không có kết quả</div>;
+    return <EmptyState compact title="Không có kết quả" />;
   }
 
   return (
@@ -113,13 +94,13 @@ export function SidebarSearch(props: {
               className="search-hit-row"
               onClick={() => void handleUserClick(u)}
             >
-              <Avatar
+              <UserAvatar
                 size={36}
-                src={u.avatarUrl ? fileSrc(u.avatarUrl) : undefined}
-                style={{ background: avatarColor(u.name), flexShrink: 0 }}
-              >
-                {initials(u.name)}
-              </Avatar>
+                src={u.avatarUrl}
+                name={u.name}
+                zoomable={false}
+                style={{ flexShrink: 0 }}
+              />
               <span className="search-hit-info">
                 <strong>{u.name}</strong>
                 <small>
@@ -141,14 +122,14 @@ export function SidebarSearch(props: {
               className="search-hit-row"
               onClick={() => handleRoomClick(r)}
             >
-              <Avatar
+              <UserAvatar
                 size={36}
                 className="avatar-initials"
-                src={r.avatarUrl ? fileSrc(r.avatarUrl) : undefined}
-                style={{ background: avatarColor(r.title || r.name), flexShrink: 0 }}
-              >
-                {initials(r.title || r.name)}
-              </Avatar>
+                src={r.avatarUrl}
+                name={r.title || r.name}
+                zoomable={false}
+                style={{ flexShrink: 0 }}
+              />
               <span className="search-hit-info">
                 <strong>{r.title || r.name}</strong>
                 <small>{r.lastMessagePreview || 'Chưa có tin nhắn'}</small>
@@ -168,17 +149,14 @@ export function SidebarSearch(props: {
               className="search-hit-row"
               onClick={() => void handleMessageClick(m)}
             >
-              <Avatar
+              <UserAvatar
                 size={36}
                 className="avatar-initials"
-                src={m.roomAvatarUrl ? fileSrc(m.roomAvatarUrl) : undefined}
-                style={{
-                  background: avatarColor(m.roomTitle || m.authorName),
-                  flexShrink: 0,
-                }}
-              >
-                {initials(m.roomTitle || m.authorName)}
-              </Avatar>
+                src={m.roomAvatarUrl}
+                name={m.roomTitle || m.authorName}
+                zoomable={false}
+                style={{ flexShrink: 0 }}
+              />
               <span className="search-hit-info">
                 <div className="search-msg-head">
                   <strong>{m.roomTitle || m.authorName}</strong>

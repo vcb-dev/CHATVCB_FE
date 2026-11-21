@@ -1,8 +1,16 @@
+import {
+  CalendarOutlined,
+  ClockCircleOutlined,
+  LeftOutlined,
+  RightOutlined,
+} from '@ant-design/icons';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Spin, Typography } from 'antd';
+import { Button, Typography } from 'antd';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
+import { LoadingState } from '@/components/LoadingState';
+import { ModuleLayout } from '@/components/ModuleLayout';
 import { errorText } from '@/lib/errors';
 import type {
   ChatMessage,
@@ -192,159 +200,202 @@ export function TasksPage(props: {
     );
   };
 
+  const unit = view === 'month' ? 'Tháng' : 'Tuần';
+  const currentRangeTitle =
+    view === 'week' ? rangeTitle(days) : view === 'month' ? monthTitle(anchor) : undefined;
+  const hourHint =
+    view === 'week' ? `${hourLabel(range.start)} – ${hourLabel(range.end)}` : undefined;
+  const count = view === 'list' ? listTasks.length : visibleCount;
+  const countLabel =
+    view === 'week' ? 'việc trong tuần' : view === 'month' ? 'việc trong tháng' : 'việc';
+
   return (
-    <div className="tasks-page">
-      <TasksToolbar
-        userId={props.userId}
-        view={view}
-        anchor={anchor}
-        rangeTitle={view === 'week' ? rangeTitle(days) : view === 'month' ? monthTitle(anchor) : undefined}
-        hourHint={view === 'week' ? `${hourLabel(range.start)} – ${hourLabel(range.end)}` : undefined}
-        count={view === 'list' ? listTasks.length : visibleCount}
-        countLabel={view === 'week' ? 'việc trong tuần' : view === 'month' ? 'việc trong tháng' : 'việc'}
-        scope={scope}
-        rooms={roomList}
-        roomIds={roomIds}
-        onMove={move}
-        onToday={() => setAnchor(new Date())}
-        onJump={(day) => {
-          setAnchor(day);
-          if (!isCalendar) {
-            filters.setView('week');
-          }
-        }}
-        onView={filters.setView}
-        onScope={filters.setScope}
-        onRoomIds={filters.setRoomIds}
-        onAdd={() => props.onAssign()}
-      />
-      <TaskLegend
-        counts={counts}
-        statuses={isCalendar ? CALENDAR_STATUSES : LIST_STATUSES}
-        hidden={hiddenStatuses}
-        onToggle={filters.toggleStatus}
-      />
-      <div className="tasks-main" onScrollCapture={closeOverlays}>
-        {main.error ? (
-          <Typography.Text type="danger">
-            {errorText(main.error, 'Không tải được công việc.')}
-          </Typography.Text>
-        ) : main.isLoading ? (
-          <Spin size="small" />
-        ) : isCalendar ? (
-          <>
-            {view === 'week' ? (
-              <TaskWeekView
-                days={days}
-                items={calendarItems}
-                range={range}
-                draftDue={draft?.dueAt}
-                onOpen={openTask}
-                onOpenPlanned={openPlanned}
-                onCreate={openDraft}
-                onMenu={openMenu}
-              />
-            ) : (
-              <TaskCalendar
-                anchor={anchor}
-                items={calendarItems}
-                draftDue={draft?.dueAt}
-                onOpen={openTask}
-                onOpenPlanned={openPlanned}
-                onCreate={(day, rect) => openDraft(presetDue(day, new Date()), rect)}
-                onMenu={openMenu}
-              />
-            )}
-            {noDueTasks.length > 0 ? (
-              <section className="tasks-nodue">
-                <h3>Chưa có hạn ({noDueTasks.length})</h3>
-                <div className="tasks-nodue-list">
-                  {noDueTasks.map((task) => (
-                    <TaskChip key={task.id} task={task} onOpen={openTask} onMenu={openMenu} />
-                  ))}
-                </div>
-              </section>
-            ) : null}
-          </>
-        ) : (
-          <TaskList tasks={listTasks} userId={props.userId} onOpenTask={props.onOpenTask} />
-        )}
-      </div>
-      {peek ? (
-        <AnchoredPopover
-          key={
-            peek.kind === 'task'
-              ? `${peek.task.id}:${peek.editDue ? 'due' : ''}`
-              : `${peek.planned.seriesId}:${peek.planned.dueAt}`
-          }
-          anchor={peek.anchor}
-          onClose={closeOverlays}
-          onClickOutside={dismissOverlays}
-        >
-          {peek.kind === 'task' && peekTask ? (
-            <TaskPeek
-              task={peekTask}
-              userId={props.userId}
-              editDue={peek.editDue}
-              onClose={closeOverlays}
-              onOpenInChat={(task) => {
-                closeOverlays();
-                props.onOpenTask(task);
-              }}
-            />
-          ) : peek.kind === 'planned' ? (
-            <PlannedPeek
-              planned={peek.planned}
-              userId={props.userId}
-              onClose={closeOverlays}
-              onStopped={() => {
-                void queryClient.invalidateQueries({ queryKey: queryKeys.taskLists });
-              }}
-            />
-          ) : null}
-        </AnchoredPopover>
-      ) : null}
-      {draft ? (
-        <AnchoredPopover
-          key={draft.dueAt}
-          anchor={draft.anchor}
-          onClose={closeOverlays}
-          onClickOutside={dismissOverlays}
-        >
-          <TaskQuickCreate
-            dueAt={draft.dueAt}
-            rooms={props.rooms}
-            userId={props.userId}
-            onClose={closeOverlays}
-            onCreated={props.onAssigned}
-            onMore={(preset) => {
-              closeOverlays();
-              props.onAssign(preset);
-            }}
-          />
-        </AnchoredPopover>
-      ) : null}
-      {menu ? (
-        <TaskContextMenu
-          key={`${menu.x}:${menu.y}`}
-          item={menu.item}
-          x={menu.x}
-          y={menu.y}
+    <ModuleLayout
+      flush
+      header={
+        <TasksToolbar
           userId={props.userId}
-          onClose={closeMenu}
-          onOpenDetail={(options) => {
-            if (menu.item.kind === 'task') {
-              setPeek({ kind: 'task', task: menu.item.task, anchor: menu.anchor, editDue: options?.editDue });
-            } else {
-              setPeek({ kind: 'planned', planned: menu.item.planned, anchor: menu.anchor });
+          view={view}
+          anchor={anchor}
+          rangeTitle={currentRangeTitle}
+          scope={scope}
+          rooms={roomList}
+          roomIds={roomIds}
+          onJump={(day) => {
+            setAnchor(day);
+            if (!isCalendar) {
+              filters.setView('week');
             }
           }}
-          onOpenInChat={props.onOpenTask}
-          onSeriesStopped={() => {
-            void queryClient.invalidateQueries({ queryKey: queryKeys.taskLists });
-          }}
+          onView={filters.setView}
+          onScope={filters.setScope}
+          onRoomIds={filters.setRoomIds}
+          onAdd={() => props.onAssign()}
         />
-      ) : null}
-    </div>
+      }
+    >
+      <div className="tasks-body">
+        {/* Hàng này có ở mọi chế độ xem (viên đếm luôn hiện) để đổi chế độ không đẩy phần dưới lên xuống */}
+        <div className="tasks-subbar">
+          {view !== 'list' ? (
+            <div className="tasks-toolbar-nav">
+              <Button icon={<LeftOutlined />} className="tasks-cal-prev" onClick={() => move(-1)}>
+                {unit} trước
+              </Button>
+              <Button className="tasks-cal-today" onClick={() => setAnchor(new Date())}>
+                Hôm nay
+              </Button>
+              <Button
+                icon={<RightOutlined />}
+                iconPlacement="end"
+                className="tasks-cal-next"
+                onClick={() => move(1)}
+              >
+                {unit} sau
+              </Button>
+            </div>
+          ) : null}
+          <div className="tasks-toolbar-pills">
+            {hourHint ? (
+              <span className="tasks-pill">
+                <ClockCircleOutlined />
+                {hourHint}
+              </span>
+            ) : null}
+            <span className="tasks-pill count">
+              <CalendarOutlined />
+              {count} {countLabel}
+            </span>
+          </div>
+        </div>
+        <TaskLegend
+          counts={counts}
+          statuses={isCalendar ? CALENDAR_STATUSES : LIST_STATUSES}
+          hidden={hiddenStatuses}
+          onToggle={filters.toggleStatus}
+        />
+        <div className="tasks-main" onScrollCapture={closeOverlays}>
+          {main.error ? (
+            <Typography.Text type="danger">
+              {errorText(main.error, 'Không tải được công việc.')}
+            </Typography.Text>
+          ) : main.isLoading ? (
+            <LoadingState compact size="small" />
+          ) : isCalendar ? (
+            <>
+              {view === 'week' ? (
+                <TaskWeekView
+                  days={days}
+                  items={calendarItems}
+                  range={range}
+                  draftDue={draft?.dueAt}
+                  onOpen={openTask}
+                  onOpenPlanned={openPlanned}
+                  onCreate={openDraft}
+                  onMenu={openMenu}
+                />
+              ) : (
+                <TaskCalendar
+                  anchor={anchor}
+                  items={calendarItems}
+                  draftDue={draft?.dueAt}
+                  onOpen={openTask}
+                  onOpenPlanned={openPlanned}
+                  onCreate={(day, rect) => openDraft(presetDue(day, new Date()), rect)}
+                  onMenu={openMenu}
+                />
+              )}
+              {noDueTasks.length > 0 ? (
+                <section className="tasks-nodue">
+                  <h3>Chưa có hạn ({noDueTasks.length})</h3>
+                  <div className="tasks-nodue-list">
+                    {noDueTasks.map((task) => (
+                      <TaskChip key={task.id} task={task} onOpen={openTask} onMenu={openMenu} />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+            </>
+          ) : (
+            <TaskList tasks={listTasks} userId={props.userId} onOpenTask={props.onOpenTask} />
+          )}
+        </div>
+        {peek ? (
+          <AnchoredPopover
+            key={
+              peek.kind === 'task'
+                ? `${peek.task.id}:${peek.editDue ? 'due' : ''}`
+                : `${peek.planned.seriesId}:${peek.planned.dueAt}`
+            }
+            anchor={peek.anchor}
+            onClose={closeOverlays}
+            onClickOutside={dismissOverlays}
+          >
+            {peek.kind === 'task' && peekTask ? (
+              <TaskPeek
+                task={peekTask}
+                userId={props.userId}
+                editDue={peek.editDue}
+                onClose={closeOverlays}
+                onOpenInChat={(task) => {
+                  closeOverlays();
+                  props.onOpenTask(task);
+                }}
+              />
+            ) : peek.kind === 'planned' ? (
+              <PlannedPeek
+                planned={peek.planned}
+                userId={props.userId}
+                onClose={closeOverlays}
+                onStopped={() => {
+                  void queryClient.invalidateQueries({ queryKey: queryKeys.taskLists });
+                }}
+              />
+            ) : null}
+          </AnchoredPopover>
+        ) : null}
+        {draft ? (
+          <AnchoredPopover
+            key={draft.dueAt}
+            anchor={draft.anchor}
+            onClose={closeOverlays}
+            onClickOutside={dismissOverlays}
+          >
+            <TaskQuickCreate
+              dueAt={draft.dueAt}
+              rooms={props.rooms}
+              userId={props.userId}
+              onClose={closeOverlays}
+              onCreated={props.onAssigned}
+              onMore={(preset) => {
+                closeOverlays();
+                props.onAssign(preset);
+              }}
+            />
+          </AnchoredPopover>
+        ) : null}
+        {menu ? (
+          <TaskContextMenu
+            key={`${menu.x}:${menu.y}`}
+            item={menu.item}
+            x={menu.x}
+            y={menu.y}
+            userId={props.userId}
+            onClose={closeMenu}
+            onOpenDetail={(options) => {
+              if (menu.item.kind === 'task') {
+                setPeek({ kind: 'task', task: menu.item.task, anchor: menu.anchor, editDue: options?.editDue });
+              } else {
+                setPeek({ kind: 'planned', planned: menu.item.planned, anchor: menu.anchor });
+              }
+            }}
+            onOpenInChat={props.onOpenTask}
+            onSeriesStopped={() => {
+              void queryClient.invalidateQueries({ queryKey: queryKeys.taskLists });
+            }}
+          />
+        ) : null}
+      </div>
+    </ModuleLayout>
   );
 }

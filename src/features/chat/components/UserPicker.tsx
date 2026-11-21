@@ -1,8 +1,16 @@
-import { useEffect, useState } from 'react';
-import { Avatar, Checkbox, Input, Spin } from 'antd';
-import { api, fileSrc } from '@/api/client';
-import { avatarColor, initials } from '@/lib/avatar';
+import { SearchOutlined } from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { Checkbox, Input } from 'antd';
+import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
+import { UserAvatar } from '@/components/UserAvatar';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import type { DirectoryUser } from '@/types';
+
+const EMPTY_USERS: DirectoryUser[] = [];
 
 export function UserPicker(props: {
   mode: 'single' | 'multi';
@@ -12,34 +20,13 @@ export function UserPicker(props: {
   onChange?: (ids: string[]) => void;
 }) {
   const [query, setQuery] = useState('');
-  const [users, setUsers] = useState<DirectoryUser[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      setLoading(true);
-      void api
-        .users(query.trim() || undefined)
-        .then((res) => {
-          if (!cancelled) {
-            setUsers(res);
-            setLoading(false);
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setUsers([]);
-            setLoading(false);
-          }
-        });
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [query]);
+  const term = useDebouncedValue(query.trim());
+  const { data, isPending } = useQuery({
+    queryKey: queryKeys.contacts(term, ''),
+    queryFn: () => api.users(term || undefined),
+    staleTime: 30_000,
+  });
+  const users = data ?? EMPTY_USERS;
 
   const excludeSet = new Set(props.exclude ?? []);
   const visibleUsers = users.filter((u) => !excludeSet.has(u.id));
@@ -60,19 +47,18 @@ export function UserPicker(props: {
 
   return (
     <div className="user-pick-container">
-      <Input.Search
+      <Input
+        prefix={<SearchOutlined />}
         placeholder="Tìm theo tên, email, phòng ban..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         allowClear
         className="user-pick-search"
       />
-      {loading ? (
-        <div className="user-pick-loading">
-          <Spin size="small" />
-        </div>
+      {isPending ? (
+        <LoadingState compact size="small" />
       ) : visibleUsers.length === 0 ? (
-        <div className="user-pick-empty">Không có ai khớp</div>
+        <EmptyState compact title="Không có ai khớp" />
       ) : (
         <div className="user-pick-list">
           {visibleUsers.map((u) => {
@@ -98,13 +84,13 @@ export function UserPicker(props: {
                     }}
                   />
                 ) : null}
-                <Avatar
+                <UserAvatar
                   size={36}
-                  src={u.avatarUrl ? fileSrc(u.avatarUrl) : undefined}
-                  style={{ background: avatarColor(u.name), flexShrink: 0 }}
-                >
-                  {initials(u.name)}
-                </Avatar>
+                  src={u.avatarUrl}
+                  name={u.name}
+                  zoomable={false}
+                  style={{ flexShrink: 0 }}
+                />
                 <div className="user-pick-info">
                   <strong className="user-pick-name">{u.name}</strong>
                   <small className="user-pick-sub">

@@ -1,6 +1,4 @@
-import { Avatar } from 'antd';
-import { fileSrc } from '@/api/client';
-import { avatarColor, initials } from '@/lib/avatar';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { RoomRead } from '@/types';
 
 export function SeenAvatars({ readers }: { readers: RoomRead[] }) {
@@ -13,14 +11,13 @@ export function SeenAvatars({ readers }: { readers: RoomRead[] }) {
     <div className="seen-row">
       {shown.map((item) => (
         <span key={item.userId} title={item.name}>
-          <Avatar
+          <UserAvatar
             size={16}
             className="avatar-initials"
-            src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
-            style={{ background: avatarColor(item.name) }}
-          >
-            {initials(item.name)}
-          </Avatar>
+            src={item.avatarUrl}
+            name={item.name}
+            zoomable={false}
+          />
         </span>
       ))}
       {extra > 0 ? <span className="seen-extra">+{extra}</span> : null}

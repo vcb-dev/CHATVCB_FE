@@ -13,7 +13,7 @@ type Props = {
 };
 
 export function GroupTasksCard({ room, onCreate, onOpen }: Props) {
-  const { data: tasks = [] } = useQuery({
+  const { data: tasks = [], isPending, isError } = useQuery({
     queryKey: queryKeys.roomTasks(room.id),
     queryFn: () => api.roomTasks(room.id),
     // Rời phòng là hết nhận message.updated của phòng đó, nên mỗi lần quay lại phải tải lại
@@ -24,8 +24,14 @@ export function GroupTasksCard({ room, onCreate, onOpen }: Props) {
     <GroupBoardCard
       icon={<CheckSquareOutlined />}
       title="Công việc"
-      countLabel={`${tasks.length} việc đang mở`}
-      emptyText="Chưa có việc nào đang mở"
+      countLabel={isPending ? 'Đang tải…' : `${tasks.length} việc đang mở`}
+      emptyText={
+        isPending
+          ? 'Đang tải…'
+          : isError
+            ? 'Không tải được công việc'
+            : 'Chưa có việc nào đang mở'
+      }
       hasItems={tasks.length > 0}
       onCreate={canAssignTask(room) ? onCreate : undefined}
     >

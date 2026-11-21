@@ -9,6 +9,7 @@ export function canForward(message: ChatMessage): boolean {
     !message.recalled &&
     !message.poll &&
     !message.task &&
+    message.rich?.type !== 'call' &&
     Boolean(message.rich || message.content.trim() || message.imageUrl || message.fileUrl) &&
     !isVoice(message)
   );

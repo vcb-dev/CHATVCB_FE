@@ -15,8 +15,10 @@ import {
   UndoOutlined,
 } from '@ant-design/icons';
 import { Avatar, Button, Input, message } from 'antd';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
 import { draftContent, draftTitle } from './utils/drafts';
 import { EMPTY_SHEET, parseWorkbook, serializeWorkbook } from './utils/workbook';
 import { SheetEditor, type SheetHandle } from './SheetEditor';
@@ -27,6 +29,7 @@ import type { DocItem, User } from '@/types';
 type Props = { user: User };
 
 export function SheetSession({ user }: Props) {
+  const queryClient = useQueryClient();
   const route = parseSheetHash();
   const sheetRef = useRef<SheetHandle>(null);
   const saveTimer = useRef<number | undefined>(undefined);
@@ -40,7 +43,14 @@ export function SheetSession({ user }: Props) {
     async function boot() {
       try {
         if (route?.id) {
-          const next = await api.getDoc(route.id);
+          const docId = route.id;
+          const next = await queryClient.query({
+            queryKey: queryKeys.doc(docId),
+            queryFn: () => api.getDoc(docId),
+            staleTime: 0,
+            // Mở để sửa: 404/409 phải báo ngay, không thử lại
+            retry: false,
+          });
           if (cancelled) {
             return;
           }

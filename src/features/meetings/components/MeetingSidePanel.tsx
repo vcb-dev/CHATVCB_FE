@@ -4,11 +4,12 @@ import {
   DesktopOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
-import { Avatar, Button, Input } from 'antd';
+import { Button, Input } from 'antd';
 import { useEffect, useRef } from 'react';
-import { fileSrc } from '@/api/client';
-import { avatarColor, initials } from '@/lib/avatar';
+import { EmptyState } from '@/components/EmptyState';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { Meeting, MeetingPeer, User } from '@/types';
+import { PeerHostMenu } from './PeerHostMenu';
 
 export type SideTab = 'chat' | 'peers' | 'notes';
 
@@ -39,6 +40,9 @@ type Props = {
   onNotesChange: (v: string) => void;
   onSaveNotes: () => void;
   onClose: () => void;
+  onMutePeer: (peer: MeetingPeer) => void;
+  onMuteAll: () => void;
+  onKickPeer: (peer: MeetingPeer) => void;
 };
 
 export function MeetingSidePanel({
@@ -60,6 +64,9 @@ export function MeetingSidePanel({
   onNotesChange,
   onSaveNotes,
   onClose,
+  onMutePeer,
+  onMuteAll,
+  onKickPeer,
 }: Props) {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -70,6 +77,8 @@ export function MeetingSidePanel({
   }, [chat, tab]);
 
   const selfHand = hands.some((h) => h.userId === user.id);
+  const isHost = user.id === meeting.hostId;
+  const anyMicOn = peers.some((p) => p.micOn && p.userId !== user.id);
 
   return (
     <aside className="meet-chat">
@@ -113,7 +122,7 @@ export function MeetingSidePanel({
                 </p>
               ))
             ) : (
-              <p className="meet-side-empty">Chưa có tin nhắn trong cuộc họp.</p>
+              <EmptyState compact title="Chưa có tin nhắn trong cuộc họp." />
             )}
             <div ref={chatEndRef} />
           </div>
@@ -133,14 +142,24 @@ export function MeetingSidePanel({
 
       {tab === 'peers' ? (
         <div className="meet-peer-list">
-          <div className="meet-peer-row">
-            <Avatar
-              size={34}
-              src={user.avatarUrl ? fileSrc(user.avatarUrl) : undefined}
-              style={{ background: avatarColor(user.name) }}
+          {isHost && peers.length ? (
+            <Button
+              size="small"
+              icon={<AudioMutedOutlined />}
+              className="meet-mute-all"
+              disabled={!anyMicOn}
+              onClick={onMuteAll}
             >
-              {initials(user.name)}
-            </Avatar>
+              Tắt mic tất cả
+            </Button>
+          ) : null}
+          <div className="meet-peer-row">
+            <UserAvatar
+              size={34}
+              src={user.avatarUrl}
+              name={user.name}
+              zoomable={false}
+            />
             <div className="meet-peer-meta">
               <strong>
                 {user.name} (Tôi)
@@ -165,13 +184,12 @@ export function MeetingSidePanel({
             const hand = hands.some((h) => h.userId === peer.userId);
             return (
               <div key={peer.socketId} className="meet-peer-row">
-                <Avatar
+                <UserAvatar
                   size={34}
-                  src={peer.avatarUrl ? fileSrc(peer.avatarUrl) : undefined}
-                  style={{ background: avatarColor(peer.name) }}
-                >
-                  {initials(peer.name)}
-                </Avatar>
+                  src={peer.avatarUrl}
+                  name={peer.name}
+                  zoomable={false}
+                />
                 <div className="meet-peer-meta">
                   <strong>
                     {peer.name}
@@ -192,6 +210,9 @@ export function MeetingSidePanel({
                   )}
                   <VideoCameraOutlined className={peer.camOn ? 'is-on' : 'is-off'} />
                 </div>
+                {isHost && peer.userId !== user.id ? (
+                  <PeerHostMenu peer={peer} onMute={onMutePeer} onKick={onKickPeer} />
+                ) : null}
               </div>
             );
           })}

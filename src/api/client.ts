@@ -1,10 +1,12 @@
 import { AdminRole, AdminUser, UserAccess } from "@/features/admin/types";
 import type { EmployeeProfile } from "@/features/hr/types";
 import type {
+  BlockedUser,
   ChatDocPage,
   ChatDocQuery,
   ChatFile,
   ChatMessage,
+  CommonRoom,
   ConversationLabel,
   DirectoryUser,
   DocCard,
@@ -289,9 +291,12 @@ export const api = {
     fileId?: string,
     imageIds?: string[],
     rich?: RichPayload,
+    clientId?: string,
+    signal?: AbortSignal,
   ) {
     return request<ChatMessage>(`/rooms/${roomId}/messages`, {
       method: "POST",
+      signal,
       body: JSON.stringify({
         content,
         imageId,
@@ -299,6 +304,7 @@ export const api = {
         fileId,
         imageIds,
         rich,
+        clientId,
       }),
     });
   },
@@ -356,9 +362,6 @@ export const api = {
     const query = params.toString();
     return request<DirectoryUser[]>(`/users${query ? `?${query}` : ""}`);
   },
-  userTeams() {
-    return request<TeamCount[]>("/users/teams");
-  },
   blockUser(id: string) {
     return request<{ ok: boolean }>(`/users/${id}/block`, { method: "POST" });
   },
@@ -367,6 +370,12 @@ export const api = {
   },
   user(id: string) {
     return request<DirectoryUser>(`/users/${id}`);
+  },
+  userCommonRooms(id: string) {
+    return request<CommonRoom[]>(`/users/${id}/common-rooms`);
+  },
+  blockedUsers() {
+    return request<BlockedUser[]>('/users/blocked');
   },
   lastSeen() {
     return request<LastSeenMap>('/users/last-seen');
@@ -1349,9 +1358,6 @@ export const api = {
 
   employees() {
     return request<EmployeeProfile[]>("/employees");
-  },
-  employee(id: string) {
-    return request<EmployeeProfile>(`/employees/${id}`);
   },
   createEmployee(
     body: Partial<EmployeeProfile> & { password?: string; roleIds?: string[] },

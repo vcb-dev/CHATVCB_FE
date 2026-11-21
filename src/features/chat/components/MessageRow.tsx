@@ -4,11 +4,11 @@ import {
   RobotOutlined,
   RollbackOutlined,
 } from '@ant-design/icons';
-import { Avatar, Button, Dropdown, type MenuProps } from 'antd';
+import { Button, Dropdown, type MenuProps } from 'antd';
 import { memo } from 'react';
 import { fileSrc } from '@/api/client';
 import { CopyableImage } from '@/components/CopyableImage';
-import { avatarColor, initials } from '@/lib/avatar';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { ChatMessage, Room, RoomRead } from '@/types';
 import { isVoice } from '../utils/attachments';
 import { canEdit } from '../utils/edit';
@@ -16,12 +16,12 @@ import type { Delivery } from '../utils/seen';
 import { chatImagesOf } from '@/features/gallery/utils/chatImages';
 import { canForward } from '../utils/forward';
 import { isStickerText } from '../utils/stickers';
-import { DeliveryStatus } from './DeliveryStatus';
 import { FileCard } from './FileCard';
 import { ImageAlbum } from './ImageAlbum';
 import { googleDocIdFromUrl } from '@/features/docs/utils/googleLinks';
 import { DocLinkCard } from './DocLinkCard';
 import { LinkPreviewCard } from './LinkPreviewCard';
+import { MessageStatus, type MessageStatusKind } from './MessageStatus';
 import { PollCard } from './PollCard';
 import { RichBubble } from './RichBubble';
 import { ReactionPicker } from './ReactionPicker';
@@ -48,6 +48,8 @@ type Props = {
   viewers: RoomRead[];
   lastReaders: RoomRead[];
   delivery?: Delivery | null;
+  /** Tin đang gửi mà máy mất mạng: hiện "Chờ mạng" thay vì đồng hồ "Đang gửi". */
+  offline?: boolean;
   /** Tin của mình trong nhóm: số người đã đọc / tổng số người khác (kiểu Lark). */
   readCount?: number;
   readTotal?: number;
@@ -70,6 +72,16 @@ function MessageRowView(props: Props) {
   const { message, mine, first, last } = props;
   const hasReceipt = typeof props.readTotal === 'number' && props.readTotal > 0;
   const agent = message.role === 'agent';
+  // Tin tạm (đang gửi / gửi lỗi): chưa có id thật nên không có menu, cảm xúc, đã xem
+  const sendState = message.sendState;
+  const status: MessageStatusKind | null =
+    sendState === 'failed'
+      ? 'failed'
+      : sendState === 'sending'
+        ? props.offline
+          ? 'waiting'
+          : 'sending'
+        : (props.delivery ?? null);
   const cls = [
     'row',
     mine ? 'mine' : 'theirs',
@@ -77,6 +89,7 @@ function MessageRowView(props: Props) {
     last ? 'last' : '',
     agent ? 'agent' : '',
     props.tagged ? 'tagged' : '',
+    sendState ? `send-${sendState}` : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -164,13 +177,15 @@ function MessageRowView(props: Props) {
         ) : null}
         <div className="bubble-wrap">
           {!mine && last ? (
-            <Avatar
+            <UserAvatar
               size={28}
               className="avatar-initials row-avatar"
-              src={message.authorAvatarUrl ? fileSrc(message.authorAvatarUrl) : undefined}
+              src={message.authorAvatarUrl}
+              name={message.authorName}
               icon={agent ? <RobotOutlined /> : undefined}
+              zoomable={false}
               style={{
-                background: agent ? '#31a24c' : avatarColor(message.authorName),
+                ...(agent ? { background: '#31a24c' } : undefined),
                 cursor: !agent && message.userId ? 'pointer' : 'default',
               }}
               onClick={(e) => {
@@ -179,16 +194,15 @@ function MessageRowView(props: Props) {
                   props.onViewProfile(message.userId);
                 }
               }}
-            >
-              {agent ? null : initials(message.authorName)}
-            </Avatar>
+            />
           ) : null}
-          <Dropdown trigger={['contextMenu']} menu={menuProps}>
+          <Dropdown trigger={['contextMenu']} menu={menuProps} disabled={Boolean(sendState)}>
             <div className="bubble-hit">
               <SeenBubble viewers={props.viewers} disabled={hasReceipt}>
                 <div
                   className={[
                     'bubble',
+                    sendState === 'sending' && (hasImage || album || hasFile) ? 'is-uploading' : '',
                     hasImage || album ? 'has-image' : '',
                     hasFile && !hasVoice ? 'has-file' : '',
                     hasText ? 'has-text' : '',
@@ -331,7 +345,14 @@ function MessageRowView(props: Props) {
           onToggle={(emoji) => void props.onReact(message, emoji)}
         />
         <SeenAvatars readers={props.lastReaders} />
-        {props.delivery ? <DeliveryStatus status={props.delivery} /> : null}
+        {status ? (
+          <MessageStatus
+            kind={status}
+            error={message.sendError}
+            onRetry={() => void props.onAction('retrySend', message)}
+            onDiscard={() => void props.onAction('discardSend', message)}
+          />
+        ) : null}
         {last ? (
           <time className="msg-time">
             {new Date(message.createdAt).toLocaleTimeString('vi-VN', {

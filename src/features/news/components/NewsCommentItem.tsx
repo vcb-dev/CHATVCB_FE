@@ -1,6 +1,6 @@
-import { Avatar, Popconfirm, message } from 'antd';
+import { Popconfirm, message } from 'antd';
 import { api } from '@/api/client';
-import { avatarColor, initials } from '@/lib/avatar';
+import { UserAvatar } from '@/components/UserAvatar';
 import { errorText } from '@/lib/errors';
 import type { NewsComment, User } from '@/types';
 import { newsTime } from '../utils/news';
@@ -32,13 +32,12 @@ export function NewsCommentItem(props: {
 
   return (
     <div className="news-comment" data-comment-id={comment.id}>
-      <Avatar
+      <UserAvatar
         size={32}
-        src={comment.author?.avatarUrl || undefined}
-        style={{ backgroundColor: avatarColor(name), flex: 'none' }}
-      >
-        {initials(name)}
-      </Avatar>
+        src={comment.author?.avatarUrl}
+        name={name}
+        style={{ flex: 'none' }}
+      />
       <div className="news-comment-main">
         {props.editing ? (
           <NewsCommentComposer

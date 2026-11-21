@@ -1,5 +1,7 @@
 import { Button, Form, Input, Modal, Select } from "antd";
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { FormField } from "@/components/FormField";
 import type { AdminRole, PermissionGroup } from "../types";
 import { permissionsForRoleEditor } from "../permissionCatalog";
 import { PermissionMatrix } from "./PermissionMatrix";
@@ -36,7 +38,10 @@ export function RoleFormModal({
   onDelete,
   onSubmit,
 }: RoleFormModalProps) {
-  const [form] = Form.useForm<{ name: string; description?: string }>();
+  const { control, handleSubmit, reset } = useForm<{
+    name: string;
+    description?: string;
+  }>({ mode: "onChange" });
   const [cloneFromRoleId, setCloneFromRoleId] = useState<string | undefined>();
   const [permissions, setPermissions] = useState<string[]>([]);
   const locked = role?.key === "admin";
@@ -49,22 +54,22 @@ export function RoleFormModal({
 
   useEffect(() => {
     if (!open) return;
-    form.setFieldsValue({
+    reset({
       name: role?.name ?? "",
       description: role?.description ?? "",
     });
     setCloneFromRoleId(undefined);
     setPermissions(role?.permissions ?? []);
-  }, [open, role, form]);
+  }, [open, role, reset]);
 
   function save() {
-    void form.validateFields().then((values) =>
+    void handleSubmit((values) =>
       onSubmit({
         ...values,
         cloneFromRoleId: mode === "create" ? cloneFromRoleId : undefined,
         permissions: permissionsForRoleEditor(permissions, groups),
       }),
-    );
+    )();
   }
 
   return (
@@ -104,13 +109,18 @@ export function RoleFormModal({
       destroyOnHidden
       width={640}
     >
-      <Form form={form} layout="vertical">
-        <Form.Item name="name" label="Tên" rules={[{ required: true }]}>
+      <Form layout="vertical">
+        <FormField
+          control={control}
+          name="name"
+          label="Tên"
+          rules={{ required: "Nhập tên role" }}
+        >
           <Input placeholder="ADMIN, Trưởng phòng…" />
-        </Form.Item>
-        <Form.Item name="description" label="Mô tả">
+        </FormField>
+        <FormField control={control} name="description" label="Mô tả">
           <Input.TextArea rows={2} />
-        </Form.Item>
+        </FormField>
       </Form>
       {mode === "create" ? (
         <div style={{ marginBottom: 16 }}>

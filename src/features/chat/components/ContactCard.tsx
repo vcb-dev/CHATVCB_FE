@@ -1,10 +1,10 @@
 import { MessageOutlined, UserOutlined } from '@ant-design/icons';
-import { Avatar, Button, message as antMessage } from 'antd';
+import { Button, message as antMessage } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api, fileSrc } from '@/api/client';
+import { api } from '@/api/client';
+import { UserAvatar } from '@/components/UserAvatar';
 import { queryKeys } from '@/api/queryKeys';
-import { avatarColor, initials } from '@/lib/avatar';
 import type { Room } from '@/types';
 
 export function ContactCard(props: {
@@ -46,14 +46,13 @@ export function ContactCard(props: {
         </span>
       </div>
       <div className="contact-card-head">
-        <Avatar
+        <UserAvatar
           size={44}
           className="avatar-initials"
-          src={data.avatarUrl ? fileSrc(data.avatarUrl) : undefined}
-          style={{ background: avatarColor(data.name) }}
-        >
-          {initials(data.name)}
-        </Avatar>
+          src={data.avatarUrl}
+          name={data.name}
+          stopPropagation
+        />
         <div className="contact-card-info">
           <strong>{data.name}</strong>
           <span>{data.email}</span>

@@ -1,10 +1,16 @@
-import { CloudOutlined, MoreOutlined, MutedOutlined, PushpinFilled } from '@ant-design/icons';
-import { Avatar } from 'antd';
+import {
+  CloudOutlined,
+  ExclamationCircleFilled,
+  MoreOutlined,
+  MutedOutlined,
+  PushpinFilled,
+  StopOutlined,
+} from '@ant-design/icons';
 import { memo } from 'react';
-import { fileSrc } from '@/api/client';
-import { avatarColor, initials } from '@/lib/avatar';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { ConversationLabel, Room } from '@/types';
 import { formatRoomTime } from '../utils/datetime';
+import { useRoomSendFailed } from '../hooks/useOutbox';
 import type { useRoomPrefs } from '../hooks/useRoomPrefs';
 import { isDirectRoom, isRoomMuted, sameRoom } from '../utils/rooms';
 import { RoomMenu } from './RoomMenu';
@@ -32,6 +38,7 @@ function RoomListItemView(props: Props) {
   const showOnline = isDirectRoom(room) && !hasUnread && props.online;
   const muted = isRoomMuted(room);
   const timeStr = formatRoomTime(room.updatedAt);
+  const sendFailed = useRoomSendFailed(room.id);
 
   return (
     <div className="room-item-wrap">
@@ -50,16 +57,16 @@ function RoomListItemView(props: Props) {
           type="button"
         >
           <div className="room-avatar-wrap">
-            <Avatar
+            <UserAvatar
               size={48}
               className="avatar-initials"
               icon={room.isCloud ? <CloudOutlined /> : undefined}
-              src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
-              style={{ background: room.isCloud ? 'var(--ui-primary)' : avatarColor(name) }}
-            >
-              {room.isCloud ? null : initials(name)}
-            </Avatar>
-            {showOnline ? <span className="room-online-dot" /> : null}
+              src={room.isCloud ? undefined : room.avatarUrl}
+              name={name}
+              zoomable={false}
+              online={showOnline}
+              style={room.isCloud ? { background: 'var(--ui-primary)' } : undefined}
+            />
             {props.lastSeenLabel ? (
               <span className="room-last-seen">{props.lastSeenLabel}</span>
             ) : null}
@@ -82,12 +89,20 @@ function RoomListItemView(props: Props) {
                 {muted ? (
                   <MutedOutlined className="room-muted" title="Đã tắt thông báo" />
                 ) : null}
+                {room.blockedByMe ? (
+                  <StopOutlined className="room-muted" title="Đã chặn" aria-label="Đã chặn" />
+                ) : null}
               </span>
               {timeStr ? <time className="room-time">{timeStr}</time> : null}
             </div>
 
             <div className="room-bottom-row">
               <div className="room-preview-col">
+                {sendFailed ? (
+                  <span className="room-send-failed" role="img" aria-label="Có tin gửi lỗi" title="Có tin gửi lỗi">
+                    <ExclamationCircleFilled />
+                  </span>
+                ) : null}
                 {room.mentioned && !props.active ? (
                   <span className="room-mention" title="Có người tag bạn">
                     @

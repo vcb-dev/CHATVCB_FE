@@ -13,7 +13,7 @@ type Props = {
 };
 
 export function GroupNotesCard({ room, onOpen, onCreate }: Props) {
-  const { data: notes = [] } = useQuery({
+  const { data: notes = [], isPending, isError } = useQuery({
     queryKey: queryKeys.notes(room.id),
     queryFn: () => api.notes(room.id),
     enabled: Boolean(room.id),
@@ -23,8 +23,14 @@ export function GroupNotesCard({ room, onOpen, onCreate }: Props) {
     <GroupBoardCard
       icon={<FileTextOutlined />}
       title="Ghi chú"
-      countLabel={`${notes.length} ghi chú`}
-      emptyText="Chưa có ghi chú nào"
+      countLabel={isPending ? 'Đang tải…' : `${notes.length} ghi chú`}
+      emptyText={
+        isPending
+          ? 'Đang tải…'
+          : isError
+            ? 'Không tải được ghi chú'
+            : 'Chưa có ghi chú nào'
+      }
       hasItems={notes.length > 0}
       onCreate={onCreate}
     >

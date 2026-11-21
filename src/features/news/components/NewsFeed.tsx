@@ -1,5 +1,8 @@
-import { Button, Empty, Spin } from 'antd';
+import { ReadOutlined } from '@ant-design/icons';
+import { Button } from 'antd';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
 import { errorText } from '@/lib/errors';
 import type { User } from '@/types';
 import { useNewsFeed } from '../hooks/useNewsFeed';
@@ -64,7 +67,7 @@ export function NewsFeed(props: {
   );
 
   if (query.isLoading) {
-    return <Spin className="news-loading" />;
+    return <LoadingState />;
   }
 
   if (query.isError && !isFetchNextPageError) {
@@ -77,7 +80,7 @@ export function NewsFeed(props: {
   }
 
   if (!posts.length) {
-    return <Empty description="Chưa có bản tin" />;
+    return <EmptyState icon={<ReadOutlined />} title="Chưa có bản tin" />;
   }
 
   return (

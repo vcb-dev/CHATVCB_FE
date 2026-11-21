@@ -1,4 +1,5 @@
 import type { ChatMessage, Room } from '@/types';
+import { CallCard } from './CallCard';
 import { ContactCard } from './ContactCard';
 import { LocationCard } from './LocationCard';
 import { MeetingCard } from './MeetingCard';
@@ -34,6 +35,19 @@ export function RichBubble(props: {
   }
   if (rich.type === 'meeting') {
     return <MeetingCard code={rich.code} title={rich.title} />;
+  }
+  if (rich.type === 'call') {
+    return (
+      <CallCard
+        roomId={message.roomId}
+        callId={rich.callId}
+        mode={rich.mode}
+        kind={rich.kind}
+        status={rich.status}
+        durationSec={rich.durationSec}
+        mine={message.userId === props.currentUserId}
+      />
+    );
   }
   return <p className="rich-fallback">{message.content}</p>;
 }

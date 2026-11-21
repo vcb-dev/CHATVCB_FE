@@ -1,6 +1,17 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { Modal, message as antMessage } from 'antd';
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
+import { useForm } from 'react-hook-form';
 import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
 import type { ChatMessage, GalleryImage, PendingFile, PendingImage, RichPayload } from '@/types';
 import { addPendingDocs } from '../utils/attachments';
 import { loadDrafts, saveDrafts, withDraft, type Drafts } from '../utils/drafts';
@@ -12,27 +23,40 @@ import {
   photosFromMessages,
   revokePending,
 } from '../utils/media';
+import { isTemp } from '../utils/messageCache';
+import type { SendInput } from './useSendMessage';
+
+/** Ô soạn tin (react-hook-form): chữ đang gõ nằm trong form, `ChatPage` không vẽ lại mỗi phím. */
+export type ComposerForm = { text: string };
+
+// Gom các phím gõ liền nhau thành một lần ghi nháp xuống localStorage
+const DRAFT_SAVE_MS = 300;
 
 export function useComposer({
   roomId,
   messages,
-  appendMessage,
+  send,
   setMessages,
   setError,
 }: {
   roomId: string;
   messages: ChatMessage[];
-  appendMessage: (message: ChatMessage) => void;
+  /** Gửi một tin hiện ngay (useSendMessage). */
+  send: (input: SendInput) => void;
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   setError: (error: string) => void;
 }) {
-  // `draftsRef` luôn mới nhất (ghi mỗi lần gõ); `drafts` là ảnh chụp lúc đổi phòng cho danh sách phòng,
+  const queryClient = useQueryClient();
+  // `draftsRef` là nháp mới nhất đã lưu; `drafts` là ảnh chụp lúc đổi phòng cho danh sách phòng,
   // nhờ đó gõ phím không làm cả danh sách phòng vẽ lại.
   const draftsRef = useRef<Drafts>(loadDrafts());
   const [drafts, setDrafts] = useState<Drafts>(draftsRef.current);
-  // Chữ đang gõ thuộc về đúng một phòng; phòng khác thì lấy nháp đã lưu của phòng đó.
-  const [draftState, setDraftState] = useState({ roomId, text: '' });
-  const draft = draftState.roomId === roomId ? draftState.text : (drafts[roomId] ?? '');
+  // Chữ đang gõ: form không gây vẽ lại ở đây; chỉ ô nhập (Controller/useWatch trong Composer) vẽ lại
+  const form = useForm<ComposerForm>({ defaultValues: { text: '' } });
+  const { getValues, setValue, reset } = form;
+  // Phòng mà chữ trong form đang thuộc về (đổi phòng thì lưu nháp phòng cũ trước khi nạp phòng mới)
+  const draftRoomRef = useRef('');
+  const saveTimerRef = useRef(0);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
@@ -44,28 +68,64 @@ export function useComposer({
   const pendingImagesRef = useRef<PendingImage[]>([]);
   const editingRef = useRef<ChatMessage | null>(null);
 
-  const setDraft: Dispatch<SetStateAction<string>> = (value) => {
-    setDraftState((prev) => {
-      const base = prev.roomId === roomId ? prev.text : (draftsRef.current[roomId] ?? '');
-      return { roomId, text: typeof value === 'function' ? value(base) : value };
+  // Ghi nháp đang chờ xuống draftsRef + localStorage ngay (đổi phòng, bắt đầu sửa tin, đóng trang)
+  const flushDraft = useCallback(() => {
+    window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = 0;
+    const draftRoom = draftRoomRef.current;
+    if (editingRef.current || !draftRoom) {
+      return;
+    }
+    const text = getValues('text') ?? '';
+    if ((draftsRef.current[draftRoom] ?? '') === (text.trim() ? text : '')) {
+      return;
+    }
+    const next = withDraft(draftsRef.current, draftRoom, text);
+    draftsRef.current = next;
+    saveDrafts(next);
+  }, [getValues]);
+
+  // Mỗi lần chữ đổi (gõ, chèn emoji, xóa sau khi gửi): hẹn ghi nháp, không vẽ lại gì
+  useEffect(() => {
+    const subscription = form.watch(() => {
+      if (editingRef.current) {
+        return;
+      }
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = window.setTimeout(flushDraft, DRAFT_SAVE_MS);
     });
-  };
+    window.addEventListener('pagehide', flushDraft);
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('pagehide', flushDraft);
+      flushDraft();
+    };
+  }, [form, flushDraft]);
+
+  /** Đặt chữ trong ô soạn tin (gửi xong thì xóa, sửa tin, trả lại khi sửa lỗi). */
+  const setDraft = useCallback(
+    (text: string) => setValue('text', text),
+    [setValue],
+  );
 
   // Hết sửa tin thì trả lại nháp của phòng, không để nội dung sửa ghi đè nháp.
   function restoreDraft() {
-    setDraftState({ roomId, text: draftsRef.current[roomId] ?? '' });
+    editingRef.current = null;
+    setDraft(draftsRef.current[roomId] ?? '');
   }
-
-  useEffect(() => {
-    if (editingRef.current || !draftState.roomId) {
-      return;
-    }
-    const next = withDraft(draftsRef.current, draftState.roomId, draftState.text);
-    draftsRef.current = next;
-    saveDrafts(next);
-  }, [draftState]);
   pendingImagesRef.current = pendingImages;
   editingRef.current = editing;
+
+  // Đổi phòng: lưu nháp phòng cũ rồi nạp nháp phòng mới trước khi vẽ (không nháy chữ của phòng cũ)
+  useLayoutEffect(() => {
+    if (!roomId) {
+      return;
+    }
+    flushDraft();
+    editingRef.current = null;
+    draftRoomRef.current = roomId;
+    reset({ text: draftsRef.current[roomId] ?? '' });
+  }, [roomId]);
 
   useEffect(() => {
     if (!roomId) {
@@ -78,7 +138,6 @@ export function useComposer({
     setReplyTo(null);
     setEditing(null);
     setDrafts(draftsRef.current);
-    setDraftState({ roomId, text: draftsRef.current[roomId] ?? '' });
   }, [roomId]);
 
   useEffect(() => {
@@ -86,6 +145,9 @@ export function useComposer({
   }, []);
 
   function startEdit(message: ChatMessage) {
+    // Lưu nháp đang gõ trước, rồi mới đổi chữ thành nội dung tin cần sửa (không ghi đè nháp)
+    flushDraft();
+    editingRef.current = message;
     setReplyTo(null);
     setEditing(message);
     setDraft(message.content);
@@ -129,7 +191,13 @@ export function useComposer({
     setGalleryOpen(true);
     setGalleryLoading(true);
     try {
-      setGallery(mergePhotos(photosFromMessages(messages), await api.gallery(roomId)));
+      // Tin tạm còn ảnh blob sắp bị giải phóng, không đưa vào bộ sưu tập
+      const sent = messages.filter((item) => !isTemp(item));
+      const photos = await queryClient.query({
+        queryKey: queryKeys.gallery(roomId),
+        queryFn: () => api.gallery(roomId),
+      });
+      setGallery(mergePhotos(photosFromMessages(sent), photos));
     } catch {
       setError('Không tải được bộ sưu tập ảnh.');
     } finally {
@@ -160,29 +228,22 @@ export function useComposer({
     setGalleryOpen(false);
   }
 
+  // Các hàm gửi dưới đây chỉ dựng tin rồi giao cho `send`: tin hiện ngay, lỗi thì nằm lại
+  // trong khung tin với "Gửi lỗi · Thử lại | Xóa" (không trả chữ về ô nhập)
   async function sendSticker(emoji: string) {
     if (!roomId) {
       return;
     }
-    try {
-      appendMessage(await api.sendMessage(roomId, emoji, undefined, replyTo?.id));
-      setReplyTo(null);
-    } catch {
-      setError('Gửi sticker thất bại.');
-    }
+    send({ content: emoji, replyTo });
+    setReplyTo(null);
   }
 
   async function sendGif(url: string) {
     if (!roomId) {
       return;
     }
-    try {
-      const image = await api.attachRemoteImage(roomId, url);
-      appendMessage(await api.sendMessage(roomId, '', image.id, replyTo?.id));
-      setReplyTo(null);
-    } catch {
-      setError('Gửi GIF thất bại.');
-    }
+    send({ content: '', replyTo, gifUrl: url });
+    setReplyTo(null);
   }
 
   async function sendContent(raw: string) {
@@ -201,6 +262,7 @@ export function useComposer({
         const next = await api.editMessage(roomId, target.id, content);
         setMessages((current) => current.map((item) => (item.id === next.id ? next : item)));
       } catch (err) {
+        editingRef.current = target;
         setEditing(target);
         setDraft(content);
         antMessage.error(err instanceof Error ? err.message : 'Không sửa được tin nhắn.');
@@ -221,73 +283,28 @@ export function useComposer({
       return;
     }
     lastSentRef.current = { at: now, text: fingerprint };
-    const replyId = replyTo?.id;
+    const reply = replyTo;
     setDraft('');
+    // Không giải phóng blob của ảnh chờ gửi: tin tạm dùng tiếp làm ảnh xem trước tới khi gửi xong
     setPendingImages([]);
     setPendingFiles([]);
     setReplyTo(null);
     setError('');
-    const unsentFiles = [...filesToSend];
-    try {
-      const imageIds: string[] = [];
-      for (const item of attachments) {
-        if (item.imageId) {
-          imageIds.push(item.imageId);
-          continue;
-        }
-        if (item.file) {
-          const image = await api.uploadImage(roomId, item.file);
-          imageIds.push(image.id);
-        }
-      }
-      const last = filesToSend.length === 0;
-      if (imageIds.length >= 2) {
-        const message = await api.sendMessage(
-          roomId,
-          last ? content : '',
-          undefined,
-          last ? replyId : undefined,
-          undefined,
-          imageIds,
-        );
-        appendMessage(message);
-      } else if (imageIds.length === 1) {
-        const message = await api.sendMessage(
-          roomId,
-          last ? content : '',
-          imageIds[0],
-          last ? replyId : undefined,
-        );
-        appendMessage(message);
-      }
-      revokePending(attachments);
-
-      for (const [index, fileItem] of filesToSend.entries()) {
-        const uploadedDoc = await api.uploadFile(roomId, fileItem.file);
-        const isLastOverall = index === filesToSend.length - 1;
-        const caption = isLastOverall ? content : '';
-        const reply = isLastOverall ? replyId : undefined;
-        const message = await api.sendMessage(
-          roomId,
-          caption,
-          undefined,
-          reply,
-          uploadedDoc.id,
-        );
-        appendMessage(message);
-        unsentFiles.shift();
-      }
-
-      if (attachments.length === 0 && filesToSend.length === 0) {
-        const message = await api.sendMessage(roomId, content, undefined, replyId);
-        appendMessage(message);
-      }
-    } catch (err) {
-      setDraft(content);
-      setPendingImages(attachments);
-      setPendingFiles(unsentFiles);
-      setError('Gửi tin thất bại.');
-      antMessage.error(err instanceof Error ? err.message : 'Gửi tin thất bại.');
+    // Ảnh (một tấm hoặc album) là một tin, mỗi tệp một tin; chữ + trả lời đi kèm tin cuối cùng
+    const last = filesToSend.length === 0;
+    if (attachments.length) {
+      send({ content: last ? content : '', replyTo: last ? reply : null, images: attachments });
+    }
+    filesToSend.forEach((fileItem, index) => {
+      const isLastOverall = index === filesToSend.length - 1;
+      send({
+        content: isLastOverall ? content : '',
+        replyTo: isLastOverall ? reply : null,
+        file: { blob: fileItem.file, name: fileItem.file.name },
+      });
+    });
+    if (attachments.length === 0 && filesToSend.length === 0) {
+      send({ content, replyTo: reply });
     }
   }
 
@@ -295,13 +312,8 @@ export function useComposer({
     if (!roomId) {
       return;
     }
-    try {
-      const sent = await api.sendMessage(roomId, '', undefined, replyTo?.id, undefined, undefined, rich);
-      appendMessage(sent);
-      setReplyTo(null);
-    } catch (err) {
-      antMessage.error(err instanceof Error ? err.message : 'Gửi tin thất bại.');
-    }
+    send({ content: '', replyTo, rich });
+    setReplyTo(null);
   }
 
   async function sendLocation() {
@@ -326,25 +338,18 @@ export function useComposer({
 
   async function sendVoice(blob: Blob) {
     if (!roomId) return;
-    try {
-      let ext = 'webm';
-      if (blob.type.includes('mp4')) {
-        ext = 'm4a';
-      } else if (blob.type.includes('ogg')) {
-        ext = 'ogg';
-      }
-      const file = await api.uploadVoice(roomId, blob, `voice.${ext}`);
-      const sent = await api.sendMessage(roomId, '', undefined, replyTo?.id, file.id);
-      appendMessage(sent);
-      setReplyTo(null);
-    } catch (err) {
-      antMessage.error(err instanceof Error ? err.message : 'Gửi tin nhắn thoại thất bại.');
+    let ext = 'webm';
+    if (blob.type.includes('mp4')) {
+      ext = 'm4a';
+    } else if (blob.type.includes('ogg')) {
+      ext = 'ogg';
     }
+    send({ content: '', replyTo, file: { blob, name: `voice.${ext}`, voice: true } });
+    setReplyTo(null);
   }
 
   return {
-    draft,
-    setDraft,
+    form,
     drafts,
     pendingImages,
     pendingFiles,

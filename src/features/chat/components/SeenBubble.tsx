@@ -1,7 +1,6 @@
-import { Avatar, Popover } from 'antd';
+import { Popover } from 'antd';
 import type { ReactNode } from 'react';
-import { fileSrc } from '@/api/client';
-import { avatarColor, initials } from '@/lib/avatar';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { RoomRead } from '@/types';
 
 function SeenNames({ viewers }: { viewers: RoomRead[] }) {
@@ -12,14 +11,13 @@ function SeenNames({ viewers }: { viewers: RoomRead[] }) {
     <ul className="seen-names">
       {viewers.map((item) => (
         <li key={item.userId}>
-          <Avatar
+          <UserAvatar
             size={22}
             className="avatar-initials"
-            src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
-            style={{ background: avatarColor(item.name) }}
-          >
-            {initials(item.name)}
-          </Avatar>
+            src={item.avatarUrl}
+            name={item.name}
+            zoomable={false}
+          />
           <span>{item.name}</span>
         </li>
       ))}

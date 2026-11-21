@@ -18,15 +18,14 @@ import {
   UploadOutlined,
 } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Avatar, Button, Dropdown, Input, message } from 'antd';
+import { Button, Dropdown, Input, message } from 'antd';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { api, fileSrc } from '@/api/client';
+import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { DocsEditor } from './DocsEditor';
 import { draftContent, draftTitle, kindLabel } from './utils/drafts';
 import { openSheetTab } from './sheet';
-import { avatarColor, initials } from '@/lib/avatar';
-import type { ChatDocType, DocItem, DocKind, DocTemplate, DocsGoogleStatus, User } from '@/types';
+import type { ChatDocType, DocFolder, DocItem, DocKind, DocTemplate, DocsGoogleStatus, User } from '@/types';
 import { dropTab, reserveTab, sendTab } from './utils/googleTab';
 import { DocsHome } from './components/DocsHome';
 import { FolderSidebar } from './components/FolderSidebar';
@@ -38,8 +37,14 @@ import { ModuleLayout } from '@/components/ModuleLayout';
 import { PageHeader } from '@/components/PageHeader';
 import { ContentCard } from '@/components/ContentCard';
 import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
+import { UserAvatar } from '@/components/UserAvatar';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { ChatFilesFilters, type ChatDocRoom } from './components/ChatFilesFilters';
 import { ChatFilesTable } from './components/ChatFilesTable';
+
+const EMPTY_FOLDERS: DocFolder[] = [];
+const EMPTY_DOCS: DocItem[] = [];
 
 type Tab = 'home' | 'files' | 'recent' | 'shared' | 'starred' | 'folders';
 type Template = DocTemplate;
@@ -97,18 +102,13 @@ export function DocsPage({ user, onOpenMessage }: Props) {
   // Thư mục đang mở ở tab "Thư mục team"; rỗng = Chưa xếp thư mục
   const [folderId, setFolderId] = useState('');
   const [moving, setMoving] = useState<DocItem | null>(null);
-  const [home, setHome] = useState<{ recent: DocItem[]; starred: DocItem[]; loaded: boolean }>({
-    recent: [],
-    starred: [],
-    loaded: false,
-  });
   const queryClient = useQueryClient();
   const foldersQuery = useQuery({
     queryKey: queryKeys.docFolders,
     queryFn: () => api.docFolders(),
     enabled: tab === 'folders' || Boolean(moving),
   });
-  const folders = foldersQuery.data ?? [];
+  const folders = foldersQuery.data ?? EMPTY_FOLDERS;
   const refreshFolders = useCallback(
     () => void queryClient.invalidateQueries({ queryKey: queryKeys.docFolders }),
     [queryClient],
@@ -116,41 +116,59 @@ export function DocsPage({ user, onOpenMessage }: Props) {
   const [fileType, setFileType] = useState<ChatDocType | null>(null);
   const [fileRoom, setFileRoom] = useState<ChatDocRoom | null>(null);
   const [query, setQuery] = useState('');
-  const [search, setSearch] = useState('');
-  const [items, setItems] = useState<DocItem[]>([]);
+  const search = useDebouncedValue(query.trim());
+  const listKey = queryKeys.docList(tab, search, folderId);
+  // Sửa/tạo tài liệu xong bên tab Google rồi quay lại thì tải lại ngay (refetchOnWindowFocus: 'always')
+  const homeQuery = useQuery({
+    queryKey: queryKeys.docsHome,
+    queryFn: async () => {
+      const [recent, starred] = await Promise.all([api.listDocs('recent'), api.listDocs('starred')]);
+      return { recent: recent.slice(0, 8), starred: starred.slice(0, 4) };
+    },
+    enabled: tab === 'home',
+    refetchOnWindowFocus: 'always',
+  });
+  const listQuery = useQuery({
+    queryKey: listKey,
+    queryFn: () => api.listDocs(tab === 'folders' ? 'folder' : tab, search, folderId),
+    enabled: tab !== 'home' && tab !== 'files',
+    refetchOnWindowFocus: 'always',
+    // Gõ tìm trong cùng tab thì giữ danh sách cũ tới khi có kết quả; đổi tab thì không mượn dữ liệu tab khác
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === tab ? previous : undefined),
+  });
+  const items = listQuery.data ?? EMPTY_DOCS;
+  const googleQuery = useQuery({
+    queryKey: queryKeys.docsGoogleStatus,
+    queryFn: () => api.googleSheetsStatus(),
+  });
+  // null = chưa biết; dùng để quyết định mở sẵn tab ngay lúc bấm
+  const google = googleQuery.data ?? null;
   const [opened, setOpened] = useState<DocItem | null>(null);
   const [sending, setSending] = useState<DocItem | null>(null);
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState('');
   const [templatesOpen, setTemplatesOpen] = useState(false);
-  // null = chưa biết; dùng để quyết định mở sẵn tab ngay lúc bấm
-  const [google, setGoogle] = useState<DocsGoogleStatus | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const saveTimer = useRef<number | undefined>(undefined);
   const realIdRef = useRef('');
   const pendingSave = useRef<{ title?: string; content?: string }>({});
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => setSearch(query.trim()), 250);
-    return () => window.clearTimeout(timer);
-  }, [query]);
+  /** Sửa ngay danh sách đang xem (tạo/sửa/xóa vừa xong), không chờ tải lại */
+  function patchItems(update: (current: DocItem[]) => DocItem[]) {
+    queryClient.setQueryData<DocItem[]>(listKey, (current) => (current ? update(current) : current));
+  }
 
-  const load = useCallback(async () => {
-    // Tab tệp từ chat tự tải bằng React Query
-    if (tab === 'files') {
-      return;
+  /** Trang chủ và các tab khác tải lại ở lần xem sau (tab đang mở tải lại ngay) */
+  function refreshDocs() {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.docs });
+  }
+
+  const homeError = homeQuery.error;
+  useEffect(() => {
+    if (homeError) {
+      message.error(homeError instanceof Error ? homeError.message : 'Không tải được Docs.');
     }
-    try {
-      if (tab === 'home') {
-        const [recent, starred] = await Promise.all([api.listDocs('recent'), api.listDocs('starred')]);
-        setHome({ recent: recent.slice(0, 8), starred: starred.slice(0, 4), loaded: true });
-        return;
-      }
-      setItems(tab === 'folders' ? await api.listDocs('folder', search, folderId) : await api.listDocs(tab, search));
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : 'Không tải được Docs.');
-    }
-  }, [tab, search, folderId]);
+  }, [homeError]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -161,25 +179,6 @@ export function DocsPage({ user, onOpenMessage }: Props) {
       message.error(params.get('reason') || 'Không kết nối được Google.');
     }
   }, []);
-
-  useEffect(() => {
-    void api.googleSheetsStatus().then(setGoogle).catch(() => setGoogle(null));
-  }, []);
-
-  useEffect(() => {
-    void load();
-    const refresh = () => {
-      if (document.visibilityState === 'visible') {
-        void load();
-      }
-    };
-    window.addEventListener('focus', refresh);
-    document.addEventListener('visibilitychange', refresh);
-    return () => {
-      window.removeEventListener('focus', refresh);
-      document.removeEventListener('visibilitychange', refresh);
-    };
-  }, [load]);
 
   /** Đi kết nối Google; quay về thì BE tự tạo tài liệu hoặc cấp quyền rồi mở luôn */
   async function connectGoogle(input: { intent: 'connect' | 'doc' | 'sheet' | 'open'; template?: Template; docId?: string }) {
@@ -194,8 +193,12 @@ export function DocsPage({ user, onOpenMessage }: Props) {
   async function createOnGoogle(kind: 'doc' | 'sheet', title: string, extra?: CreateExtra) {
     const tab = google?.ready && google.drive && google.connected ? reserveTab() : null;
     try {
-      const status = google ?? (await api.googleSheetsStatus());
-      setGoogle(status);
+      const status: DocsGoogleStatus =
+        google ??
+        (await queryClient.query({
+          queryKey: queryKeys.docsGoogleStatus,
+          queryFn: () => api.googleSheetsStatus(),
+        }));
       if (!status.ready) {
         dropTab(tab);
         message.error('Server chưa cấu hình Google (thiếu Client ID/Secret).');
@@ -223,7 +226,8 @@ export function DocsPage({ user, onOpenMessage }: Props) {
         content: extra?.content,
         folderId: extra?.folderId,
       });
-      setItems((current) => [doc, ...current.filter((item) => item.id !== doc.id)]);
+      patchItems((current) => [doc, ...current.filter((item) => item.id !== doc.id)]);
+      refreshDocs();
       if (extra?.folderId) {
         refreshFolders();
       }
@@ -233,7 +237,7 @@ export function DocsPage({ user, onOpenMessage }: Props) {
       }
       // Drive vừa mất kết nối giữa chừng: BE đã lưu Doc trong ChatVCB, mở bằng trình soạn
       dropTab(tab);
-      setGoogle({ ...status, drive: false });
+      queryClient.setQueryData<DocsGoogleStatus>(queryKeys.docsGoogleStatus, { ...status, drive: false });
       showDoc(doc);
     } catch (err) {
       dropTab(tab);
@@ -308,7 +312,8 @@ export function DocsPage({ user, onOpenMessage }: Props) {
       .createDoc({ kind, title: draft.title, template: extra?.template, content: draft.content, folderId: extra?.folderId })
       .then((doc) => {
         realIdRef.current = doc.id;
-        setItems((current) => [{ ...doc, title: draft.title }, ...current.filter((item) => item.id !== doc.id)]);
+        patchItems((current) => [{ ...doc, title: draft.title }, ...current.filter((item) => item.id !== doc.id)]);
+        refreshDocs();
         const pending = pendingSave.current;
         if (pending.title || pending.content) {
           void api.updateDoc(doc.id, pending).then(() => setSaving('Đã lưu')).catch(() => setSaving('Lưu lỗi'));
@@ -334,7 +339,13 @@ export function DocsPage({ user, onOpenMessage }: Props) {
       return;
     }
     showDoc(item);
-    void api.getDoc(item.id).then((full) => {
+    void queryClient.query({
+      queryKey: queryKeys.doc(item.id),
+      queryFn: () => api.getDoc(item.id),
+      staleTime: 0,
+      // Mở để sửa: 404/409 phải báo ngay, không thử lại
+      retry: false,
+    }).then((full) => {
       setOpened((current) => (current?.id === full.id ? { ...current, ...full } : current));
       setTitle((current) => (current ? current : full.title));
     }).catch((err) => {
@@ -361,7 +372,7 @@ export function DocsPage({ user, onOpenMessage }: Props) {
         .then((doc) => {
           setSaving('Đã lưu');
           setOpened((current) => (current ? { ...current, title: doc.title, updatedAt: doc.updatedAt } : current));
-          setItems((current) => current.map((item) => (item.id === doc.id ? { ...item, title: doc.title, updatedAt: doc.updatedAt } : item)));
+          patchItems((current) => current.map((item) => (item.id === doc.id ? { ...item, title: doc.title, updatedAt: doc.updatedAt } : item)));
         })
         .catch(() => setSaving('Lưu lỗi'));
     }, 400);
@@ -374,7 +385,8 @@ export function DocsPage({ user, onOpenMessage }: Props) {
     const id = doc.id.startsWith('tmp-') ? realIdRef.current : doc.id;
     try {
       const next = await api.updateDoc(id, { starred: !doc.starred });
-      setItems((current) => current.map((item) => (item.id === next.id ? { ...item, starred: next.starred } : item)));
+      patchItems((current) => current.map((item) => (item.id === next.id ? { ...item, starred: next.starred } : item)));
+      refreshDocs();
       setOpened((current) => (current?.id === next.id ? { ...current, starred: next.starred } : current));
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không đánh dấu được.');
@@ -385,7 +397,8 @@ export function DocsPage({ user, onOpenMessage }: Props) {
     try {
       await api.removeDoc(doc.id);
       setOpened((current) => (current?.id === doc.id ? null : current));
-      setItems((current) => current.filter((item) => item.id !== doc.id));
+      patchItems((current) => current.filter((item) => item.id !== doc.id));
+      refreshDocs();
       if (doc.folderId) {
         refreshFolders();
       }
@@ -520,9 +533,9 @@ export function DocsPage({ user, onOpenMessage }: Props) {
       <ContentCard>
         {tab === 'home' ? (
           <DocsHome
-            recent={home.recent}
-            starred={home.starred}
-            loaded={home.loaded}
+            recent={homeQuery.data?.recent ?? EMPTY_DOCS}
+            starred={homeQuery.data?.starred ?? EMPTY_DOCS}
+            loaded={homeQuery.isSuccess}
             kindIcon={(kind) => <KindIcon kind={kind} />}
             onOpen={openDoc}
             onCreate={(card) => create(card.kind, card.template ? { template: card.template } : undefined)}
@@ -534,6 +547,14 @@ export function DocsPage({ user, onOpenMessage }: Props) {
             query={{ q: search, type: fileType, roomId: fileRoom?.id ?? null }}
             onFilterRoom={setFileRoom}
             onOpenMessage={onOpenMessage}
+          />
+        ) : listQuery.isPending ? (
+          <LoadingState />
+        ) : listQuery.isError && !items.length ? (
+          <EmptyState
+            title="Không tải được Docs"
+            description={listQuery.error instanceof Error ? listQuery.error.message : undefined}
+            action={<Button onClick={() => void listQuery.refetch()}>Thử lại</Button>}
           />
         ) : items.length ? (
           <div className="docs-table">
@@ -562,9 +583,12 @@ export function DocsPage({ user, onOpenMessage }: Props) {
                 </span>
                 <span>{item.folderName || item.folder}</span>
                 <span className="docs-owner">
-                  <Avatar size={22} src={item.owner.avatarUrl ? fileSrc(item.owner.avatarUrl) : undefined} style={{ background: avatarColor(item.owner.name) }}>
-                    {initials(item.owner.name)}
-                  </Avatar>
+                  <UserAvatar
+                    size={22}
+                    src={item.owner.avatarUrl}
+                    name={item.owner.name}
+                    zoomable={false}
+                  />
                   {item.owner.name}
                 </span>
                 <span>{formatWhen(item.createdAt)}</span>
@@ -638,7 +662,7 @@ export function DocsPage({ user, onOpenMessage }: Props) {
         onClose={() => setMoving(null)}
         onMoved={() => {
           refreshFolders();
-          void load();
+          refreshDocs();
         }}
       />
       <SendDocModal doc={sending} onClose={() => setSending(null)} />

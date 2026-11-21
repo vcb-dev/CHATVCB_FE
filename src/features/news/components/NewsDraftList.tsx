@@ -1,6 +1,8 @@
-import { PictureOutlined } from '@ant-design/icons';
-import { Button, Empty, Spin } from 'antd';
+import { FileTextOutlined, PictureOutlined } from '@ant-design/icons';
+import { Button } from 'antd';
 import { useMemo } from 'react';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
 import { errorText } from '@/lib/errors';
 import { useNewsDrafts } from '../hooks/useNewsDrafts';
 import { newsDateTime } from '../utils/news';
@@ -10,7 +12,7 @@ export function NewsDraftList(props: { onOpen: (id: string) => void }) {
   const posts = useMemo(() => query.data?.pages.flatMap((page) => page.items) ?? [], [query.data]);
 
   if (query.isLoading) {
-    return <Spin className="news-loading" />;
+    return <LoadingState />;
   }
   if (query.isError) {
     return (
@@ -21,7 +23,7 @@ export function NewsDraftList(props: { onOpen: (id: string) => void }) {
     );
   }
   if (!posts.length) {
-    return <Empty description="Chưa có nháp" />;
+    return <EmptyState icon={<FileTextOutlined />} title="Chưa có nháp" />;
   }
   return (
     <div className="news-draft-list">

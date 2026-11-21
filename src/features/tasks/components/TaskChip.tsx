@@ -1,8 +1,8 @@
 import type { CSSProperties, MouseEvent } from 'react';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { Task } from '@/types';
 import { formatTime, type ItemMenuHandler } from '../utils/calendar';
 import { CALENDAR_STATUS_LABEL, taskStatus } from '../utils/status';
-import { PersonAvatar } from './PersonAvatar';
 import { TaskStatusIcon } from './TaskStatusIcon';
 
 /** Bấm mở chi tiết, chuột phải mở menu; chặn nổi bọt để không mở tạo việc của ô bên dưới. */
@@ -61,7 +61,14 @@ export function TaskChip(props: {
           <span className="task-chip-line">
             <TaskStatusIcon status={status} />
             {time ? <span className="task-chip-time">{time}</span> : null}
-            <PersonAvatar person={task.assignee} size={14} />
+            <UserAvatar
+              size={14}
+              gap={1}
+              className="task-person-avatar"
+              src={task.assignee.avatarUrl}
+              name={task.assignee.name}
+              zoomable={false}
+            />
             <span className="task-chip-person">{task.assignee.name}</span>
           </span>
           <span className="task-chip-title">{task.title}</span>

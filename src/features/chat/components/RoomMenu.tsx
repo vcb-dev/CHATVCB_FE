@@ -98,6 +98,16 @@ export function RoomMenu({
             onClick: () => actions.hide(room),
           },
         ]),
+    ...(room.kind === 'direct' && !room.isCloud && room.peerUserId
+      ? [
+          {
+            key: 'block',
+            label: room.blockedByMe ? 'Bỏ chặn' : 'Chặn',
+            danger: !room.blockedByMe,
+            onClick: () => void actions.toggleBlock(room),
+          },
+        ]
+      : []),
   ];
 
   return (

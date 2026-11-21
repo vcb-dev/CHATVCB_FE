@@ -1,5 +1,7 @@
 import { Form, Input, Modal, Select } from 'antd';
 import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { FormField } from '@/components/FormField';
 import type { OrgDepartment, OrgUnitStatus } from '../types';
 
 export interface DepartmentFormValues {
@@ -27,24 +29,23 @@ export function DepartmentFormModal({
   onClose,
   onSubmit,
 }: DepartmentFormModalProps) {
-  const [form] = Form.useForm<DepartmentFormValues>();
+  const { control, handleSubmit, reset, getValues, setValue } =
+    useForm<DepartmentFormValues>({ mode: 'onChange' });
 
   useEffect(() => {
     if (!open) return;
     if (mode === 'edit' && initial) {
-      form.setFieldsValue({
+      reset({
         name: initial.name,
         code: initial.code,
         status: initial.status,
       });
     } else {
-      form.resetFields();
-      form.setFieldsValue({ status: 'active' });
+      reset({ status: 'active' });
     }
-  }, [open, mode, initial, form]);
+  }, [open, mode, initial, reset]);
 
-  async function handleOk() {
-    const values = await form.validateFields();
+  async function handleOk(values: DepartmentFormValues) {
     const code = values.code.trim().toUpperCase();
     await onSubmit({ ...values, name: values.name.trim(), code });
   }
@@ -54,55 +55,58 @@ export function DepartmentFormModal({
       title={mode === 'create' ? 'Thêm phòng ban' : 'Sửa phòng ban'}
       open={open}
       onCancel={onClose}
-      onOk={() => void handleOk()}
+      onOk={() => void handleSubmit(handleOk)()}
       confirmLoading={confirmLoading}
       destroyOnClose
       okText={mode === 'create' ? 'Thêm' : 'Lưu'}
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
-        <Form.Item
+      <Form layout="vertical" style={{ marginTop: 8 }}>
+        <FormField
+          control={control}
           name="name"
           label="Tên phòng ban"
-          rules={[
-            { required: true, message: 'Nhập tên phòng ban.' },
-            { min: 2, message: 'Tối thiểu 2 ký tự.' },
-          ]}
+          rules={{
+            required: 'Nhập tên phòng ban.',
+            minLength: { value: 2, message: 'Tối thiểu 2 ký tự.' },
+          }}
         >
           <Input placeholder="VD: Phòng Marketing" maxLength={120} />
-        </Form.Item>
-        <Form.Item
+        </FormField>
+        <FormField
+          control={control}
           name="code"
           label="Mã phòng ban"
-          rules={[
-            { required: true, message: 'Nhập mã phòng ban.' },
-            {
-              validator: (_, value: unknown) => {
-                const code = String(value ?? '').trim().toUpperCase();
-                if (!code) return Promise.resolve();
-                return CODE_PATTERN.test(code)
-                  ? Promise.resolve()
-                  : Promise.reject(new Error('Chỉ dùng A–Z, 0–9 và dấu gạch dưới.'));
-              },
+          rules={{
+            required: 'Nhập mã phòng ban.',
+            validate: (value: unknown) => {
+              const code = String(value ?? '').trim().toUpperCase();
+              if (!code) return true;
+              return CODE_PATTERN.test(code) || 'Chỉ dùng A–Z, 0–9 và dấu gạch dưới.';
             },
-          ]}
+          }}
         >
           <Input
             placeholder="VD: PHONG_MARKETING"
             maxLength={64}
             onBlur={() => {
-              const raw = form.getFieldValue('code') as string | undefined;
-              if (raw) form.setFieldValue('code', raw.trim().toUpperCase());
+              const raw = getValues('code') as string | undefined;
+              if (raw) setValue('code', raw.trim().toUpperCase(), { shouldValidate: true });
             }}
           />
-        </Form.Item>
-        <Form.Item name="status" label="Trạng thái" rules={[{ required: true }]}>
+        </FormField>
+        <FormField
+          control={control}
+          name="status"
+          label="Trạng thái"
+          rules={{ required: 'Chọn trạng thái.' }}
+        >
           <Select
             options={[
               { value: 'active', label: 'Đang hoạt động' },
               { value: 'inactive', label: 'Ngưng' },
             ]}
           />
-        </Form.Item>
+        </FormField>
       </Form>
     </Modal>
   );

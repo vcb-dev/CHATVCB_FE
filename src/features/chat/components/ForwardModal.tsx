@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Avatar, Checkbox, Input, Modal, message as antMessage } from 'antd';
-import { fileSrc } from '@/api/client';
+import { Modal, message as antMessage } from 'antd';
+import { ConversationPicker } from '@/components/ConversationPicker';
+import {
+  targetRoomId,
+  useConversationTargets,
+  type ConversationTarget,
+} from '@/lib/useConversationTargets';
 import { canForward, forwardMessage, MAX_FORWARD_TARGETS } from '../utils/forward';
 import { previewOf } from '../utils/rooms';
-import { avatarColor, initials } from '@/lib/avatar';
 import type { ChatMessage, Room } from '@/types';
 
 export function ForwardModal(props: {
@@ -14,12 +18,14 @@ export function ForwardModal(props: {
   onSuccess?: () => void;
 }) {
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState<string[]>([]);
+  // Giữ cả đích (không chỉ id): đích tìm từ BE có thể không nằm trong props.rooms
+  const [selected, setSelected] = useState<ConversationTarget[]>([]);
   const [sending, setSending] = useState(false);
-  // Số tin đã gửi tới từng phòng, để thử lại sau lỗi không gửi trùng
+  // Số tin đã gửi tới từng đích, để thử lại sau lỗi không gửi trùng
   const progressRef = useRef(new Map<string, number>());
   const forwardable = props.messages.filter(canForward);
   const skipped = props.messages.length - forwardable.length;
+  const { items, searching } = useConversationTargets(props.rooms, query, props.messages.length > 0);
 
   useEffect(() => {
     setQuery('');
@@ -34,19 +40,21 @@ export function ForwardModal(props: {
     }
     setSending(true);
     let successCount = 0;
-    const failedRoomIds: string[] = [];
+    const failed: ConversationTarget[] = [];
     let firstError = '';
-    for (const roomId of selected) {
-      let done = progressRef.current.get(roomId) ?? 0;
+    for (const target of selected) {
+      let done = progressRef.current.get(target.key) ?? 0;
       try {
+        // Người chưa có phòng 1-1 thì tạo phòng trước (BE tìm-hoặc-tạo, thử lại không ra phòng trùng)
+        const roomId = await targetRoomId(target);
         for (; done < forwardable.length; done += 1) {
           const sent = await forwardMessage(forwardable[done], roomId);
-          progressRef.current.set(roomId, done + 1);
+          progressRef.current.set(target.key, done + 1);
           props.onForwarded(sent);
         }
         successCount += 1;
       } catch (err) {
-        failedRoomIds.push(roomId);
+        failed.push(target);
         if (!firstError) {
           firstError = err instanceof Error ? err.message : 'Lỗi không xác định';
         }
@@ -54,7 +62,7 @@ export function ForwardModal(props: {
     }
     setSending(false);
 
-    if (failedRoomIds.length === 0) {
+    if (failed.length === 0) {
       antMessage.success(
         forwardable.length === 1
           ? `Đã chuyển tiếp tới ${successCount} cuộc trò chuyện.`
@@ -66,18 +74,12 @@ export function ForwardModal(props: {
       props.onSuccess?.();
       props.onClose();
     } else {
-      const failedNames = failedRoomIds.map((id) => {
-        const r = props.rooms.find((item) => item.id === id);
-        return r ? r.title || r.name : id;
-      });
-      antMessage.error(`Không chuyển tiếp được tới: ${failedNames.join(', ')}. ${firstError}`);
-      setSelected(failedRoomIds);
+      antMessage.error(
+        `Không chuyển tiếp được tới: ${failed.map((target) => target.name).join(', ')}. ${firstError}`,
+      );
+      setSelected(failed);
     }
   }
-
-  const filteredRooms = props.rooms.filter((room) =>
-    (room.title || room.name).toLowerCase().includes(query.trim().toLowerCase()),
-  );
 
   return (
     <Modal
@@ -99,52 +101,25 @@ export function ForwardModal(props: {
         {forwardable.length > 0 ? previewOf(forwardable[0]) : 'Không có tin nào chuyển tiếp được.'}
         {forwardable.length > 1 ? ` · và ${forwardable.length - 1} tin khác` : ''}
       </div>
-      <Input
-        placeholder="Tìm cuộc trò chuyện"
-        allowClear
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
+      <ConversationPicker
+        items={items}
+        selected={selected.map((target) => target.key)}
+        max={MAX_FORWARD_TARGETS}
+        disabled={sending}
+        query={query}
+        onQueryChange={setQuery}
+        emptyText={searching ? 'Đang tải…' : undefined}
+        onToggle={(item, checked) => {
+          if (!checked) {
+            setSelected((current) => current.filter((target) => target.key !== item.key));
+            return;
+          }
+          const target = items.find((candidate) => candidate.key === item.key);
+          if (target) {
+            setSelected((current) => [...current, target]);
+          }
+        }}
       />
-      <div className="forward-count">
-        Đã chọn {selected.length}/{MAX_FORWARD_TARGETS}
-      </div>
-      <div className="forward-list">
-        {filteredRooms.length > 0 ? (
-          filteredRooms.map((room) => {
-            const name = room.title || room.name;
-            const isChecked = selected.includes(room.id);
-            const isDisabled =
-              sending || (!isChecked && selected.length >= MAX_FORWARD_TARGETS);
-            return (
-              <Checkbox
-                key={room.id}
-                className="forward-row"
-                checked={isChecked}
-                disabled={isDisabled}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    setSelected((current) => [...current, room.id]);
-                  } else {
-                    setSelected((current) => current.filter((id) => id !== room.id));
-                  }
-                }}
-              >
-                <Avatar
-                  size={36}
-                  className="avatar-initials"
-                  src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
-                  style={{ background: avatarColor(name) }}
-                >
-                  {initials(name)}
-                </Avatar>
-                <span>{name}</span>
-              </Checkbox>
-            );
-          })
-        ) : (
-          <div className="forward-empty">Không có cuộc trò chuyện phù hợp</div>
-        )}
-      </div>
     </Modal>
   );
 }

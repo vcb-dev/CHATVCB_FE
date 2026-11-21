@@ -1,5 +1,7 @@
 import { Form, Input, InputNumber, Modal, Select } from 'antd';
 import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { FormField } from '@/components/FormField';
 import type { OrgGroup, OrgUnitStatus } from '../types';
 
 export interface DepartmentGroupFormValues {
@@ -28,25 +30,25 @@ export function DepartmentGroupFormModal({
   onClose,
   onSubmit,
 }: DepartmentGroupFormModalProps) {
-  const [form] = Form.useForm<DepartmentGroupFormValues>();
+  const { control, handleSubmit, reset } = useForm<DepartmentGroupFormValues>({
+    mode: 'onChange',
+  });
 
   useEffect(() => {
     if (!open) return;
     if (mode === 'edit' && initial) {
-      form.setFieldsValue({
+      reset({
         name: initial.name,
         leaderName: initial.leaderName ?? '',
         memberCount: initial.memberCount,
         status: initial.status,
       });
     } else {
-      form.resetFields();
-      form.setFieldsValue({ status: 'active', memberCount: 0, leaderName: '' });
+      reset({ status: 'active', memberCount: 0, leaderName: '' });
     }
-  }, [open, mode, initial, form]);
+  }, [open, mode, initial, reset]);
 
-  async function handleOk() {
-    const values = await form.validateFields();
+  async function handleOk(values: DepartmentGroupFormValues) {
     await onSubmit({
       ...values,
       name: values.name.trim(),
@@ -63,40 +65,47 @@ export function DepartmentGroupFormModal({
       }
       open={open}
       onCancel={onClose}
-      onOk={() => void handleOk()}
+      onOk={() => void handleSubmit(handleOk)()}
       confirmLoading={confirmLoading}
       destroyOnClose
       okText={mode === 'create' ? 'Thêm' : 'Lưu'}
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
-        <Form.Item
+      <Form layout="vertical" style={{ marginTop: 8 }}>
+        <FormField
+          control={control}
           name="name"
           label="Tên nhóm"
-          rules={[
-            { required: true, message: 'Nhập tên nhóm.' },
-            { min: 2, message: 'Tối thiểu 2 ký tự.' },
-          ]}
+          rules={{
+            required: 'Nhập tên nhóm.',
+            minLength: { value: 2, message: 'Tối thiểu 2 ký tự.' },
+          }}
         >
           <Input placeholder="VD: Nhóm B2B Miền Bắc" maxLength={120} />
-        </Form.Item>
-        <Form.Item name="leaderName" label="Trưởng nhóm">
+        </FormField>
+        <FormField control={control} name="leaderName" label="Trưởng nhóm">
           <Input placeholder="Tùy chọn" maxLength={120} allowClear />
-        </Form.Item>
-        <Form.Item
+        </FormField>
+        <FormField
+          control={control}
           name="memberCount"
           label="Số thành viên (tạm thời)"
-          rules={[{ required: true, message: 'Nhập số thành viên.' }]}
+          rules={{ required: 'Nhập số thành viên.' }}
         >
           <InputNumber min={0} max={100_000} style={{ width: '100%' }} />
-        </Form.Item>
-        <Form.Item name="status" label="Trạng thái" rules={[{ required: true }]}>
+        </FormField>
+        <FormField
+          control={control}
+          name="status"
+          label="Trạng thái"
+          rules={{ required: 'Chọn trạng thái.' }}
+        >
           <Select
             options={[
               { value: 'active', label: 'Đang hoạt động' },
               { value: 'inactive', label: 'Ngưng' },
             ]}
           />
-        </Form.Item>
+        </FormField>
       </Form>
     </Modal>
   );

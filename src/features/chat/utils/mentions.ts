@@ -1,7 +1,5 @@
 import type { PresenceUser, Room, RoomMember } from '@/types';
 
-export const MENTION = /(@[A-Za-z0-9._-]+)/g;
-
 const OPEN_MENTION = /(?:^|[\s])@([A-Za-z0-9._-]*)$/;
 
 export function handleFromEmail(email?: string) {
@@ -56,6 +54,27 @@ export function buildMentionOptions(
 // Cùng luật với BE (`extractMentions`): `@x` chỉ tính khi đứng đầu chuỗi hoặc sau ký tự
 // không thuộc [A-Za-z0-9._-], nên địa chỉ email như `a@sale2.vn` không phải là tag.
 const TAG = /(?:^|[^A-Za-z0-9._-])@([A-Za-z0-9._-]+)/g;
+
+const HANDLE_CHAR = /[A-Za-z0-9._-]/;
+
+/** `@` ở vị trí `at` có mở một tag không (cùng luật TAG): `Hoang@2026`, `a@sale2.vn` thì không. */
+export function startsTag(text: string, at: number) {
+  return at === 0 || !HANDLE_CHAR.test(text.charAt(at - 1));
+}
+
+/** Tách như `split` có nhóm bắt: chỉ số lẻ là `@handle` đúng luật TAG, chỉ số chẵn là chữ thường. */
+export function splitMentions(text: string) {
+  const parts: string[] = [];
+  let from = 0;
+  for (const match of text.matchAll(TAG)) {
+    // match[0] có thể kèm ký tự đứng trước `@`; handle không chứa `@` nên lấy `@` cuối cùng
+    const at = (match.index ?? 0) + match[0].lastIndexOf('@');
+    parts.push(text.slice(from, at), `@${match[1]}`);
+    from = at + 1 + match[1].length;
+  }
+  parts.push(text.slice(from));
+  return parts;
+}
 
 const ALL_HANDLE = 'all';
 

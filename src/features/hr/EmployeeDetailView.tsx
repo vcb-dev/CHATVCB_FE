@@ -5,8 +5,7 @@ import {
   departmentSelectOptions,
   groupSelectOptionsForDepartment,
 } from "@/features/departments/utils/departmentSelect";
-import { fileSrc } from "@/api/client";
-import { avatarColor, initials } from "@/lib/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { CONSTANTS_ROLE } from "@/lib/common";
 import {
   ArrowLeftOutlined,
@@ -23,7 +22,6 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import {
-  Avatar,
   Button,
   Image,
   Form,
@@ -36,6 +34,14 @@ import {
 } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ChangeEvent } from "react";
+import {
+  FormProvider,
+  useForm,
+  useFormContext,
+  useWatch,
+  type UseFormReturn,
+} from "react-hook-form";
+import { FormField } from "@/components/FormField";
 import { employeeKeys } from "./queries/employeeKeys";
 import { uploadCitizenId } from "./services/employeesApi";
 import {
@@ -120,15 +126,6 @@ const SAVE_VALIDATE_LABELS: Partial<Record<keyof EmployeeProfile, string>> = {
   fullName: "Họ và tên",
 };
 
-function firstErrorFieldName(err: unknown): (string | number)[] | undefined {
-  if (err && typeof err === "object" && "errorFields" in err) {
-    const fields = (err as { errorFields: { name: (string | number)[] }[] })
-      .errorFields;
-    return fields[0]?.name;
-  }
-  return undefined;
-}
-
 function stripSensitivePatch(
   patch: Partial<EmployeeProfile>,
 ): Partial<EmployeeProfile> {
@@ -153,40 +150,39 @@ export function EmployeeDetailView({
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
-  const [form] = Form.useForm<EmployeeProfile>();
+  const form = useForm<EmployeeProfile>({ mode: "onChange" });
+  const { reset, trigger, getValues, getFieldState, setFocus } = form;
   const [activeTab, setActiveTab] = useState<TabKey>("work");
 
   useEffect(() => {
     setDraft(profile);
-    form.setFieldsValue(profile);
+    reset(profile);
     setEditing(false);
-  }, [profile, form]);
+  }, [profile, reset]);
 
   function cancelEdit() {
     setDraft(profile);
-    form.setFieldsValue(profile);
+    reset(profile);
     setEditing(false);
   }
 
   /** Lưu theo từng tab: chỉ kiểm ô bắt buộc và chỉ gửi trường của tab đang mở. */
   async function saveEdit() {
     const tabFields = TAB_FIELDS[activeTab];
-    try {
-      await form.validateFields(
-        SAVE_VALIDATE_NAMES.filter((name) => tabFields.includes(name)),
-      );
-    } catch (err) {
-      const name = firstErrorFieldName(err);
-      if (name) form.scrollToField(name, { block: "center", focus: true });
-      const label = name
-        ? SAVE_VALIDATE_LABELS[name[0] as keyof EmployeeProfile]
-        : undefined;
+    const names = SAVE_VALIDATE_NAMES.filter((name) => tabFields.includes(name));
+    if (!(await trigger(names))) {
+      const name = names.find((key) => getFieldState(key).invalid);
+      if (name) {
+        setFocus(name);
+        document.activeElement?.scrollIntoView({ block: "center" });
+      }
+      const label = name ? SAVE_VALIDATE_LABELS[name] : undefined;
       message.warning(
         label ? `Chưa điền ${label}.` : "Kiểm tra lại các trường bắt buộc.",
       );
       return;
     }
-    const values = form.getFieldsValue(true);
+    const values = getValues();
     let patch = Object.fromEntries(
       tabFields.map((key) => [key, values[key]]),
     ) as Partial<EmployeeProfile>;
@@ -201,7 +197,7 @@ export function EmployeeDetailView({
     }
     const merged = { ...profile, ...patch } as EmployeeProfile;
     setDraft(merged);
-    form.setFieldsValue(merged);
+    reset(merged);
     setEditing(false);
   }
 
@@ -211,17 +207,12 @@ export function EmployeeDetailView({
   const detailHeader = (
     <PageHeader
       icon={
-        <Avatar
+        <UserAvatar
           size={36}
-          src={data.avatarUrl ? fileSrc(data.avatarUrl) : undefined}
-          style={{
-            background: avatarColor(data.fullName),
-            color: "#fff",
-            fontWeight: 700,
-          }}
-        >
-          {initials(data.fullName)}
-        </Avatar>
+          src={data.avatarUrl}
+          name={data.fullName}
+          style={{ color: "#fff", fontWeight: 700 }}
+        />
       }
       title={data.fullName}
       onBack={onBack}
@@ -263,53 +254,54 @@ export function EmployeeDetailView({
 
   return (
     <ModuleLayout header={detailHeader}>
-      <Form
-        form={form}
-        layout="vertical"
-        className="hr-detail-form"
-        disabled={!editing}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          flex: 1,
-          minHeight: 0,
-        }}
-      >
-        <Tabs
-          activeKey={activeTab}
-          onChange={(key) => setActiveTab(key as TabKey)}
-          className="hr-detail-tabs"
-          items={TAB_KEYS.map((key) => ({
-            key,
-            label: tabLabel(key),
-            // Lưu theo từng tab: đang sửa thì khoá tab khác để thay đổi chưa lưu không bị mất.
-            disabled: editing && key !== activeTab,
-          }))}
-        />
-        <div className="hr-detail-tab-scroll">
-          {editing ? (
-            TAB_KEYS.map((key) => (
-              <div
-                key={key}
-                className="hr-tab-panel"
-                hidden={activeTab !== key}
-              >
-                {tabContent(key, data, editing, form, orgDepartments, {
+      <FormProvider {...form}>
+        <Form
+          layout="vertical"
+          className="hr-detail-form"
+          disabled={!editing}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            flex: 1,
+            minHeight: 0,
+          }}
+        >
+          <Tabs
+            activeKey={activeTab}
+            onChange={(key) => setActiveTab(key as TabKey)}
+            className="hr-detail-tabs"
+            items={TAB_KEYS.map((key) => ({
+              key,
+              label: tabLabel(key),
+              // Lưu theo từng tab: đang sửa thì khoá tab khác để thay đổi chưa lưu không bị mất.
+              disabled: editing && key !== activeTab,
+            }))}
+          />
+          <div className="hr-detail-tab-scroll">
+            {editing ? (
+              TAB_KEYS.map((key) => (
+                <div
+                  key={key}
+                  className="hr-tab-panel"
+                  hidden={activeTab !== key}
+                >
+                  {tabContent(key, data, editing, form, orgDepartments, {
+                    canReadSensitive,
+                    canUpdateSensitive,
+                  })}
+                </div>
+              ))
+            ) : (
+              <div className="hr-tab-panel">
+                {tabContent(activeTab, data, editing, form, orgDepartments, {
                   canReadSensitive,
                   canUpdateSensitive,
                 })}
               </div>
-            ))
-          ) : (
-            <div className="hr-tab-panel">
-              {tabContent(activeTab, data, editing, form, orgDepartments, {
-                canReadSensitive,
-                canUpdateSensitive,
-              })}
-            </div>
-          )}
-        </div>
-      </Form>
+            )}
+          </div>
+        </Form>
+      </FormProvider>
     </ModuleLayout>
   );
 }
@@ -335,7 +327,7 @@ function tabContent(
   key: TabKey,
   data: EmployeeProfile,
   editing: boolean,
-  _form: ReturnType<typeof Form.useForm<EmployeeProfile>>[0],
+  _form: UseFormReturn<EmployeeProfile>,
   orgDepartments: OrgDepartment[],
   access: { canReadSensitive: boolean; canUpdateSensitive: boolean },
 ) {
@@ -384,8 +376,8 @@ function WorkTab({
   editing: boolean;
   orgDepartments: OrgDepartment[];
 }) {
-  const form = Form.useFormInstance<EmployeeProfile>();
-  const departmentWatch = Form.useWatch("department", form);
+  const { control, setValue } = useFormContext<EmployeeProfile>();
+  const departmentWatch = useWatch({ control, name: "department" });
   const { data: adminUsers = [] } = useAdminUsersQuery();
   const leaderOptions = adminUsers
     .filter((u) =>
@@ -456,21 +448,21 @@ function WorkTab({
         </>
       ) : (
         <HrFieldGrid>
-          <Form.Item
+          <FormField
             name="startDate"
             label="Ngày bắt đầu làm việc"
             className="hr-form-item"
           >
             <Input />
-          </Form.Item>
-          <Form.Item
+          </FormField>
+          <FormField
             name="employeeCode"
             label="Mã nhân viên"
-            rules={[{ required: true }]}
+            rules={{ required: "Nhập mã nhân viên" }}
           >
             <Input />
-          </Form.Item>
-          <Form.Item name="contractType" label="Loại hợp đồng">
+          </FormField>
+          <FormField name="contractType" label="Loại hợp đồng">
             <Select
               options={[
                 { value: "Chính thức", label: "Chính thức" },
@@ -481,8 +473,8 @@ function WorkTab({
                 },
               ]}
             />
-          </Form.Item>
-          <Form.Item name="jobTitle" label="Vị trí (HĐ)">
+          </FormField>
+          <FormField name="jobTitle" label="Vị trí (HĐ)">
             <Select
               allowClear
               options={[
@@ -490,20 +482,20 @@ function WorkTab({
                 { value: "Parttime", label: "Parttime" },
               ]}
             />
-          </Form.Item>
-          <Form.Item name="specialtyPosition" label="Vị trí chuyên môn">
+          </FormField>
+          <FormField name="specialtyPosition" label="Vị trí chuyên môn">
             <Input />
-          </Form.Item>
-          <Form.Item name="department" label="Phòng ban">
+          </FormField>
+          <FormField name="department" label="Phòng ban">
             <Select
               allowClear
               showSearch
               optionFilterProp="label"
               options={departmentSelectOptions(orgDepartments)}
-              onChange={() => form.setFieldValue("departmentGroup", "")}
+              onChange={() => setValue("departmentGroup", "")}
             />
-          </Form.Item>
-          <Form.Item name="departmentGroup" label="Nhóm (theo phòng ban)">
+          </FormField>
+          <FormField name="departmentGroup" label="Nhóm (theo phòng ban)">
             <Select
               allowClear
               showSearch
@@ -516,8 +508,8 @@ function WorkTab({
                   : "Chọn phòng ban trước"
               }
             />
-          </Form.Item>
-          <Form.Item name="managementBlockCode" label="Trưởng nhóm">
+          </FormField>
+          <FormField name="managementBlockCode" label="Trưởng nhóm">
             <Select
               allowClear
               showSearch
@@ -525,8 +517,8 @@ function WorkTab({
               options={leaderOptions}
               placeholder="Chọn trưởng nhóm"
             />
-          </Form.Item>
-          <Form.Item name="directManagerName" label="Quản lý trực tiếp">
+          </FormField>
+          <FormField name="directManagerName" label="Quản lý trực tiếp">
             <Select
               allowClear
               showSearch
@@ -534,8 +526,8 @@ function WorkTab({
               options={managerOptions}
               placeholder="Chọn quản lý trực tiếp"
             />
-          </Form.Item>
-          <Form.Item name="employmentStatus" label="Tình trạng làm việc">
+          </FormField>
+          <FormField name="employmentStatus" label="Tình trạng làm việc">
             <Select
               options={[
                 { value: "Đang làm việc", label: "Đang làm việc" },
@@ -544,7 +536,7 @@ function WorkTab({
                 { value: "Đã nghỉ việc", label: "Đã nghỉ việc" },
               ]}
             />
-          </Form.Item>
+          </FormField>
         </HrFieldGrid>
       )}
     </HrSectionCard>
@@ -566,28 +558,28 @@ function PersonalTab({
         subtitle="Liên hệ và thông tin cơ bản"
       >
         <HrFieldGrid>
-          <Form.Item
+          <FormField
             name="fullName"
             label="Họ và tên"
-            rules={[{ required: true }]}
+            rules={{ required: "Nhập họ và tên" }}
           >
             <Input />
-          </Form.Item>
-          <Form.Item name="gender" label="Giới tính">
+          </FormField>
+          <FormField name="gender" label="Giới tính">
             <Select
               options={[{ value: "Nam" }, { value: "Nữ" }, { value: "Khác" }]}
             />
-          </Form.Item>
-          <Form.Item name="dateOfBirth" label="Ngày sinh">
+          </FormField>
+          <FormField name="dateOfBirth" label="Ngày sinh">
             <Input placeholder="dd/mm/yyyy" />
-          </Form.Item>
-          <Form.Item name="phone" label="Số điện thoại">
+          </FormField>
+          <FormField name="phone" label="Số điện thoại">
             <Input />
-          </Form.Item>
-          <Form.Item name="email" label="Email">
+          </FormField>
+          <FormField name="email" label="Email">
             <Input type="email" />
-          </Form.Item>
-          <Form.Item name="maritalStatus" label="Tình trạng hôn nhân">
+          </FormField>
+          <FormField name="maritalStatus" label="Tình trạng hôn nhân">
             <Select
               allowClear
               options={[
@@ -595,23 +587,23 @@ function PersonalTab({
                 { value: "Chưa kết hôn", label: "Chưa kết hôn" },
               ]}
             />
-          </Form.Item>
-          <Form.Item name="ethnicity" label="Dân tộc">
+          </FormField>
+          <FormField name="ethnicity" label="Dân tộc">
             <Input />
-          </Form.Item>
-          <Form.Item name="religion" label="Tôn giáo">
+          </FormField>
+          <FormField name="religion" label="Tôn giáo">
             <Input />
-          </Form.Item>
-          <Form.Item name="address" label="Địa chỉ hiện tại" className="wide">
+          </FormField>
+          <FormField name="address" label="Địa chỉ hiện tại" className="wide">
             <Input.TextArea rows={2} />
-          </Form.Item>
-          <Form.Item
+          </FormField>
+          <FormField
             name="permanentAddress"
             label="Hộ khẩu thường trú"
             className="wide"
           >
             <Input.TextArea rows={2} />
-          </Form.Item>
+          </FormField>
         </HrFieldGrid>
       </HrSectionCard>
     );
@@ -658,12 +650,12 @@ function EducationTab({
     >
       {editing ? (
         <HrFieldGrid>
-          <Form.Item name="educationLevel" label="Trình độ học vấn">
+          <FormField name="educationLevel" label="Trình độ học vấn">
             <Input />
-          </Form.Item>
-          <Form.Item name="schoolName" label="Trường / cơ sở đào tạo">
+          </FormField>
+          <FormField name="schoolName" label="Trường / cơ sở đào tạo">
             <Input />
-          </Form.Item>
+          </FormField>
         </HrFieldGrid>
       ) : (
         <HrFieldGrid>
@@ -704,15 +696,15 @@ function IdentityTab({
       >
         {canEdit ? (
           <HrFieldGrid>
-            <Form.Item name="citizenIdNumber" label="Số CCCD">
+            <FormField name="citizenIdNumber" label="Số CCCD">
               <Input />
-            </Form.Item>
-            <Form.Item name="citizenIdIssuedPlace" label="Nơi cấp">
+            </FormField>
+            <FormField name="citizenIdIssuedPlace" label="Nơi cấp">
               <Input />
-            </Form.Item>
-            <Form.Item name="socialInsuranceNumber" label="Số sổ bảo hiểm">
+            </FormField>
+            <FormField name="socialInsuranceNumber" label="Số sổ bảo hiểm">
               <Input />
-            </Form.Item>
+            </FormField>
           </HrFieldGrid>
         ) : (
           <HrFieldGrid>
@@ -843,21 +835,21 @@ function FamilyTab({
       <HrSubBlock title="Liên hệ khẩn cấp">
         {editing ? (
           <HrFieldGrid>
-            <Form.Item name={["emergencyContact", "name"]} label="Họ tên">
+            <FormField name="emergencyContact.name" label="Họ tên">
               <Input />
-            </Form.Item>
-            <Form.Item
-              name={["emergencyContact", "relationship"]}
+            </FormField>
+            <FormField
+              name="emergencyContact.relationship"
               label="Quan hệ"
             >
               <Input />
-            </Form.Item>
-            <Form.Item
-              name={["emergencyContact", "phone"]}
+            </FormField>
+            <FormField
+              name="emergencyContact.phone"
               label="Số điện thoại"
             >
               <Input />
-            </Form.Item>
+            </FormField>
           </HrFieldGrid>
         ) : (
           <HrFieldGrid>
@@ -876,18 +868,18 @@ function FamilyTab({
       <HrSubBlock title="Người giám hộ">
         {editing ? (
           <HrFieldGrid>
-            <Form.Item name={["guardianFather", "name"]} label="Cha — họ tên">
+            <FormField name="guardianFather.name" label="Cha — họ tên">
               <Input />
-            </Form.Item>
-            <Form.Item name={["guardianFather", "phone"]} label="Cha — SĐT">
+            </FormField>
+            <FormField name="guardianFather.phone" label="Cha — SĐT">
               <Input />
-            </Form.Item>
-            <Form.Item name={["guardianMother", "name"]} label="Mẹ — họ tên">
+            </FormField>
+            <FormField name="guardianMother.name" label="Mẹ — họ tên">
               <Input />
-            </Form.Item>
-            <Form.Item name={["guardianMother", "phone"]} label="Mẹ — SĐT">
+            </FormField>
+            <FormField name="guardianMother.phone" label="Mẹ — SĐT">
               <Input />
-            </Form.Item>
+            </FormField>
           </HrFieldGrid>
         ) : (
           <HrFieldGrid>
@@ -938,18 +930,18 @@ function OtherTab({
         <HrSubBlock title="Tài khoản ngân hàng">
           {canEdit ? (
             <HrFieldGrid>
-              <Form.Item name={["bankAccount", "bankName"]} label="Ngân hàng">
+              <FormField name="bankAccount.bankName" label="Ngân hàng">
                 <Input />
-              </Form.Item>
-              <Form.Item
-                name={["bankAccount", "accountNumber"]}
+              </FormField>
+              <FormField
+                name="bankAccount.accountNumber"
                 label="Số tài khoản"
               >
                 <Input />
-              </Form.Item>
-              <Form.Item name={["bankAccount", "branch"]} label="Chi nhánh">
+              </FormField>
+              <FormField name="bankAccount.branch" label="Chi nhánh">
                 <Input />
-              </Form.Item>
+              </FormField>
             </HrFieldGrid>
           ) : (
             <HrFieldGrid>
@@ -965,9 +957,9 @@ function OtherTab({
         </HrSubBlock>
         <HrSubBlock title="Phương tiện">
           {editing ? (
-            <Form.Item name="vehicles" label="Mô tả">
+            <FormField name="vehicles" label="Mô tả">
               <Input.TextArea rows={2} />
-            </Form.Item>
+            </FormField>
           ) : (
             <HrField label="Mô tả" value={data.vehicles} wide />
           )}

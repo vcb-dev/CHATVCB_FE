@@ -1,30 +1,20 @@
 /* ponytail: HR module styles — import from index if split later */
-.hr-page {
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-}
-
-.hr-table-wrap {
-  background: var(--ui-bg-panel);
-  border-radius: var(--ui-radius);
-  overflow: hidden;
-}
-
-.hr-table-wrap .ant-table-row.hr-table-row {
-  cursor: pointer;
-}
 
 .hr-table-name {
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
+}
+
+.hr-table-name-btn {
   border: 0;
   background: transparent;
   padding: 0;
   cursor: pointer;
   text-align: left;
-  width: 100%;
+  min-width: 0;
+  font: inherit;
 }
 
 .hr-table-name strong {
@@ -45,78 +35,6 @@
   border-radius: 6px;
 }
 
-.hr-card-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-}
-
-.hr-card-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-/* Detail — tab + content nền trắng full chiều cao, không lộ #f0f2f5 */
-.hr-page.hr-detail-page {
-  padding: 0;
-  overflow: hidden;
-  background: #fff;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-}
-
-.hr-detail-hero {
-  flex-shrink: 0;
-  background: linear-gradient(135deg, #0084ff 0%, #0056b3 100%);
-  color: #fff;
-  padding: 16px 28px 24px;
-}
-
-.hr-back-btn {
-  color: rgba(255, 255, 255, 0.92) !important;
-  margin-bottom: 8px;
-}
-
-.hr-detail-hero-inner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 20px;
-}
-
-.hr-detail-hero-text {
-  flex: 1;
-  min-width: 200px;
-}
-
-.hr-detail-hero-text h1 {
-  margin: 0 0 6px;
-  font-size: 24px;
-  color: #fff;
-}
-
-.hr-detail-hero-text p {
-  margin: 0 0 10px;
-  opacity: 0.88;
-}
-
-.hr-detail-tags .ant-tag {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.25);
-  color: #fff;
-}
-
-.hr-detail-hero-actions {
-  display: flex;
-  gap: 10px;
-  margin-left: auto;
-}
-
 /* ModuleLayout để body là khối thường. Form chi tiết cần cha flex cột (như .hr-detail-page cũ),
    không thì .hr-detail-tab-scroll (flex-basis 0) co về 0px và mọi tab trống trơn. */
 .ui-module-body:has(> .hr-detail-form) {
@@ -130,14 +48,14 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #fff;
+  background: var(--ui-bg-panel);
 }
 
 .hr-detail-tabs.ant-tabs {
   flex-shrink: 0;
   padding: 0 16px;
-  background: #fff;
-  border-bottom: 1px solid #e8eaed;
+  background: var(--ui-bg-panel);
+  border-bottom: 1px solid var(--ui-border);
 }
 
 .hr-detail-tabs .ant-tabs-nav {
@@ -155,7 +73,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  background: #fff;
+  background: var(--ui-bg-panel);
   padding: 0 16px;
 }
 
@@ -164,12 +82,12 @@
   max-width: none;
   margin: 0;
   padding: 16px 4px 32px;
-  background: #fff;
+  background: var(--ui-bg-panel);
   box-sizing: border-box;
 }
 
 .hr-section-card {
-  background: #fff;
+  background: var(--ui-bg-panel);
   border-radius: 16px;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
   overflow: hidden;
@@ -179,7 +97,7 @@
   display: flex;
   gap: 14px;
   padding: 18px 20px 14px;
-  border-bottom: 1px solid #f0f2f5;
+  border-bottom: 1px solid var(--ui-border);
 }
 
 .hr-section-icon {
@@ -200,7 +118,7 @@
 
 .hr-section-head p {
   margin: 0;
-  color: #65676b;
+  color: var(--ui-text-2);
   font-size: 13px;
 }
 
@@ -223,8 +141,8 @@
 }
 
 .hr-field {
-  background: #f8f9fb;
-  border: 1px solid #e8eaed;
+  background: var(--ui-bg-subtle);
+  border: 1px solid var(--ui-border);
   border-radius: 12px;
   padding: 12px;
 }
@@ -241,7 +159,7 @@
 .hr-field-label {
   display: block;
   font-size: 11px;
-  color: #65676b;
+  color: var(--ui-text-2);
   margin-bottom: 6px;
 }
 
@@ -289,13 +207,13 @@
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  background: #fff8e6;
+  background: var(--ui-warning-soft);
   border: 1px solid #f5d565;
   border-radius: 12px;
   padding: 12px 14px;
   margin-bottom: 12px;
   font-size: 12px;
-  color: #874d00;
+  color: var(--ui-ink-yellow);
 }
 
 .hr-doc-row {
@@ -308,12 +226,12 @@
 .hr-doc-slot .hr-doc-frame {
   margin-top: 8px;
   aspect-ratio: 1.58;
-  border: 1px dashed #d0d5dd;
+  border: 1px dashed var(--ui-border-strong);
   border-radius: 12px;
-  background: #f0f2f5;
+  background: var(--ui-bg-app);
   display: grid;
   place-items: center;
-  color: #65676b;
+  color: var(--ui-text-2);
   font-size: 13px;
 }
 
@@ -325,7 +243,7 @@
 
 .hr-doc-drop {
   cursor: pointer;
-  background: #f7f9ff;
+  background: var(--ui-primary-softer);
   border-color: #b8c4f0;
   transition: background 0.15s, border-color 0.15s;
 }
@@ -355,8 +273,8 @@
   aspect-ratio: 1.58;
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid #e4e6eb;
-  background: #f0f2f5;
+  border: 1px solid var(--ui-border);
+  background: var(--ui-bg-app);
 }
 
 .hr-doc-card .ant-image,
@@ -383,41 +301,7 @@
   background: rgba(0, 0, 0, 0.8);
 }
 
-.hr-card-swatch {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 12px;
-  font-size: 12px;
-  color: #65676b;
-}
-
-.hr-card-swatch i {
-  width: 48px;
-  height: 28px;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-}
-
-.hr-edit-footer {
-  flex-shrink: 0;
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 28px;
-  background: #fff;
-  border-top: 1px solid #e8eaed;
-  box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.06);
-}
-
 @media (max-width: 900px) {
-  .hr-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 
   .hr-field-grid {
     grid-template-columns: 1fr;
@@ -427,16 +311,8 @@
     grid-template-columns: 1fr;
   }
 
-  .hr-page:not(.hr-detail-page) {
-    padding: 16px;
-  }
-
   .hr-tab-panel {
     padding: 12px 0 20px;
-  }
-
-  .hr-detail-hero {
-    padding: 12px 16px 20px;
   }
 
   .hr-detail-tabs {

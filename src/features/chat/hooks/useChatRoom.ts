@@ -8,7 +8,7 @@ import {
   type RefObject,
   type SetStateAction,
 } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import type {
@@ -20,6 +20,8 @@ import type {
   RoomRead,
   User,
 } from '@/types';
+import { isTemp, prependOlder, receiveMessage, trimMessages } from '../utils/messageCache';
+import { getMessages, loadLatest, MESSAGES_GC_MS, updateMessages } from '../utils/messageStore';
 import { isDirectRoom, previewOf, upsertRoom } from '../utils/rooms';
 import { firstUnreadId } from '../utils/unread';
 import { useRoomCacheSetter } from './useRoomCacheSetter';
@@ -30,18 +32,16 @@ const EMPTY_READS: RoomRead[] = [];
 const EMPTY_MEMBERS: RoomMember[] = [];
 const EMPTY_PINS: ChatMessage[] = [];
 const EMPTY_MESSAGES: ChatMessage[] = [];
+const EMPTY_META: PageMeta = { hasMore: false, nextCursor: null };
 
-// Giữ các tin đã có sẵn mà trang vừa nạp chưa có và mới hơn tin cuối của trang
-function mergeNewer(page: ChatMessage[], existing: ChatMessage[]): ChatMessage[] {
-  if (existing.length === 0) {
-    return page;
+/** Tin thật mới nhất (bỏ tin tạm chưa có id thật). */
+function lastConfirmed(messages: ChatMessage[]): ChatMessage | undefined {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (!isTemp(messages[index])) {
+      return messages[index];
+    }
   }
-  const lastAt = page.length ? new Date(page[page.length - 1].createdAt).getTime() : 0;
-  const known = new Set(page.map((item) => item.id));
-  const newer = existing.filter(
-    (item) => !known.has(item.id) && new Date(item.createdAt).getTime() > lastAt,
-  );
-  return newer.length ? [...page, ...newer] : page;
+  return undefined;
 }
 
 function flashMessage(el: HTMLElement) {
@@ -71,33 +71,56 @@ export function useChatRoom({
   isViewingChat: () => boolean;
   setError: (error: string) => void;
 }) {
-  // Tin nhắn gắn với phòng đã nạp chúng: vừa đổi phòng là không còn tin của phòng cũ trên màn hình,
-  // không phải chờ phòng mới tải xong.
-  const [store, setStore] = useState<{ roomId: string; items: ChatMessage[]; loaded: boolean }>({
-    roomId: '',
-    items: EMPTY_MESSAGES,
-    loaded: false,
+  const queryClient = useQueryClient();
+  // Tin theo phòng nằm trong cache: mở lại phòng đã xem thì hiện ngay, trang mới nhất tải lại ở nền
+  // (staleTime 0) rồi trộn trong queryFn. Phòng chưa có cache thì không còn tin của phòng cũ trên màn hình.
+  const messagesQuery = useQuery({
+    queryKey: queryKeys.messages(roomId),
+    queryFn: () => loadLatest(queryClient, roomId),
+    enabled: Boolean(roomId),
+    staleTime: 0,
+    gcTime: MESSAGES_GC_MS,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
-  const messagesLoaded = store.roomId === roomId && store.loaded;
-  const messages = store.roomId === roomId ? store.items : EMPTY_MESSAGES;
+  const cached = roomId ? messagesQuery.data : undefined;
+  const messagesLoaded = Boolean(cached);
+  const messages = cached?.items ?? EMPTY_MESSAGES;
+  const pageMeta = cached?.meta ?? EMPTY_META;
   // Mọi chỗ sửa danh sách tin (socket, sửa, xóa, thả cảm xúc…) đều tác động lên phòng đang mở
   const setMessages: Dispatch<SetStateAction<ChatMessage[]>> = useCallback(
     (action) => {
-      setStore((prev) => {
-        const openId = roomIdRef.current;
-        const same = prev.roomId === openId;
-        const base = same ? prev.items : EMPTY_MESSAGES;
-        return {
-          roomId: openId,
-          items: typeof action === 'function' ? action(base) : action,
-          loaded: same && prev.loaded,
-        };
+      const openId = roomIdRef.current;
+      if (!openId) {
+        return;
+      }
+      updateMessages(queryClient, openId, (cache) => {
+        const items = typeof action === 'function' ? action(cache.items) : action;
+        return items === cache.items ? cache : { ...cache, items };
       });
     },
-    [roomIdRef],
+    [queryClient, roomIdRef],
   );
-  // Tin đầu tiên chưa đọc lúc mở phòng; giữ nguyên tới khi đổi phòng
-  const [unreadFromId, setUnreadFromId] = useState<string | null>(null);
+  // Tin đầu tiên chưa đọc lúc mở phòng; tính một lần mỗi lần mở, ngay lần vẽ đầu có tin
+  // (cùng lượt với tin để effect cuộn thấy vạch "Tin nhắn chưa đọc")
+  const openSeqRef = useRef({ roomId: '', seq: 0 });
+  if (openSeqRef.current.roomId !== roomId) {
+    openSeqRef.current = { roomId, seq: openSeqRef.current.seq + 1 };
+  }
+  const openSeq = openSeqRef.current.seq;
+  const unreadRef = useRef<{ seq: number; id: string | null }>({ seq: 0, id: null });
+  if (messagesLoaded && unreadRef.current.seq !== openSeq) {
+    const opened = unreadOnOpenRef.current;
+    unreadRef.current = {
+      seq: openSeq,
+      id: firstUnreadId(
+        messages.filter((item) => !isTemp(item)),
+        opened?.roomId === roomId ? opened.count : 0,
+        user.id,
+      ),
+    };
+  }
+  const unreadFromId = unreadRef.current.seq === openSeq ? unreadRef.current.id : null;
   const unreadScrolledRef = useRef('');
   const readsQuery = useQuery({
     queryKey: queryKeys.reads(roomId),
@@ -126,11 +149,13 @@ export function useChatRoom({
   const setPins = useRoomCacheSetter<ChatMessage>(queryKeys.pins, roomIdRef);
   const [online, setOnline] = useState<PresenceUser[]>([]);
   const [pending, setPending] = useState(false);
-  const [pageMeta, setPageMeta] = useState<PageMeta>({ hasMore: false, nextCursor: null });
-  const pageMetaRef = useRef<PageMeta>({ hasMore: false, nextCursor: null });
   const [loadingOlder, setLoadingOlder] = useState(false);
   const loadingOlderRef = useRef(false);
   const listRef = useRef<HTMLDivElement>(null);
+  // Khung tin đã cuộn lần trước; khác phần tử hiện tại nghĩa là khung vừa mount lại
+  const scrolledListRef = useRef<HTMLDivElement | null>(null);
+  // Đang ở đáy: ảnh tải xong làm khung dài ra thì kéo tiếp xuống cuối; người dùng cuộn lên thì thôi
+  const stickBottomRef = useRef(true);
   const lastMessageIdRef = useRef<string>('');
   const lastRoomIdRef = useRef<string>('');
   const pendingJumpRef = useRef<{ id: string; createdAt?: string } | null>(null);
@@ -149,8 +174,9 @@ export function useChatRoom({
       if (!rid) {
         return;
       }
-      const latest = message ?? messagesRef.current[messagesRef.current.length - 1];
-      if (!latest) {
+      // Tin tạm chưa có id thật thì BE không biết, lấy tin thật mới nhất
+      const latest = message ?? lastConfirmed(messagesRef.current);
+      if (!latest || isTemp(latest)) {
         return;
       }
       const key = `${rid}:${latest.id}`;
@@ -175,57 +201,40 @@ export function useChatRoom({
     [roomIdRef, setReads, setRooms],
   );
 
+  // Đổi phòng: rời phòng cũ thì cắt cache còn một trang (lần mở sau chỉ tải lại một trang)
+  const prevRoomRef = useRef(roomId);
   useEffect(() => {
-    if (!roomId) {
-      // Phòng cuối cùng vừa bị xóa/rời: không để tin cũ còn trên màn hình
-      setStore({ roomId: '', items: EMPTY_MESSAGES, loaded: false });
-      return;
+    const prev = prevRoomRef.current;
+    prevRoomRef.current = roomId;
+    if (prev && prev !== roomId) {
+      updateMessages(queryClient, prev, (cache) => trimMessages(cache));
     }
-    let cancelled = false;
-    setUnreadFromId(null);
     setPending(false);
     setOnline([]);
-    setPageMeta({ hasMore: false, nextCursor: null });
-    pageMetaRef.current = { hasMore: false, nextCursor: null };
     setLoadingOlder(false);
-    api
-      .messages(roomId)
-      .then((page) => {
-        if (!cancelled) {
-          const opened = unreadOnOpenRef.current;
-          setUnreadFromId(
-            firstUnreadId(
-              page.data,
-              opened?.roomId === roomId ? opened.count : 0,
-              userRef.current.id,
-            ),
-          );
-          setStore((prev) => ({
-            roomId,
-            // Tin tới qua socket trong lúc đang tải (mới hơn trang vừa nạp) được giữ lại
-            items:
-              prev.roomId === roomId
-                ? mergeNewer(page.data, prev.items)
-                : page.data,
-            loaded: true,
-          }));
-          setPageMeta(page.meta);
-          pageMetaRef.current = page.meta;
-          const latest = page.data[page.data.length - 1];
-          if (!latest) {
-            setRooms((current) =>
-              current.map((r) => (r.id === roomId ? { ...r, unreadCount: 0, mentioned: false } : r)),
-            );
-          } else if (isViewingChat()) {
-            markMessageRead(latest, roomId);
-          }
-        }
-      })
-      .catch(() => setError('Không tải được tin nhắn.'));
-    return () => {
-      cancelled = true;
-    };
   }, [roomId]);
+
+  // Lần mở đầu (chưa có cache) tải hỏng; có cache thì giữ cache, lỗi tải nền bỏ qua
+  useEffect(() => {
+    if (roomId && messagesQuery.isError && !messagesQuery.data) {
+      setError('Không tải được tin nhắn.');
+    }
+  }, [roomId, messagesQuery.isError, messagesQuery.data, setError]);
+
+  // Có tin (từ cache hay vừa tải) và mỗi khi tin thật mới nhất đổi: đang xem thì báo đã đọc
+  const latestConfirmedId = lastConfirmed(messages)?.id ?? '';
+  useEffect(() => {
+    if (!roomId || !messagesLoaded) {
+      return;
+    }
+    if (!latestConfirmedId) {
+      setRooms((current) =>
+        current.map((r) => (r.id === roomId ? { ...r, unreadCount: 0, mentioned: false } : r)),
+      );
+    } else if (isViewingChat()) {
+      markMessageRead(undefined, roomId);
+    }
+  }, [roomId, messagesLoaded, latestConfirmedId]);
 
   useEffect(() => {
     const el = listRef.current;
@@ -235,8 +244,10 @@ export function useChatRoom({
     const latestId = messages[messages.length - 1]?.id ?? '';
     const roomChanged = lastRoomIdRef.current !== roomId;
     const latestChanged = lastMessageIdRef.current !== latestId;
+    // Sang Docs, Công việc… rồi quay lại Tin nhắn: khung tin mount mới với scrollTop = 0
+    const remounted = scrolledListRef.current !== el;
 
-    if (roomChanged || latestChanged || pending) {
+    if (roomChanged || latestChanged || pending || remounted) {
       // Mở phòng có tin chưa đọc: đưa vạch lên đầu khung (một lần), sau đó tin mới vẫn cuộn xuống cuối
       const divider =
         unreadFromId && unreadScrolledRef.current !== roomId
@@ -245,13 +256,40 @@ export function useChatRoom({
       if (divider) {
         divider.scrollIntoView({ block: 'start' });
         unreadScrolledRef.current = roomId;
+        stickBottomRef.current = false;
       } else {
         el.scrollTop = el.scrollHeight;
+        stickBottomRef.current = true;
       }
       lastRoomIdRef.current = roomId;
       lastMessageIdRef.current = latestId;
+      scrolledListRef.current = el;
     }
-  }, [messages, pending, roomId, unreadFromId]);
+  }, [messages, pending, roomId, unreadFromId, workspace]);
+
+  // Ảnh chưa tải thì chưa có chiều cao: cuộn xuống cuối xong, ảnh hiện ra lại đẩy đáy đi mất.
+  // Gắn lại mỗi lần đổi màn vì quay về Tin nhắn là một khung tin mới.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) {
+      return;
+    }
+    const onScroll = () => {
+      stickBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    };
+    // `load` của ảnh không nổi bọt, phải nghe ở pha capture
+    const onLoad = () => {
+      if (stickBottomRef.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    el.addEventListener('load', onLoad, true);
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      el.removeEventListener('load', onLoad, true);
+    };
+  }, [workspace]);
 
   // Nhảy tới tin chờ sẵn (mở từ Công việc, Docs…) chỉ khi tin của phòng đã vẽ và khung tin đã mount.
   // Gọi ngay hoặc trong requestAnimationFrame thì có lúc chạy trước khi React vẽ, báo nhầm "Không tìm thấy tin nhắn".
@@ -296,13 +334,7 @@ export function useChatRoom({
       if (roomIdRef.current !== startRoom) {
         return;
       }
-      setPageMeta(page.meta);
-      pageMetaRef.current = page.meta;
-      setMessages((prev) => {
-        const existingIds = new Set(prev.map((m) => m.id));
-        const older = page.data.filter((m) => !existingIds.has(m.id));
-        return [...older, ...prev];
-      });
+      updateMessages(queryClient, startRoom, (cache) => prependOlder(cache, page.data, page.meta));
       requestAnimationFrame(() => {
         if (el) {
           el.scrollTop += el.scrollHeight - prevScrollHeight;
@@ -318,6 +350,8 @@ export function useChatRoom({
   }
 
   async function jumpToMessage(id: string, createdAt?: string) {
+    // Đang xem tin được nhảy tới: ảnh tải xong không kéo về đáy
+    stickBottomRef.current = false;
     const el = document.getElementById(`msg-${id}`);
     if (el) {
       flashMessage(el);
@@ -328,7 +362,7 @@ export function useChatRoom({
       return;
     }
     const startRoom = roomIdRef.current;
-    let meta = pageMetaRef.current;
+    let meta = getMessages(queryClient, startRoom)?.meta ?? EMPTY_META;
     const older: ChatMessage[] = [];
     let found = false;
     let pages = 0;
@@ -358,12 +392,8 @@ export function useChatRoom({
       }
     }
     if (pages > 0) {
-      setMessages((prev) => {
-        const existingIds = new Set(prev.map((m) => m.id));
-        return [...older.filter((m) => !existingIds.has(m.id)), ...prev];
-      });
-      setPageMeta(meta);
-      pageMetaRef.current = meta;
+      const reached = meta;
+      updateMessages(queryClient, startRoom, (cache) => prependOlder(cache, older, reached));
     }
     if (found) {
       requestAnimationFrame(() => {
@@ -390,15 +420,10 @@ export function useChatRoom({
   }
 
   function appendMessage(message: ChatMessage) {
-    // Gửi xong mà đã sang phòng khác thì tin không được chèn vào phòng đang mở
-    if (!message.roomId || message.roomId === roomIdRef.current) {
-      setMessages((current) => {
-        if (current.some((item) => item.id === message.id)) {
-          return current;
-        }
-        return [...current, message];
-      });
-    }
+    // Chèn vào cache đúng phòng của tin, không phải phòng đang mở
+    updateMessages(queryClient, message.roomId || roomIdRef.current, (cache) =>
+      receiveMessage(cache, message),
+    );
     setRooms((current) => {
       const target = current.find((r) => r.id === (message.roomId || roomIdRef.current));
       if (!target) {
@@ -411,7 +436,7 @@ export function useChatRoom({
       };
       return upsertRoom(current, updated);
     });
-    markMessageRead(message);
+    markMessageRead(message, message.roomId || undefined);
   }
 
   function handleForwarded(sent: ChatMessage) {

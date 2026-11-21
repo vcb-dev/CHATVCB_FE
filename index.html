@@ -4,8 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CHATVCB</title>
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://chatvcb-be-production.up.railway.app" />
     <link rel="dns-prefetch" href="https://chatvcb-be-production.up.railway.app" />
+    <!-- Gắn giao diện sáng/tối trước khi vẽ để F5 không nháy trắng (khớp src/theme/themeMode.ts) -->
+    <script>
+      (function () {
+        var mode = null;
+        try { mode = localStorage.getItem('chatvcb.theme'); } catch (e) {}
+        var dark = mode === 'dark' || (mode !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
+    <style>
+      :root[data-theme='dark'] { color-scheme: dark; background: #18191a; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

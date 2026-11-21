@@ -1,7 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { requestNotifyPermission, restoreTitle } from '@/lib/notify';
+import { resetTab, setTabUnread } from '@/lib/tabBadge';
 
-export function useChatNotifications(options: { onOpenRoom: (roomId: string) => void }) {
+export function useChatNotifications(options: {
+  onOpenRoom: (roomId: string) => void;
+  /** Số cuộc trò chuyện chưa đọc hiện trên tab trình duyệt / Dock */
+  unread: number;
+}) {
   const onOpenRef = useRef(options.onOpenRoom);
   onOpenRef.current = options.onOpenRoom;
 
@@ -19,6 +24,12 @@ export function useChatNotifications(options: { onOpenRoom: (roomId: string) => 
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
       off?.();
+      // Đăng xuất thì không để lại số chưa đọc của tài khoản cũ trên tab
+      resetTab();
     };
   }, []);
+
+  useEffect(() => {
+    setTabUnread(options.unread);
+  }, [options.unread]);
 }

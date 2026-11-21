@@ -1,10 +1,13 @@
 import { CloseOutlined, SearchOutlined } from '@ant-design/icons';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { Avatar, Button, DatePicker, Input, Select, Spin } from 'antd';
-import { useEffect, useMemo, useState } from 'react';
-import { api, fileSrc } from '@/api/client';
+import { Button, DatePicker, Input, Select } from 'antd';
+import { useMemo, useState } from 'react';
+import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
-import { avatarColor, initials } from '@/lib/avatar';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
+import { UserAvatar } from '@/components/UserAvatar';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import type { ChatMessage, Room, RoomMember, RoomMessageSearch } from '@/types';
 import { formatShort } from '../utils/datetime';
 
@@ -41,16 +44,9 @@ type Props = {
 
 export function ConversationSearch({ room, members, overlay, onClose, onJump }: Props) {
   const [text, setText] = useState('');
-  const [q, setQ] = useState('');
+  const q = useDebouncedValue(text);
   const [senderId, setSenderId] = useState<string | undefined>(undefined);
   const [range, setRange] = useState<[string, string] | null>(null);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setQ(text);
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [text]);
 
   const params = useMemo<RoomMessageSearch>(
     () => ({
@@ -111,7 +107,7 @@ export function ConversationSearch({ room, members, overlay, onClose, onJump }: 
           value={text}
           onChange={(e) => setText(e.target.value)}
           allowClear
-          prefix={<SearchOutlined style={{ color: '#8a8d91' }} />}
+          prefix={<SearchOutlined style={{ color: 'var(--ui-text-3)' }} />}
         />
         <Select
           placeholder="Người gửi"
@@ -142,15 +138,13 @@ export function ConversationSearch({ room, members, overlay, onClose, onJump }: 
 
       <div className="search-results">
         {!hasFilter ? (
-          <div className="search-empty">Nhập từ khóa hoặc chọn người gửi, ngày.</div>
+          <EmptyState compact title="Nhập từ khóa hoặc chọn người gửi, ngày." />
         ) : isLoading ? (
-          <div className="search-empty">
-            <Spin size="small" />
-          </div>
+          <LoadingState compact size="small" />
         ) : isError ? (
-          <div className="search-empty">Không tìm được tin nhắn.</div>
+          <EmptyState compact title="Không tìm được tin nhắn." />
         ) : hits.length === 0 ? (
-          <div className="search-empty">Không tìm thấy tin nhắn phù hợp.</div>
+          <EmptyState compact title="Không tìm thấy tin nhắn phù hợp." />
         ) : (
           <>
             {hits.map((hit) => {
@@ -165,14 +159,14 @@ export function ConversationSearch({ room, members, overlay, onClose, onJump }: 
                     if (overlay) onClose();
                   }}
                 >
-                  <Avatar
+                  <UserAvatar
                     size={36}
                     className="avatar-initials"
-                    src={hit.authorAvatarUrl ? fileSrc(hit.authorAvatarUrl) : undefined}
-                    style={{ background: avatarColor(hit.authorName), flexShrink: 0 }}
-                  >
-                    {initials(hit.authorName)}
-                  </Avatar>
+                    src={hit.authorAvatarUrl}
+                    name={hit.authorName}
+                    zoomable={false}
+                    style={{ flexShrink: 0 }}
+                  />
                   <div className="search-hit-body">
                     <div className="search-hit-header">
                       <span className="search-hit-name">{hit.authorName}</span>

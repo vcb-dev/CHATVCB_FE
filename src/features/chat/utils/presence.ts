@@ -92,3 +92,31 @@ export function lastSeenShort(online: boolean, iso: string | undefined, now: num
   if (diffMs < HOUR_MS) return `${Math.floor(diffMs / MINUTE_MS)} phút`;
   return `${Math.floor(diffMs / HOUR_MS)} giờ`;
 }
+
+/**
+ * Người mà mình đã chặn hoặc đã chặn mình (theo chat 1-1): hai bên không thấy trạng thái
+ * hoạt động của nhau, như Messenger. Trả chuỗi id đã sắp xếp để làm khóa useMemo ổn định.
+ */
+export function hiddenPresenceKey(rooms: Room[]) {
+  return rooms
+    .filter((room) => room.peerUserId && (room.blockedByMe || room.blockedMe))
+    .map((room) => room.peerUserId as string)
+    .sort()
+    .join(',');
+}
+
+/** Bỏ những người trong `hidden` khỏi các nguồn trạng thái hoạt động; không ai bị ẩn thì giữ nguyên đối tượng cũ. */
+export function hidePresence(
+  hidden: ReadonlySet<string>,
+  source: { onlineUserIds: Set<string>; onlineUsers: PresenceUser[]; roomOnline: PresenceUser[]; lastSeen: Record<string, string> },
+) {
+  if (hidden.size === 0) {
+    return source;
+  }
+  return {
+    onlineUserIds: new Set([...source.onlineUserIds].filter((id) => !hidden.has(id))),
+    onlineUsers: source.onlineUsers.filter((u) => !hidden.has(u.id)),
+    roomOnline: source.roomOnline.filter((u) => !hidden.has(u.id)),
+    lastSeen: Object.fromEntries(Object.entries(source.lastSeen).filter(([id]) => !hidden.has(id))),
+  };
+}

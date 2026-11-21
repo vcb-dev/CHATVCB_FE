@@ -1,7 +1,9 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Alert, Button, Card, Form, Input, Typography } from 'antd';
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { api } from '@/api/client';
+import { FormField } from '@/components/FormField';
 import type { User } from '@/types';
 
 type Props = {
@@ -18,6 +20,7 @@ export function LoginPage({ onLoggedIn }: Props) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { control, handleSubmit } = useForm<FormValues>({ mode: 'onChange' });
 
   async function onFinish(values: FormValues) {
     setError('');
@@ -80,16 +83,27 @@ export function LoginPage({ onLoggedIn }: Props) {
           Mỗi team chỉ vào phòng của team đó. Sale: sale1 / sale2 / sale3. Traffic:
           traffic1 / traffic2. Mật khẩu Password123.
         </Typography.Paragraph>
-        <Form layout="vertical" onFinish={onFinish} requiredMark={false} autoComplete="off">
+        <Form
+          layout="vertical"
+          onFinish={() => void handleSubmit(onFinish)()}
+          requiredMark={false}
+          autoComplete="off"
+        >
           {mode === 'register' ? (
-            <Form.Item name="name" label="Họ tên" rules={[{ required: true }]}>
+            <FormField
+              control={control}
+              name="name"
+              label="Họ tên"
+              rules={{ required: 'Nhập họ tên' }}
+            >
               <Input size="large" placeholder="Traffic Ba" autoComplete="off" spellCheck={false} />
-            </Form.Item>
+            </FormField>
           ) : null}
-          <Form.Item
+          <FormField
+            control={control}
             name="email"
             label="Email hoặc tài khoản"
-            rules={[{ required: true, message: 'Nhập tài khoản' }]}
+            rules={{ required: 'Nhập tài khoản' }}
           >
             <Input
               size="large"
@@ -112,11 +126,15 @@ export function LoginPage({ onLoggedIn }: Props) {
                 password?.focus();
               }}
             />
-          </Form.Item>
-          <Form.Item
+          </FormField>
+          <FormField
+            control={control}
             name="password"
             label="Mật khẩu"
-            rules={[{ required: true, min: 6, message: 'Tối thiểu 6 ký tự' }]}
+            rules={{
+              required: 'Tối thiểu 6 ký tự',
+              minLength: { value: 6, message: 'Tối thiểu 6 ký tự' },
+            }}
           >
             <Input.Password
               size="large"
@@ -124,7 +142,7 @@ export function LoginPage({ onLoggedIn }: Props) {
               placeholder="Password123"
               autoComplete="current-password"
             />
-          </Form.Item>
+          </FormField>
           {error ? <Alert type="error" message={error} showIcon style={{ marginBottom: 16 }} /> : null}
           <Button type="primary" htmlType="submit" size="large" block loading={loading}>
             {mode === 'login' ? 'Đăng nhập' : 'Đăng ký'}

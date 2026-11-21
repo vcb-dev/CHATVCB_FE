@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ContactsOutlined, MessageOutlined, SearchOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
-import { Avatar, Button, Input, Spin, message as antMessage } from 'antd';
-import { api, fileSrc } from '@/api/client';
+import { Button, Input, message as antMessage } from 'antd';
+import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { ContentCard } from '@/components/ContentCard';
 import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
 import { ModuleLayout } from '@/components/ModuleLayout';
 import { PageHeader } from '@/components/PageHeader';
-import { avatarColor, initials } from '@/lib/avatar';
+import { UserAvatar } from '@/components/UserAvatar';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import type { DirectoryUser, PageMeta, Room } from '@/types';
 import { ContactsGroups } from './components/ContactsGroups';
 import { groupByLetter } from './utils/contacts';
@@ -38,13 +40,8 @@ export function ContactsPage({ onlineUserIds, onViewProfile, onOpenRoom, ...prop
   const [tab, setTab] = useState<ContactsTab>('friends');
   const [searchText, setSearchText] = useState('');
   const [groupSearch, setGroupSearch] = useState('');
-  const [query, setQuery] = useState('');
+  const query = useDebouncedValue(searchText.trim());
   const [openingId, setOpeningId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setQuery(searchText.trim()), 250);
-    return () => window.clearTimeout(timer);
-  }, [searchText]);
 
   // Cả danh bạ để đếm trên tab; chưa tìm thì trùng key với `contacts` nên chỉ gọi một lần
   const everyone = useQuery({
@@ -127,16 +124,12 @@ export function ContactsPage({ onlineUserIds, onViewProfile, onOpenRoom, ...prop
             onCreateGroup={props.onCreateGroup}
           />
         ) : contacts.isPending ? (
-          <div className="contacts-state">
-            <Spin />
-          </div>
+          <LoadingState />
         ) : contacts.isError ? (
-          <div className="contacts-state">
-            <EmptyState
-              title="Không tải được danh bạ"
-              action={<Button onClick={() => void contacts.refetch()}>Thử lại</Button>}
-            />
-          </div>
+          <EmptyState
+            title="Không tải được danh bạ"
+            action={<Button onClick={() => void contacts.refetch()}>Thử lại</Button>}
+          />
         ) : groups.length === 0 ? (
           <EmptyState
             icon={<SearchOutlined />}
@@ -154,16 +147,13 @@ export function ContactsPage({ onlineUserIds, onViewProfile, onOpenRoom, ...prop
                     onClick={() => onViewProfile(person.id)}
                   >
                     <span className="contacts-avatar">
-                      <Avatar
+                      <UserAvatar
                         size={44}
-                        src={person.avatarUrl ? fileSrc(person.avatarUrl) : undefined}
-                        style={{ background: avatarColor(person.name) }}
-                      >
-                        {initials(person.name)}
-                      </Avatar>
-                      {onlineUserIds.has(person.id) ? (
-                        <i className="contacts-online" title="Đang online" />
-                      ) : null}
+                        src={person.avatarUrl}
+                        name={person.name}
+                        zoomable={false}
+                        online={onlineUserIds.has(person.id)}
+                      />
                     </span>
                     <span className="contacts-info">
                       <strong>{person.name}</strong>

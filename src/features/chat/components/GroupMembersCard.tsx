@@ -1,8 +1,8 @@
-import { PlusOutlined, RightOutlined, TeamOutlined } from '@ant-design/icons';
-import { Avatar, Input, Modal } from 'antd';
+import { PlusOutlined, RightOutlined, SearchOutlined } from '@ant-design/icons';
+import { Input, Modal } from 'antd';
 import { useMemo, useState } from 'react';
-import { fileSrc } from '@/api/client';
-import { avatarColor, initials } from '@/lib/avatar';
+import { EmptyState } from '@/components/EmptyState';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { Room, RoomMember } from '@/types';
 import { useLastSeenContext } from '../hooks/useLastSeen';
 import { matchMember, sortByRole } from '../utils/members';
@@ -27,13 +27,12 @@ function MemberRow({ room, member, currentUserId, onPick, onMembersUpdated, onRe
   return (
     <div className="group-member-wrap">
       <button type="button" className="group-member" onClick={() => onPick(member)}>
-        <Avatar
+        <UserAvatar
           size={40}
-          src={member.avatarUrl ? fileSrc(member.avatarUrl) : undefined}
-          style={{ background: avatarColor(label) }}
-        >
-          {initials(label)}
-        </Avatar>
+          src={member.avatarUrl}
+          name={label}
+          zoomable={false}
+        />
         <span className="group-member-info">
           <strong className="group-member-name">
             <span>{label}</span>
@@ -63,8 +62,6 @@ type Props = {
   room: Room;
   members: RoomMember[];
   currentUserId: string;
-  open: boolean;
-  onToggle: () => void;
   /** null khi người xem không được thêm/đề xuất thành viên. */
   addLabel: string | null;
   onAdd: () => void;
@@ -82,18 +79,7 @@ export function GroupMembersCard({
   onPick,
   onMembersUpdated,
   onRemove,
-}: {
-  room: Room;
-  members: RoomMember[];
-  currentUserId: string;
-  open?: boolean;
-  onToggle?: () => void;
-  addLabel: string | null;
-  onAdd: () => void;
-  onPick: (member: RoomMember) => void;
-  onMembersUpdated: (members: RoomMember[]) => void;
-  onRemove: (member: RoomMember) => void;
-}) {
+}: Props) {
   const [allOpen, setAllOpen] = useState(false);
   const [query, setQuery] = useState('');
   const sorted = useMemo(() => sortByRole(members), [members]);
@@ -139,7 +125,8 @@ export function GroupMembersCard({
         width={440}
         zIndex={999}
       >
-        <Input.Search
+        <Input
+          prefix={<SearchOutlined />}
           placeholder="Tìm theo tên, biệt danh, @handle..."
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -153,7 +140,7 @@ export function GroupMembersCard({
             ))}
           </div>
         ) : (
-          <p className="members-modal-empty">Không có ai khớp</p>
+          <EmptyState compact title="Không có ai khớp" />
         )}
       </Modal>
     </div>

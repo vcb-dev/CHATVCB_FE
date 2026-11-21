@@ -1,13 +1,14 @@
 import { DownloadOutlined, FileTextOutlined, MessageOutlined } from '@ant-design/icons';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { Avatar, Button, Dropdown, Spin } from 'antd';
-import { api, fileSrc } from '@/api/client';
+import { Button, Dropdown } from 'antd';
+import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
+import { UserAvatar } from '@/components/UserAvatar';
 import { FileTypeIcon } from '@/features/chat/components/FileTypeIcon';
 import { formatBytes } from '@/features/chat/utils/attachments';
 import { fileKind } from '@/features/chat/utils/fileKind';
-import { avatarColor, initials } from '@/lib/avatar';
 import type { ChatDocFile, ChatDocQuery } from '@/types';
 import { saveFile } from '../utils/saveFile';
 import type { ChatDocRoom } from './ChatFilesFilters';
@@ -20,18 +21,6 @@ function formatSentAt(value: string) {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-function smallAvatar(name: string, avatarUrl: string) {
-  return (
-    <Avatar
-      size={22}
-      src={avatarUrl ? fileSrc(avatarUrl) : undefined}
-      style={{ background: avatarColor(name), flexShrink: 0 }}
-    >
-      {initials(name)}
-    </Avatar>
-  );
 }
 
 export function ChatFilesTable(props: {
@@ -50,11 +39,7 @@ export function ChatFilesTable(props: {
   });
 
   if (files.isPending) {
-    return (
-      <div className="chat-docs-loading">
-        <Spin />
-      </div>
-    );
+    return <LoadingState />;
   }
   if (files.isError) {
     return (
@@ -120,12 +105,24 @@ export function ChatFilesTable(props: {
                   props.onFilterRoom({ id: item.room.id, title: item.room.title });
                 }}
               >
-                {smallAvatar(item.room.title, item.room.avatarUrl)}
+                <UserAvatar
+                  size={22}
+                  src={item.room.avatarUrl}
+                  name={item.room.title}
+                  zoomable={false}
+                  style={{ flexShrink: 0 }}
+                />
                 <span className="chat-docs-text">{item.room.title}</span>
               </button>
             </span>
             <span className="docs-owner">
-              {smallAvatar(item.sender.name, item.sender.avatarUrl)}
+              <UserAvatar
+                size={22}
+                src={item.sender.avatarUrl}
+                name={item.sender.name}
+                zoomable={false}
+                style={{ flexShrink: 0 }}
+              />
               <span className="chat-docs-text">{item.sender.name}</span>
             </span>
             <span>{formatSentAt(item.createdAt)}</span>

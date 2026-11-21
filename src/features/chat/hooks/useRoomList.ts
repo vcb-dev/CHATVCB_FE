@@ -50,7 +50,7 @@ export function useRoomList({
 
   // Không poll: thay đổi tới qua socket (message, room.updated, rooms.changed, room.read…),
   // nối lại socket thì tải lại; quay lại tab cũng tải lại cho chắc
-  const { data, isError } = useQuery({
+  const { data, isError, isPending } = useQuery({
     queryKey: queryKeys.rooms,
     queryFn: fetchRoomList,
     refetchOnWindowFocus: true,
@@ -103,8 +103,11 @@ export function useRoomList({
     (next: Room) => {
       unreadOnOpenRef.current = { roomId: next.id, count: next.unreadCount };
       setRoomId(next.id);
+      // Xóa luôn dấu @ và "đánh dấu chưa đọc", không chờ markRead trả về
       setRooms((current) =>
-        current.map((r) => (r.id === next.id ? { ...r, unreadCount: 0 } : r)),
+        current.map((r) =>
+          r.id === next.id ? { ...r, unreadCount: 0, mentioned: false, markedUnread: false } : r,
+        ),
       );
     },
     [setRooms],
@@ -160,7 +163,7 @@ export function useRoomList({
     // staleTime 0: gọi khi có tin của phòng chưa có trong danh sách, cache dù mới tải cũng chưa có phòng đó
     () =>
       queryClient
-        .fetchQuery({ queryKey: queryKeys.rooms, queryFn: fetchRoomList, staleTime: 0 })
+        .query({ queryKey: queryKeys.rooms, queryFn: fetchRoomList, staleTime: 0 })
         .then((page) => page.data),
     [queryClient, fetchRoomList],
   );
@@ -174,6 +177,7 @@ export function useRoomList({
     roomIdRef,
     roomsMeta,
     loadingOlderRooms,
+    loadingRooms: isPending,
     findRoom,
     openRoom,
     selectRoom,

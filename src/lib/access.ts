@@ -36,6 +36,9 @@ export const P = {
     publish: "news.publish",
     facebook: "news.facebook",
   },
+  profile: {
+    rename: "profile.rename",
+  },
 } as const;
 /** Kiểm tra quyền truy cập */
 export function can(

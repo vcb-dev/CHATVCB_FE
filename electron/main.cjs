@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Notification, ipcMain, shell, screen } = require('electron');
+const { app, BrowserWindow, Notification, ipcMain, nativeTheme, shell, screen } = require('electron');
 const path = require('path');
 
 let mentionWin = null;
@@ -88,7 +88,8 @@ function createWindow() {
     minWidth: 880,
     minHeight: 600,
     title: 'CHATVCB',
-    backgroundColor: '#ffffff',
+    // Nền lúc trang chưa tải: theo sáng/tối của hệ điều hành để không nháy trắng
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#18191a' : '#ffffff',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -106,7 +107,7 @@ function createWindow() {
           minWidth: 880,
           minHeight: 600,
           title: String(url).includes('#/sheet') ? 'Bảng tính · CHATVCB' : 'Cuộc họp · CHATVCB',
-          backgroundColor: '#f1f3f4',
+          backgroundColor: nativeTheme.shouldUseDarkColors ? '#18191a' : '#f1f3f4',
         },
       };
     }
@@ -127,6 +128,35 @@ function senderWindow(event) {
 
 ipcMain.on('chatvcb:focused', (event) => {
   event.returnValue = Boolean(senderWindow(event)?.isFocused());
+});
+
+// Số cuộc trò chuyện chưa đọc lên icon Dock (macOS) như Messenger
+ipcMain.on('chatvcb:badge', (_event, count) => {
+  app.setBadgeCount(Math.max(0, Math.floor(Number(count)) || 0));
+});
+
+// Cuộc gọi đến lúc app chạy nền: nảy icon Dock (macOS) / nháy thanh tác vụ (Windows) tới khi bắt máy, từ chối hoặc hết chuông
+let callBounceId = null;
+
+function stopCallAlert(win) {
+  if (callBounceId !== null) {
+    app.dock?.cancelBounce(callBounceId);
+    callBounceId = null;
+  }
+  win?.flashFrame(false);
+}
+
+ipcMain.on('chatvcb:call-alert', (event, on) => {
+  const win = senderWindow(event);
+  stopCallAlert(win);
+  if (!on || win?.isFocused()) {
+    return;
+  }
+  if (process.platform === 'darwin') {
+    callBounceId = app.dock?.bounce('critical') ?? null;
+  } else {
+    win?.flashFrame(true);
+  }
 });
 
 ipcMain.on('chatvcb:notify', (event, payload) => {
@@ -152,6 +182,11 @@ ipcMain.on('chatvcb:notify', (event, payload) => {
   });
   toast.show();
 });
+
+// Windows chỉ hiện thông báo khi app có AppUserModelId khớp shortcut (bản cài: appId của electron-builder)
+if (process.platform === 'win32') {
+  app.setAppUserModelId(app.isPackaged ? 'vn.chatvcb.desktop' : process.execPath);
+}
 
 app.whenReady().then(() => {
   createWindow();

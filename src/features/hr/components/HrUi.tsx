@@ -65,14 +65,3 @@ export function HrSensitiveBanner() {
     </div>
   );
 }
-
-export function HrDocPlaceholder(props: { label: string }) {
-  return (
-    <div className="hr-doc-slot">
-      <span className="hr-field-label">{props.label}</span>
-      <div className="hr-doc-frame">
-        <span>Chưa tải ảnh</span>
-      </div>
-    </div>
-  );
-}

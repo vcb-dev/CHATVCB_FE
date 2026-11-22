@@ -9149,3 +9149,32 @@ button.task-peek-title.editable:focus-visible .anticon {
     height: 100%;
   }
 }
+
+/* Popup @ có avatar (MentionOption) */
+.mention-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mention-option > :first-child {
+  flex-shrink: 0;
+}
+
+.mention-option-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mention-option-ico.is-all {
+  background: var(--ui-primary);
+  color: #ffffff;
+}
+
+.mention-option-ico.is-agent {
+  background: var(--ui-success);
+  color: #ffffff;
+}

@@ -60,6 +60,7 @@ export function useChatRoom({
   setRooms,
   isViewingChat,
   setError,
+  onRoomOpened,
 }: {
   user: User;
   roomId: string;
@@ -70,6 +71,8 @@ export function useChatRoom({
   setRooms: Dispatch<SetStateAction<Room[]>>;
   isViewingChat: () => boolean;
   setError: (error: string) => void;
+  /** openMessage mở phòng chứa tin (kể cả phòng đang chọn) */
+  onRoomOpened?: (roomId: string) => void;
 }) {
   const queryClient = useQueryClient();
   // Tin theo phòng nằm trong cache: mở lại phòng đã xem thì hiện ngay, trang mới nhất tải lại ở nền
@@ -411,6 +414,7 @@ export function useChatRoom({
 
   function openMessage(targetRoomId: string, messageId: string, createdAt?: string) {
     pendingJumpRef.current = { id: messageId, createdAt };
+    onRoomOpened?.(targetRoomId);
     if (roomId !== targetRoomId) {
       setRoomId(targetRoomId);
     } else {

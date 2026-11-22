@@ -1,4 +1,5 @@
 import {
+  ArrowLeftOutlined,
   CloudOutlined,
   LayoutOutlined,
   PhoneOutlined,
@@ -26,6 +27,10 @@ export function ChatHeader(props: {
   onStartVideoCall?: () => void;
   /** Chat 1-1: bấm avatar/tên mở hồ sơ người bên kia. */
   onOpenProfile?: () => void;
+  /** Điện thoại: về danh sách phòng, thay chỗ nút menu */
+  onBack?: () => void;
+  /** Số phòng có tin chưa đọc, hiện cạnh nút quay lại */
+  backBadge?: number;
 }) {
   const { room, isDirect, isPeerOnline, membersCount, onlineMembersCount } = props;
   const isCloud = room?.isCloud ?? false;
@@ -42,7 +47,23 @@ export function ChatHeader(props: {
 
   return (
     <header className="chat-head">
-      <MenuButton />
+      {props.onBack ? (
+        <button
+          type="button"
+          className="chat-head-back"
+          aria-label="Về danh sách tin nhắn"
+          onClick={props.onBack}
+        >
+          <ArrowLeftOutlined />
+          {props.backBadge ? (
+            <span className="chat-head-back-badge">
+              {props.backBadge > 99 ? '99+' : props.backBadge}
+            </span>
+          ) : null}
+        </button>
+      ) : (
+        <MenuButton />
+      )}
       <div className="chat-head-info">
         <UserAvatar
           size={44}

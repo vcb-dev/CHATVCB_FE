@@ -712,3 +712,87 @@
   }
 }
 
+/* Khổ hẹp: header xuống dòng thay vì bóp chữ (tiêu đề "Công việc"/"Nhân sự" từng vỡ 2 dòng, nút bên phải bị cắt) */
+@media (max-width: 800px) {
+  .ui-page-header {
+    padding: 0 12px;
+  }
+
+  .ui-page-header-main {
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 0;
+    padding: 12px 0;
+  }
+
+  .ui-page-title {
+    display: block;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 17px;
+    line-height: 40px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* Thống kê nhỏ (Tổng/Chính thức…, khoảng ngày) xuống một hàng riêng, cuộn ngang nếu dài */
+  .ui-page-meta {
+    order: 1;
+    flex-basis: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .ui-page-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 100%;
+  }
+
+  .ui-page-tabs-row:not(:last-child) {
+    margin: -4px -12px 12px;
+    padding: 0 12px;
+  }
+
+  .ui-page-tabs {
+    scrollbar-width: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .ui-module-body {
+    padding: 12px;
+  }
+
+  /* Màn có cột trái (hộp thư Email, thư mục Docs): cột trái thành dải trên cùng, dưới header */
+  .ui-module:has(> .ui-sidebar) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    background: var(--ui-bg-app);
+  }
+
+  .ui-module:has(> .ui-sidebar) > .ui-module-main {
+    display: contents;
+  }
+
+  .ui-module:has(> .ui-sidebar) .ui-page-header {
+    order: -1;
+  }
+
+  .ui-module > .ui-sidebar {
+    max-height: 30vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--ui-border);
+  }
+
+  .ui-module > .ui-sidebar .ui-sidebar-title {
+    display: none;
+  }
+
+  .ui-module > .ui-sidebar .ui-sidebar-action {
+    padding-top: 8px;
+  }
+}

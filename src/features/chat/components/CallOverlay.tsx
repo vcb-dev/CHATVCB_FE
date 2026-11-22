@@ -20,6 +20,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { listMediaDevices, type MediaDeviceList } from '@/features/meetings/meet';
 import type { CallPeer, User } from '@/types';
 import type { ActiveCallState } from '../hooks/useChatCall';
+import { useDragMove } from '../hooks/useDragMove';
 import { CallRemoteTile } from './CallRemoteTile';
 
 type Props = {
@@ -68,6 +69,9 @@ export function CallOverlay(props: Props) {
   const [expanded, setExpanded] = useState(false);
   const [deviceOpen, setDeviceOpen] = useState(false);
   const [devices, setDevices] = useState<MediaDeviceList>({ mics: [], cams: [] });
+  // Cửa sổ gọi (thoại lẫn video) và thanh thu nhỏ kéo đi được, mỗi khung nhớ chỗ riêng
+  const windowDrag = useDragMove(!expanded);
+  const pipDrag = useDragMove(true);
 
   const hasLocalVideo = Boolean(
     localStream &&
@@ -110,7 +114,7 @@ export function CallOverlay(props: Props) {
   if (minimized) {
     const primaryPeer = spotlightPeer ?? peers[0];
     return (
-      <div className="call-pip" role="region" aria-label="Cuộc gọi đang thu nhỏ">
+      <div {...pipDrag} className="call-pip" role="region" aria-label="Cuộc gọi đang thu nhỏ">
         {/* Giữ các thẻ video/audio từ xa luôn phát tiếng ngay cả khi thu nhỏ */}
         <div className="call-pip-hidden-streams" aria-hidden="true">
           {peers.map((peer) => (
@@ -183,6 +187,7 @@ export function CallOverlay(props: Props) {
 
   return (
     <div
+      {...windowDrag}
       className={expanded ? 'call-window is-expanded' : 'call-window'}
       role="dialog"
       aria-label={`Cuộc gọi với ${call.roomTitle}`}

@@ -9178,3 +9178,28 @@ button.task-peek-title.editable:focus-visible .anticon {
   background: var(--ui-success);
   color: #ffffff;
 }
+
+/* Kéo khung cuộc gọi (useDragMove) */
+.call-window,
+.call-pip {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.call-window img,
+.call-pip img {
+  -webkit-user-drag: none;
+}
+
+.call-window:not(.is-expanded) .call-window-head,
+.call-pip {
+  cursor: grab;
+  touch-action: none;
+}
+
+.call-window[data-dragging],
+.call-window[data-dragging] *,
+.call-pip[data-dragging],
+.call-pip[data-dragging] * {
+  cursor: grabbing;
+}

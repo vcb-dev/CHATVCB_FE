@@ -95,3 +95,34 @@ export function mentionsUser(content: string, handle: string, everyone = false) 
   }
   return false;
 }
+
+export type MentionKind = 'all' | 'agent' | 'person';
+
+export type MentionPerson = { name: string; avatarUrl?: string };
+
+/** Dòng trong popup @ là `@all`, agent AI hay một người (để chọn avatar). */
+export function mentionKind(handle: string, room: Pick<Room, 'agentName'> | null): MentionKind {
+  if (handle === ALL_HANDLE) {
+    return 'all';
+  }
+  if (handle === AGENT_HANDLE || handle === room?.agentName?.trim()) {
+    return 'agent';
+  }
+  return 'person';
+}
+
+/** Tên + ảnh theo handle cho popup @: thành viên phòng trước, người online chỉ bổ sung (không có ảnh). */
+export function mentionPeople(members: RoomMember[], online: PresenceUser[]) {
+  const people = new Map<string, MentionPerson>();
+  for (const item of members) {
+    if (item.handle) {
+      people.set(item.handle, { name: item.displayName || item.name, avatarUrl: item.avatarUrl });
+    }
+  }
+  for (const item of online) {
+    if (item.handle && !people.has(item.handle)) {
+      people.set(item.handle, { name: item.name });
+    }
+  }
+  return people;
+}

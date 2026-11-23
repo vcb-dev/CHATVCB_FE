@@ -12,9 +12,12 @@ const EMPTY_META: PageMeta = { hasMore: false, nextCursor: null };
 export function useRoomList({
   isViewingChat,
   setError,
+  onRoomOpened,
 }: {
   isViewingChat: () => boolean;
   setError: (error: string) => void;
+  /** Người dùng chủ động mở phòng (openRoom/selectRoom); phòng tự chọn khi tải danh sách hay sau khi xoá phòng thì không gọi. */
+  onRoomOpened?: (roomId: string) => void;
 }) {
   const [roomId, setRoomId] = useState('');
   const [loadingOlderRooms, setLoadingOlderRooms] = useState(false);
@@ -96,6 +99,7 @@ export function useRoomList({
     unreadOnOpenRef.current = { roomId: nextRoom.id, count: nextRoom.unreadCount ?? 0 };
     setRooms((prev) => upsertRoom(prev, { ...nextRoom, hidden: false }));
     setRoomId(nextRoom.id);
+    onRoomOpened?.(nextRoom.id);
   }
 
   // Giữ nguyên danh tính giữa các lần vẽ để dòng phòng (RoomListItem) không phải vẽ lại
@@ -103,6 +107,7 @@ export function useRoomList({
     (next: Room) => {
       unreadOnOpenRef.current = { roomId: next.id, count: next.unreadCount };
       setRoomId(next.id);
+      onRoomOpened?.(next.id);
       // Xóa luôn dấu @ và "đánh dấu chưa đọc", không chờ markRead trả về
       setRooms((current) =>
         current.map((r) =>
@@ -110,7 +115,7 @@ export function useRoomList({
         ),
       );
     },
-    [setRooms],
+    [setRooms, onRoomOpened],
   );
 
   function updateRoom(next: Room) {

@@ -3332,6 +3332,74 @@ button.app-menu-foot-item:hover {
   }
 }
 
+/* Điện thoại: danh sách phòng và khung chat mỗi lúc một màn (ChatPage gắn .phone-list khi chưa mở phòng nào) */
+.chat-head-back {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ui-text);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.chat-head-back:hover,
+.chat-head-back:focus-visible {
+  background: var(--ui-bg-hover);
+}
+
+.chat-head-back-badge {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--ui-badge-red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 800px) {
+  .app-shell.module-messenger.phone-list > .sidebar {
+    display: flex;
+  }
+
+  .app-shell.module-messenger.phone-list > .chat,
+  .app-shell.module-messenger.phone-list > .group-pane {
+    display: none;
+  }
+
+  .chat-head {
+    gap: 8px;
+    padding: 0 10px;
+  }
+
+  .chat-head .chat-head-info {
+    gap: 8px;
+  }
+
+  .chat-head .chat-head-actions {
+    gap: 0;
+  }
+
+  .chat-head .chat-head-actions .chat-head-btn.ant-btn {
+    width: 38px;
+    height: 38px;
+  }
+}
+
 /* Reactions */
 .bubble-wrap {
   position: relative;
@@ -3373,10 +3441,31 @@ button.app-menu-foot-item:hover {
   pointer-events: auto;
 }
 
+/* Màn cảm ứng: chạm vào tin thì tin đó nhận :hover nên thanh chỉ hiện ở tin vừa chạm, không phủ kín mọi tin */
 @media (hover: none) {
-  .msg-hover-bar {
-    opacity: 0.9;
-    pointer-events: auto;
+  .sidebar-search-kbd {
+    display: none;
+  }
+}
+
+/* Khổ hẹp: thanh nổi dưới bong bóng, không chiếm chỗ ngang (thẻ cuộc gọi/ảnh khỏi bị đẩy tràn).
+   Phía trên là chỗ của popover "Đã xem" (mở khi bấm bong bóng), nên đặt bên dưới để khỏi bị che. */
+@media (max-width: 800px) {
+  .bubble-wrap > .msg-hover-bar {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    z-index: 3;
+  }
+
+  .row:hover .bubble-wrap,
+  .row:focus-within .bubble-wrap {
+    z-index: 2;
+  }
+
+  .row.mine .bubble-wrap > .msg-hover-bar {
+    left: auto;
+    right: 0;
   }
 }
 
@@ -9148,4 +9237,58 @@ button.task-peek-title.editable:focus-visible .anticon {
     width: 128px;
     height: 100%;
   }
+}
+
+/* Popup @ có avatar (MentionOption) */
+.mention-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mention-option > :first-child {
+  flex-shrink: 0;
+}
+
+.mention-option-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mention-option-ico.is-all {
+  background: var(--ui-primary);
+  color: #ffffff;
+}
+
+.mention-option-ico.is-agent {
+  background: var(--ui-success);
+  color: #ffffff;
+}
+
+/* Kéo khung cuộc gọi (useDragMove) */
+.call-window,
+.call-pip {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.call-window img,
+.call-pip img {
+  -webkit-user-drag: none;
+}
+
+.call-window:not(.is-expanded) .call-window-head,
+.call-pip {
+  cursor: grab;
+  touch-action: none;
+}
+
+.call-window[data-dragging],
+.call-window[data-dragging] *,
+.call-pip[data-dragging],
+.call-pip[data-dragging] * {
+  cursor: grabbing;
 }

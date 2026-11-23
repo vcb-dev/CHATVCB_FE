@@ -154,6 +154,7 @@
   cursor: pointer;
   font: inherit;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .news-reaction-main-group > .news-reaction-main {

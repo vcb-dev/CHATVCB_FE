@@ -137,6 +137,11 @@ const TasksPage = withLazy(() =>
 
 export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const narrow = useMediaQuery('(max-width: 1100px)');
+  // Điện thoại (≤800px): danh sách phòng và khung chat mỗi lúc một màn.
+  // Chỉ hiện khung chat khi phòng đang chọn là phòng người dùng vừa mở; phòng tự chọn lúc tải
+  // danh sách hay phòng thay thế sau khi rời/xoá phòng đều không khớp nên tự về danh sách.
+  const phone = useMediaQuery('(max-width: 800px)');
+  const [phoneRoomId, setPhoneRoomId] = useState('');
   const [infoHidden, setInfoHidden] = useState<boolean>(() => {
     try {
       return localStorage.getItem('chatvcb.infoHidden') === '1';
@@ -239,8 +244,13 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     queryKey: queryKeys.newsUnread,
     queryFn: () => api.newsUnread(),
   });
-  const roomList = useRoomList({ isViewingChat, setError });
+  const onListPaneRef = useRef(false);
+  // Đang ở màn danh sách trên điện thoại thì phòng chọn sẵn phía sau không tính là đang xem
+  const isViewingRoom = useCallback(() => isViewingChat() && !onListPaneRef.current, [isViewingChat]);
+  const roomList = useRoomList({ isViewingChat: isViewingRoom, setError, onRoomOpened: setPhoneRoomId });
   const { rooms, room, roomId } = roomList;
+  const onListPane = phone && (!roomId || phoneRoomId !== roomId);
+  onListPaneRef.current = onListPane;
 
   const messengerUnread = useMemo(() => countUnreadRooms(rooms), [rooms]);
   const menuBadges = useMemo<Partial<Record<Workspace, number>>>(
@@ -321,9 +331,21 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     workspace,
     setRoomId: roomList.setRoomId,
     setRooms: roomList.setRooms,
-    isViewingChat,
+    isViewingChat: isViewingRoom,
     setError,
+    onRoomOpened: setPhoneRoomId,
   });
+  // Từ danh sách bấm lại đúng phòng đang chọn sẵn thì roomId không đổi, effect đánh dấu đã đọc của useChatRoom không chạy lại
+  const { markMessageRead } = chat;
+  useEffect(() => {
+    if (isViewingRoom()) {
+      markMessageRead();
+    }
+  }, [onListPane, isViewingRoom, markMessageRead]);
+  const backToList = () => {
+    setPhoneRoomId('');
+    setGroupOverlay(false);
+  };
   const sender = useSendMessage({
     user,
     roomId,
@@ -377,7 +399,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     refreshRooms: roomList.refreshRooms,
     removeRoom: roomList.removeRoom,
     openRoom: openRoomFromNotice,
-    isViewingChat,
+    isViewingChat: isViewingRoom,
     isViewingNews,
     markMessageRead: chat.markMessageRead,
     setMessages: chat.setMessages,
@@ -491,7 +513,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         <div
           className={`app-shell module-${workspace}${
             !narrow && infoHidden ? ' info-hidden' : ''
-          }`}
+          }${onListPane ? ' phone-list' : ''}`}
         >
         <AppMenuDrawer
           open={menuMode !== 'closed'}
@@ -514,7 +536,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         <ChatSidebar
           user={user}
           rooms={rooms}
-          roomId={roomId}
+          roomId={onListPane ? '' : roomId}
           roomsMeta={roomList.roomsMeta}
           loadingOlderRooms={roomList.loadingOlderRooms}
           loadingRooms={roomList.loadingRooms}
@@ -568,6 +590,8 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onOpenProfile={
               room?.peerUserId ? () => setViewProfileId(room.peerUserId) : undefined
             }
+            onBack={phone ? backToList : undefined}
+            backBadge={messengerUnread}
           />
           <PinBar pins={chat.pins} onJump={chat.jumpToMessage} />
           <MessageList

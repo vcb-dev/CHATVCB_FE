@@ -13,15 +13,24 @@ import type {
 } from '@/types';
 import { canAssignTask } from '@/lib/tasks';
 import { applyEmoticon, withTrailingEmoticon } from '../utils/emoticons';
-import { buildMentionOptions, mentionOpen, mentionsAllowed, startsTag } from '../utils/mentions';
+import {
+  buildMentionOptions,
+  mentionKind,
+  mentionOpen,
+  mentionPeople,
+  mentionsAllowed,
+  startsTag,
+} from '../utils/mentions';
 import { filesFromClipboard } from '../utils/media';
 import { isDirectRoom } from '../utils/rooms';
 import type { ComposerForm } from '../hooks/useComposer';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import { useTypingSignal } from '../hooks/useTypingSignal';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { AttachButton } from './AttachButton';
 import { ComposerActions } from './ComposerActions';
 import { ComposerToolsMenu } from './ComposerToolsMenu';
+import { MentionOption } from './MentionOption';
 import { PendingFiles } from './PendingFiles';
 import { PendingPreviews } from './PendingPreviews';
 import { StickerButton } from './StickerButton';
@@ -66,6 +75,7 @@ export function Composer(props: {
   onUnblock?: () => void;
 }) {
   const { room, form, replyTo, members, pendingImages, pendingFiles } = props;
+  const narrow = useMediaQuery('(max-width: 800px)');
   const draft = useWatch({ control: form.control, name: 'text' }) ?? '';
   useTypingSignal({ roomId: room?.id ?? '', draft, emitTyping: props.emitTyping });
   const voiceRecorder = useVoiceRecorder({
@@ -73,10 +83,20 @@ export function Composer(props: {
     onDone: (blob) => void props.onSendVoice(blob),
   });
   const mentionsRef = useRef<MentionsRef>(null);
-  const mentionOptions = useMemo(
-    () => buildMentionOptions(members, props.online, props.userId, room),
-    [members, props.online, room, props.userId],
-  );
+  // rc-mentions lọc theo `value` (handle) nên `label` là JSX có avatar vẫn lọc đúng.
+  const mentionOptions = useMemo(() => {
+    const people = mentionPeople(members, props.online);
+    return buildMentionOptions(members, props.online, props.userId, room).map((option) => ({
+      value: option.value,
+      label: (
+        <MentionOption
+          label={option.label}
+          kind={mentionKind(option.value, room)}
+          person={people.get(option.value)}
+        />
+      ),
+    }));
+  }, [members, props.online, room, props.userId]);
   const hasContent = Boolean(draft.trim() || pendingImages.length || pendingFiles.length);
   // Nút "+" (bộ sưu tập, giao việc, nhắc hẹn, ghi chú, vị trí, danh thiếp): dùng cả khi nhóm khoá gửi tin.
   const toolsMenu = (
@@ -271,7 +291,12 @@ export function Composer(props: {
                   getPopupContainer={() => document.body}
                   styles={{ popup: { zIndex: 2000 } }}
                   placeholder={
-                    room?.isCloud
+                    // autoSize đo cả placeholder khi ô trống: câu dài ở khổ hẹp làm ô cao 3–4 dòng
+                    narrow
+                      ? room?.isCloud
+                        ? 'Ghi chú…'
+                        : 'Nhắn tin…'
+                      : room?.isCloud
                       ? 'Lưu ghi chú, ảnh, tệp vào Cloud của tôi'
                       : room
                       ? `Nhắn ${room.title || room.name} · Ctrl+V ảnh · @agent`

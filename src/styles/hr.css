@@ -323,3 +323,19 @@
     padding: 0 12px;
   }
 }
+
+/* Bảng nhân viên: antd đặt table-layout: fixed (cột ellipsis) mà không có scroll.x, nên khi hẹp ba cột
+   không cố định (Nhân viên, Phòng ban, Vị trí) bị bóp về ~0 và chữ xếp dọc. Giữ bề rộng tối thiểu,
+   .ui-card (overflow: auto) cuộn ngang. */
+@media (max-width: 1100px) {
+  .app-shell.module-hr .ui-card .ant-table-content > table {
+    min-width: 1200px;
+  }
+}
+
+.app-shell.module-hr .hr-table-name small {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

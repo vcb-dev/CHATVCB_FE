@@ -39,6 +39,7 @@ import { IncomingCallModal } from './components/IncomingCallModal';
 import { JoinGroupModal } from './components/JoinGroupModal';
 import { MessageList } from './components/MessageList';
 import { AppMenuDrawer } from './components/AppMenuDrawer';
+import { NotifyPrompt } from './components/NotifyPrompt';
 import { NewChatModal } from './components/NewChatModal';
 import { NoteModal } from './components/NoteModal';
 import { PinBar } from './components/PinBar';
@@ -49,6 +50,7 @@ import { TaskModal } from './components/TaskModal';
 import { TypingIndicator } from './components/TypingIndicator';
 import { parseJoinHash } from './utils/invite';
 import { canEditItem } from './utils/rooms';
+import { useBackClose } from './hooks/useBackClose';
 import { useChatNotifications } from './hooks/useChatNotifications';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { useChatRoom } from './hooks/useChatRoom';
@@ -307,7 +309,11 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   }, [narrow]);
 
   const tabUnread = useMemo(() => countAlertingRooms(rooms), [rooms]);
-  useChatNotifications({ onOpenRoom: openRoomFromNotice, unread: tabUnread });
+  useChatNotifications({
+    onOpenRoom: openRoomFromNotice,
+    unread: tabUnread,
+    roomsReady: !roomList.loadingRooms,
+  });
 
   // Toast việc sắp hết hạn: mở tin việc trong Messenger từ bất kỳ màn nào.
   const openTaskFromToast = (task: Task) => {
@@ -346,6 +352,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setPhoneRoomId('');
     setGroupOverlay(false);
   };
+  // Điện thoại: nút Back / vuốt cạnh đóng lớp trên cùng (menu → khung thông tin → phòng) thay vì thoát app
+  useBackClose(phone && workspace === 'messenger' && !onListPane, backToList);
+  useBackClose(phone && groupOverlay, () => setGroupOverlay(false));
+  useBackClose(phone && menuMode === 'click', closeMenu);
   const sender = useSendMessage({
     user,
     roomId,
@@ -515,6 +525,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             !narrow && infoHidden ? ' info-hidden' : ''
           }${onListPane ? ' phone-list' : ''}`}
         >
+        <NotifyPrompt />
         <AppMenuDrawer
           open={menuMode !== 'closed'}
           hoverMode={menuMode === 'hover'}

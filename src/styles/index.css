@@ -4128,6 +4128,7 @@ button.app-menu-foot-item:hover {
   color: var(--ui-text-2);
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -4711,6 +4712,7 @@ button.app-menu-foot-item:hover {
   line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   word-break: break-word;
@@ -4832,6 +4834,7 @@ button.app-menu-foot-item:hover {
   color: var(--ui-text);
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -4842,6 +4845,7 @@ button.app-menu-foot-item:hover {
   color: var(--ui-text-2);
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -9291,4 +9295,166 @@ button.task-peek-title.editable:focus-visible .anticon {
 .call-pip[data-dragging],
 .call-pip[data-dragging] * {
   cursor: grabbing;
+}
+
+/* ===== PWA: bản web cài như app (tai thỏ, vạch home, cảm ứng) ===== */
+/* viewport-fit=cover (index.html) cho trang tràn xuống dưới tai thỏ/vạch home: vùng env(safe-area-inset-*) phải chừa ra.
+   Trên máy tính env() = 0 nên khung giữ nguyên khoảng 12px. */
+
+/* Không kéo-để-tải-lại hay nảy cả trang; vùng cuộn bên trong vẫn cuộn bình thường */
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
+.app-shell {
+  padding: max(var(--ui-shell-gap), env(safe-area-inset-top))
+    max(var(--ui-shell-gap), env(safe-area-inset-right))
+    max(var(--ui-shell-gap), env(safe-area-inset-bottom))
+    max(var(--ui-shell-gap), env(safe-area-inset-left));
+}
+
+/* Điện thoại: tràn viền như app, không còn khung nổi bo góc */
+@media (max-width: 800px) {
+  .app-shell {
+    gap: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
+    background: var(--ui-bg-panel);
+  }
+
+  .app-shell > :where(.sidebar, .chat, .group-pane, .ui-module) {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .call-window {
+    bottom: max(8px, env(safe-area-inset-bottom));
+    height: min(
+      480px,
+      calc(100dvh - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)))
+    );
+  }
+}
+
+/* Các màn phủ toàn trang nằm ngoài .app-shell */
+.meet-room,
+.gs-app {
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+.app-menu-drawer .ant-drawer-body {
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  padding-left: max(12px, env(safe-area-inset-left));
+}
+
+.call-window.is-expanded {
+  bottom: max(12px, env(safe-area-inset-bottom));
+  height: calc(100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom)));
+}
+
+/* iPhone tự phóng to khi chạm vào ô nhập chữ dưới 16px (ô soạn tin đang 15px, ô antd 14px) */
+@media (max-width: 800px) and (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Màn cảm ứng không có hover: nút "…" của dòng hội thoại và thư mục Docs luôn hiện để bấm được */
+@media (hover: none) {
+  .room-item-more,
+  .docs-folder-more {
+    opacity: 1;
+  }
+
+  .room-item-more {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  /* Chừa chỗ cho nút "…" để không đè giờ và số chưa đọc */
+  .room-item-wrap .room-item {
+    padding-right: 44px;
+  }
+
+  /* Dải 12px ở mép trái chỉ để chuột rê mở menu; trên cảm ứng nó che nút Back và vùng vuốt cạnh */
+  .menu-edge {
+    display: none;
+  }
+}
+
+/* Có bản web mới (PwaUpdateBanner) */
+.pwa-update {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 3100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 24px);
+  padding: 6px 6px 6px 16px;
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  background: var(--ui-bg-panel);
+  color: var(--ui-text);
+  box-shadow: var(--ui-shadow-float);
+  font-size: 14px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+}
+
+/* Hỏi bật thông báo một lần (NotifyPrompt) */
+.notify-prompt {
+  position: fixed;
+  left: max(16px, env(safe-area-inset-left));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(440px, calc(100vw - 32px));
+  padding: 10px 10px 10px 14px;
+  border: 1px solid var(--ui-border);
+  border-radius: 16px;
+  background: var(--ui-bg-panel);
+  color: var(--ui-text);
+  box-shadow: var(--ui-shadow-float);
+  box-sizing: border-box;
+}
+
+.notify-prompt-icon {
+  flex-shrink: 0;
+  color: var(--ui-primary);
+  font-size: 18px;
+}
+
+.notify-prompt-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+@media (max-width: 800px) {
+  /* Nằm trên ô soạn tin */
+  .notify-prompt {
+    left: 12px;
+    width: calc(100vw - 24px);
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 76px);
+  }
+}
+
+/* Hướng dẫn cài trên iPhone (AppMenuDrawer) */
+.install-steps {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  line-height: 1.7;
 }

@@ -556,6 +556,25 @@ export const api = {
       method: "DELETE",
     });
   },
+  /** Khóa công khai VAPID; `null` khi BE chưa cấu hình Web Push */
+  pushVapidKey() {
+    return request<{ publicKey: string | null }>("/push/vapid-key");
+  },
+  pushSubscribe(subscription: PushSubscriptionJSON) {
+    return request<void>("/push/subscribe", {
+      method: "POST",
+      body: JSON.stringify({
+        endpoint: subscription.endpoint,
+        keys: { p256dh: subscription.keys?.p256dh, auth: subscription.keys?.auth },
+      }),
+    });
+  },
+  pushUnsubscribe(endpoint: string) {
+    return request<void>("/push/subscribe", {
+      method: "DELETE",
+      body: JSON.stringify({ endpoint }),
+    });
+  },
   links(roomId: string) {
     return request<RoomLink[]>(`/rooms/${roomId}/links`);
   },

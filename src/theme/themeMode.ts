@@ -5,6 +5,8 @@ export type ResolvedTheme = 'light' | 'dark';
 
 // Script chống nháy trong index.html đọc cùng khóa này: đổi tên thì sửa cả hai.
 const STORAGE_KEY = 'chatvcb.theme';
+// Màu header (--ui-bg-panel) của từng giao diện: thanh trạng thái PWA / thanh địa chỉ di động tô theo màu này
+const BAR_COLORS: Record<ResolvedTheme, string> = { light: '#ffffff', dark: '#242526' };
 const media = window.matchMedia('(prefers-color-scheme: dark)');
 const listeners = new Set<() => void>();
 
@@ -33,6 +35,7 @@ function apply() {
     snapshot = { mode, resolved };
   }
   document.documentElement.dataset.theme = resolved;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', BAR_COLORS[resolved]);
   listeners.forEach((fn) => fn());
 }
 

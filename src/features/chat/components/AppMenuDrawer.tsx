@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Drawer, Segmented, Switch } from 'antd';
+import { Drawer, message, Modal, Segmented, Switch } from 'antd';
 import {
   ApartmentOutlined,
   BellOutlined,
@@ -7,6 +7,7 @@ import {
   CloseOutlined,
   ContactsOutlined,
   DesktopOutlined,
+  DownloadOutlined,
   FileTextOutlined,
   LogoutOutlined,
   MailOutlined,
@@ -21,7 +22,8 @@ import {
   VideoCameraOutlined,
 } from '@ant-design/icons';
 import { UserAvatar } from '@/components/UserAvatar';
-import { notifyEnabled, requestNotifyPermission, setNotifyEnabled } from '@/lib/notify';
+import { notifyGranted, toggleNotify } from '@/lib/notify';
+import { installApp, needsIosInstallHint, usePwa } from '@/lib/pwa';
 import { visibleWorkspaces } from '@/lib/workspaces';
 import { useThemeMode, type ThemeMode } from '@/theme/themeMode';
 import type { User } from '@/types';
@@ -72,8 +74,10 @@ export function AppMenuDrawer(props: {
   onOpenProfile: () => void;
   onLogout: () => void;
 }) {
-  const [notifyOn, setNotifyOn] = useState(notifyEnabled);
+  const [notifyOn, setNotifyOn] = useState(notifyGranted);
   const themeMode = useThemeMode();
+  const { canInstall } = usePwa();
+  const iosInstall = needsIosInstallHint();
   const items = visibleWorkspaces(props.user);
   const mainItems = items.filter((item) => MAIN_WORKSPACES.includes(item.id));
   const adminItems = items.filter((item) => ADMIN_WORKSPACES.includes(item.id));
@@ -83,16 +87,42 @@ export function AppMenuDrawer(props: {
 
   useEffect(() => {
     if (props.open) {
-      setNotifyOn(notifyEnabled());
+      setNotifyOn(notifyGranted());
     }
   }, [props.open]);
 
   const handleToggleNotify = (checked: boolean) => {
-    setNotifyEnabled(checked);
     setNotifyOn(checked);
-    if (checked) {
-      void requestNotifyPermission();
+    void toggleNotify(checked).then((on) => {
+      setNotifyOn(on);
+      if (checked && !on) {
+        void message.warning('Trình duyệt đang chặn thông báo. Hãy cho phép thông báo trong cài đặt trang / hệ thống.');
+      }
+    });
+  };
+
+  const handleInstall = () => {
+    props.onClose();
+    if (canInstall) {
+      void installApp();
+      return;
     }
+    Modal.info({
+      title: 'Cài CHATVCB lên iPhone/iPad',
+      content: (
+        <ol className="install-steps">
+          <li>Mở trang này bằng Safari.</li>
+          <li>
+            Bấm nút <b>Chia sẻ</b> (ô vuông có mũi tên lên).
+          </li>
+          <li>
+            Chọn <b>Thêm vào MH chính</b> rồi bấm <b>Thêm</b>.
+          </li>
+          <li>Mở CHATVCB từ icon mới và bật thông báo trong menu.</li>
+        </ol>
+      ),
+      okText: 'Đã hiểu',
+    });
   };
 
   const handleOpenProfile = () => {
@@ -188,6 +218,15 @@ export function AppMenuDrawer(props: {
             </span>
             <span className="app-menu-item-label">Hồ sơ</span>
           </button>
+
+          {canInstall || iosInstall ? (
+            <button type="button" className="app-menu-foot-item" onClick={handleInstall}>
+              <span className="app-menu-item-icon">
+                <DownloadOutlined />
+              </span>
+              <span className="app-menu-item-label">Cài đặt ứng dụng</span>
+            </button>
+          ) : null}
 
           <div className="app-menu-foot-item notify">
             <span className="app-menu-item-icon">

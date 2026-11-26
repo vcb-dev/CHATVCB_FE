@@ -9,6 +9,8 @@ import { parseSheetHash } from '@/features/docs/sheet';
 import { SheetSession } from '@/features/docs/SheetSession';
 import { queryClient } from '@/lib/queryClient';
 import { AppTheme } from '@/theme/AppTheme';
+import { PwaUpdateBanner } from '@/components/PwaUpdateBanner';
+import { dropPushSubscription } from '@/lib/push';
 import type { User } from '@/types';
 
 const ChatPage = lazy(async () => {
@@ -78,6 +80,7 @@ export default function App() {
 
   return (
     <AppTheme>
+      <PwaUpdateBanner />
       {boot === 'loading' ? (
         <div className="login-shell">
           <Spin size="large" />
@@ -111,6 +114,8 @@ export default function App() {
             onUserUpdate={(next) => setUser(next.user)}
             onLogout={async () => {
               try {
+                // Gỡ Web Push của máy này khi phiên còn sống, để người sau dùng máy không nhận tin của mình
+                await dropPushSubscription();
                 await api.logout();
                 queryClient.clear();
                 setUser(null);

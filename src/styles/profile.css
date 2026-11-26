@@ -1,0 +1,167 @@
+/* Popup hồ sơ người khác (UserProfileModal): nút thao tác, thông tin, nhóm chung, trạng thái chặn. */
+.profile-job {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--ui-text-2);
+}
+
+.profile-blocked-tag {
+  color: var(--ui-danger);
+  font-weight: 500;
+}
+
+.profile-actions {
+  width: 100%;
+  padding: 4px 0 8px;
+}
+
+.info-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.info-action:disabled:hover .info-action-btn {
+  background: var(--ui-bg-hover);
+}
+
+.info-action.is-primary .info-action-btn,
+.info-action.is-primary:hover .info-action-btn {
+  background: var(--ui-primary);
+  color: #fff;
+}
+
+.info-action.is-primary:disabled:hover .info-action-btn {
+  background: var(--ui-primary);
+}
+
+.info-action.is-danger .info-action-btn {
+  color: var(--ui-danger);
+}
+
+.profile-block-note {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--ui-text-2);
+}
+
+.profile-modal .profile-info-value {
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.profile-info-row .profile-info-label {
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+.profile-info-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.profile-info-copy .ant-btn {
+  color: var(--ui-text-3);
+}
+
+.profile-common {
+  width: 100%;
+  margin-top: 12px;
+  text-align: left;
+}
+
+.profile-common-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: var(--ui-radius);
+  background: var(--ui-bg-hover);
+  color: var(--ui-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.profile-common-head > span:not(.anticon) {
+  flex: 1;
+  text-align: left;
+}
+
+.profile-common-head .anticon-down {
+  font-size: 11px;
+  color: var(--ui-text-3);
+  transition: transform 0.15s ease;
+}
+
+.profile-common-head .anticon-down.is-open {
+  transform: rotate(180deg);
+}
+
+.profile-common-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.profile-common-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--ui-radius);
+  background: transparent;
+  color: var(--ui-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.profile-common-item:hover {
+  background: var(--ui-bg-hover);
+}
+
+.profile-common-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.profile-common-count {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--ui-text-3);
+}
+
+/* Hồ sơ của mình: danh sách người đã chặn */
+.blocked-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.blocked-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.blocked-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--ui-text);
+}

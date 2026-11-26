@@ -1,3 +1,6 @@
+import { openInAppPage } from '@/lib/inAppPage';
+import { isTouchApp } from '@/lib/pwa';
+
 export function parseSheetHash() {
   const raw = window.location.hash.replace(/^#/, '');
   if (!raw.startsWith('/sheet')) {
@@ -21,6 +24,11 @@ export function sheetTabUrl(next: { id?: string; draft?: string }) {
 }
 
 export function openSheetTab(next: { id?: string; draft?: string }) {
+  if (isTouchApp()) {
+    // App đã cài trên điện thoại: tab mới văng ra trình duyệt nên mở ngay trong app
+    openInAppPage(sheetTabUrl(next).split('#')[1] || '/sheet');
+    return;
+  }
   const opened = window.open(sheetTabUrl(next), '_blank');
   if (!opened) {
     window.location.hash = sheetTabUrl(next).split('#')[1] || '/sheet';

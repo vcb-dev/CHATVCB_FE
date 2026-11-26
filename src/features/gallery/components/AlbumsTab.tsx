@@ -6,10 +6,12 @@ import {
   PictureOutlined,
 } from '@ant-design/icons';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Empty, Modal, message } from 'antd';
+import { Button, Modal, message } from 'antd';
 import { useMemo, useState } from 'react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
 import { errorText } from '@/lib/errors';
 import type { GalleryAlbum } from '@/types';
 import { AlbumFormModal } from './AlbumFormModal';
@@ -36,7 +38,16 @@ function AlbumPhotos(props: { albumId: string; name: string; onBack: () => void 
         </Button>
         <h2>{props.name}</h2>
       </div>
-      {!query.isLoading && !photos.length ? <Empty description="Chưa có ảnh" /> : null}
+      {query.isPending ? (
+        <LoadingState />
+      ) : query.isError ? (
+        <EmptyState
+          title="Không tải được ảnh"
+          action={<Button onClick={() => void query.refetch()}>Thử lại</Button>}
+        />
+      ) : !photos.length ? (
+        <EmptyState icon={<PictureOutlined />} title="Chưa có ảnh" />
+      ) : null}
       <PhotoGrid
         photos={photos}
         onOpen={setViewing}
@@ -58,13 +69,27 @@ export function AlbumsTab({ canReview }: { canReview: boolean }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState<{ id: string; name: string } | null>(null);
   const [editing, setEditing] = useState<GalleryAlbum | null>(null);
-  const { data: albums = [] } = useQuery({
+  const albumsQuery = useQuery({
     queryKey: queryKeys.galleryAlbums,
     queryFn: () => api.galleryAlbums(),
   });
+  const albums = albumsQuery.data ?? [];
 
   if (open) {
     return <AlbumPhotos albumId={open.id} name={open.name} onBack={() => setOpen(null)} />;
+  }
+
+  if (albumsQuery.isPending) {
+    return <LoadingState />;
+  }
+
+  if (albumsQuery.isError) {
+    return (
+      <EmptyState
+        title="Không tải được album"
+        action={<Button onClick={() => void albumsQuery.refetch()}>Thử lại</Button>}
+      />
+    );
   }
 
   function askDelete(album: GalleryAlbum) {

@@ -1,13 +1,14 @@
 import {
+  ArrowLeftOutlined,
   CloudOutlined,
   LayoutOutlined,
+  PhoneOutlined,
   SearchOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
-import { Avatar, Badge, Button, Tooltip } from 'antd';
-import { fileSrc } from '@/api/client';
+import { Button, Tooltip } from 'antd';
 import { MenuButton } from '@/components/MenuButton';
-import { avatarColor, initials } from '@/lib/avatar';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { Room } from '@/types';
 import { lastSeenText } from '../utils/presence';
 
@@ -22,50 +23,84 @@ export function ChatHeader(props: {
   infoOpen: boolean;
   onToggleInfo: () => void;
   onSearch: () => void;
-  onStartMeeting?: () => void;
+  onStartAudioCall?: () => void;
+  onStartVideoCall?: () => void;
+  /** Chat 1-1: bấm avatar/tên mở hồ sơ người bên kia. */
+  onOpenProfile?: () => void;
+  /** Điện thoại: về danh sách phòng, thay chỗ nút menu */
+  onBack?: () => void;
+  /** Số phòng có tin chưa đọc, hiện cạnh nút quay lại */
+  backBadge?: number;
 }) {
   const { room, isDirect, isPeerOnline, membersCount, onlineMembersCount } = props;
   const isCloud = room?.isCloud ?? false;
+  const roomLabel = room ? (room.title || room.name) : '';
+  const openProfile = isDirect && !isCloud ? props.onOpenProfile : undefined;
+  // Bị người kia chặn thì không thấy trạng thái hoạt động của họ (như Messenger)
+  const hidePresence = Boolean(room?.blockedMe);
+
+  const toggleNarrowInfo = () => {
+    if (window.matchMedia('(max-width: 1100px)').matches) {
+      props.onToggleInfo();
+    }
+  };
 
   return (
     <header className="chat-head">
-      <MenuButton />
-      <button
-        type="button"
-        className="chat-head-info"
-        disabled={!room}
-        onClick={() => {
-          if (window.matchMedia('(max-width: 1100px)').matches) {
-            props.onToggleInfo();
-          }
-        }}
-      >
-        <Badge
-          dot={!isCloud && isDirect && isPeerOnline}
-          color="#31a24c"
-          offset={[-2, 4]}
+      {props.onBack ? (
+        <button
+          type="button"
+          className="chat-head-back"
+          aria-label="Về danh sách tin nhắn"
+          onClick={props.onBack}
         >
-          <Avatar
-            size={44}
-            className="avatar-initials"
-            icon={isCloud ? <CloudOutlined /> : undefined}
-            src={room?.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
-            style={{
-              background: isCloud ? 'var(--ui-primary)' : room ? avatarColor(room.title || room.name) : 'var(--ui-primary)',
-            }}
-          >
-            {isCloud ? null : room ? initials(room.title || room.name) : '?'}
-          </Avatar>
-        </Badge>
-        <div>
+          <ArrowLeftOutlined />
+          {props.backBadge ? (
+            <span className="chat-head-back-badge">
+              {props.backBadge > 99 ? '99+' : props.backBadge}
+            </span>
+          ) : null}
+        </button>
+      ) : (
+        <MenuButton />
+      )}
+      <div className="chat-head-info">
+        <UserAvatar
+          size={44}
+          className="avatar-initials"
+          src={isCloud ? undefined : room?.avatarUrl}
+          name={roomLabel}
+          icon={isCloud ? <CloudOutlined /> : undefined}
+          online={!isCloud && isDirect && isPeerOnline && !hidePresence}
+          zoomable={Boolean(room && !isCloud && !openProfile)}
+          zoomTitle={isDirect ? 'Xem ảnh đại diện' : 'Xem ảnh nhóm'}
+          onClick={openProfile}
+          style={{
+            ...(isCloud || !room ? { background: 'var(--ui-primary)' } : undefined),
+            ...(openProfile ? { cursor: 'pointer' } : undefined),
+          }}
+        >
+          {!room ? '?' : undefined}
+        </UserAvatar>
+        <button
+          type="button"
+          className="chat-head-text"
+          disabled={!room}
+          title={openProfile ? 'Xem hồ sơ' : undefined}
+          onClick={openProfile ?? toggleNarrowInfo}
+        >
           <strong className="chat-head-name">
-            {room ? (room.title || room.name) : 'Chọn phòng'}
+            {room ? roomLabel : 'Chọn phòng'}
           </strong>
           <small>
             {isCloud ? (
               'Lưu tin nhắn, ảnh, tệp của riêng bạn'
             ) : isDirect ? (
-              lastSeenText(isPeerOnline, props.lastSeenAt, props.now)
+              room?.blockedByMe ? (
+                'Đã chặn'
+              ) : hidePresence ? null : (
+                lastSeenText(isPeerOnline, props.lastSeenAt, props.now)
+              )
             ) : (
               <>
                 {membersCount
@@ -77,8 +112,8 @@ export function ChatHeader(props: {
               </>
             )}
           </small>
-        </div>
-      </button>
+        </button>
+      </div>
 
       <div className="chat-head-actions">
         <Tooltip title="Tìm trong cuộc trò chuyện">
@@ -91,14 +126,26 @@ export function ChatHeader(props: {
             disabled={!room}
           />
         </Tooltip>
-        {!isCloud && props.onStartMeeting ? (
-          <Tooltip title="Bắt đầu cuộc họp">
+        {!isCloud && props.onStartAudioCall ? (
+          <Tooltip title={isDirect ? 'Gọi thoại' : 'Gọi thoại nhóm'}>
+            <Button
+              type="text"
+              className="chat-head-btn"
+              icon={<PhoneOutlined />}
+              aria-label={isDirect ? 'Gọi thoại' : 'Gọi thoại nhóm'}
+              onClick={props.onStartAudioCall}
+              disabled={!room}
+            />
+          </Tooltip>
+        ) : null}
+        {!isCloud && props.onStartVideoCall ? (
+          <Tooltip title={isDirect ? 'Gọi video' : 'Gọi video nhóm'}>
             <Button
               type="text"
               className="chat-head-btn"
               icon={<VideoCameraOutlined />}
-              aria-label="Bắt đầu cuộc họp"
-              onClick={props.onStartMeeting}
+              aria-label={isDirect ? 'Gọi video' : 'Gọi video nhóm'}
+              onClick={props.onStartVideoCall}
               disabled={!room}
             />
           </Tooltip>

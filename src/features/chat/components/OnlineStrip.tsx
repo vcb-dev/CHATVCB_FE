@@ -1,7 +1,7 @@
-import { Avatar, message } from 'antd';
+import { message } from 'antd';
 import { useMemo, useState } from 'react';
-import { api, fileSrc } from '@/api/client';
-import { avatarColor, initials } from '@/lib/avatar';
+import { api } from '@/api/client';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { PresenceUser, Room, User } from '@/types';
 import { isDirectRoom } from '../utils/rooms';
 
@@ -92,15 +92,14 @@ export function OnlineStrip(props: {
             onClick={() => void handleUserClick(item.id)}
           >
             <div className="online-strip-avatar-wrap">
-              <Avatar
+              <UserAvatar
                 size={48}
                 className="avatar-initials"
-                src={item.avatarUrl ? fileSrc(item.avatarUrl) : undefined}
-                style={{ backgroundColor: avatarColor(item.name) }}
-              >
-                {initials(item.name)}
-              </Avatar>
-              <span className="online-strip-dot" aria-hidden="true" />
+                src={item.avatarUrl}
+                name={item.name}
+                zoomable={false}
+                online
+              />
             </div>
             <span className="online-strip-name">{shortName(item.name)}</span>
           </button>

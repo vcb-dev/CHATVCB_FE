@@ -2,10 +2,34 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>CHATVCB</title>
+    <!-- Một thẻ, không media: script dưới và src/theme/themeMode.ts đặt màu theo giao diện đang chọn (kể cả khi khác giao diện máy) -->
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="CHATVCB" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://chatvcb-be-production.up.railway.app" />
     <link rel="dns-prefetch" href="https://chatvcb-be-production.up.railway.app" />
+    <!-- Gắn giao diện sáng/tối trước khi vẽ để F5 không nháy trắng (khớp src/theme/themeMode.ts) -->
+    <script>
+      (function () {
+        var mode = null;
+        try { mode = localStorage.getItem('chatvcb.theme'); } catch (e) {}
+        var dark = mode === 'dark' || (mode !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        // Thanh trạng thái của app đã cài (PWA) khớp màu header ngay lúc mở
+        var bar = document.querySelector('meta[name="theme-color"]');
+        if (bar) bar.setAttribute('content', dark ? '#242526' : '#ffffff');
+      })();
+    </script>
+    <style>
+      :root[data-theme='dark'] { color-scheme: dark; background: #18191a; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

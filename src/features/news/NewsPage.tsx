@@ -41,10 +41,10 @@ export function NewsPage({
   useEffect(() => {
     void api
       .markNewsSeen()
-      .then(() => {
-        queryClient.setQueryData(queryKeys.newsUnread, { count: 0 });
+      .then(async () => {
         // Hủy cả lần đếm đang chạy dở, kẻo nó trả về số cũ sau khi đã về 0
-        return queryClient.invalidateQueries({ queryKey: queryKeys.newsUnread });
+        await queryClient.cancelQueries({ queryKey: queryKeys.newsUnread });
+        queryClient.setQueryData(queryKeys.newsUnread, { count: 0 });
       })
       .catch(() => undefined);
   }, [queryClient]);

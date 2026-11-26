@@ -6,10 +6,16 @@ import '@/styles/gallery.css';
 import '@/styles/hr.css';
 import '@/styles/index.css';
 import '@/styles/news.css';
+import '@/styles/avatar-crop.css';
+import '@/styles/profile.css';
+import '@/styles/dark.css';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { startPwa } from '@/lib/pwa';
 import App from './App';
+
+startPwa();
 
 const root = createRoot(document.getElementById('root')!);
 const app = (

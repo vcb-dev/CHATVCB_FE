@@ -12,6 +12,7 @@ import {
 } from 'antd';
 import { useState } from 'react';
 import { api } from '@/api/client';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { ChatMessage } from '@/types';
 import { errorText } from '@/lib/errors';
 import { formatTimeDayMonth } from '../utils/datetime';
@@ -189,13 +190,13 @@ export function PollCard({
                       className="poll-voter-avatars"
                     >
                       {opt.voters.map((v) => (
-                        <Avatar
+                        <UserAvatar
                           key={v.id}
-                          src={v.avatarUrl || undefined}
+                          src={v.avatarUrl}
+                          name={v.name}
                           size={20}
-                        >
-                          {v.name.slice(0, 1)}
-                        </Avatar>
+                          zoomable={false}
+                        />
                       ))}
                     </Avatar.Group>
                   ) : null}

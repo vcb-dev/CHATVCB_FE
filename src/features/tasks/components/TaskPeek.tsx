@@ -17,6 +17,7 @@ import {
 import { Button, Input, Tooltip, message } from 'antd';
 import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { copyText } from '@/lib/clipboard';
+import { UserAvatar } from '@/components/UserAvatar';
 import {
   confirmStopSeries,
   formatDue,
@@ -29,7 +30,6 @@ import { useTaskStatus } from '../hooks/useTaskStatus';
 import { quickDue, relativeDue, toLocalValue, type QuickDue } from '../utils/calendar';
 import { CALENDAR_STATUS_LABEL, taskStatus, type CalendarStatus } from '../utils/status';
 import { canMoveDue } from './TaskContextMenu';
-import { PersonAvatar } from './PersonAvatar';
 import { TaskStatusIcon } from './TaskStatusIcon';
 
 const QUICK_DUES: { kind: QuickDue; label: string }[] = [
@@ -88,7 +88,13 @@ function Row(props: { icon: ReactNode; label: string; children: ReactNode }) {
 function Person(props: { person: TaskPerson; userId: string }) {
   return (
     <span className="task-person">
-      <PersonAvatar person={props.person} size={20} />
+      <UserAvatar
+        size={20}
+        className="task-person-avatar"
+        src={props.person.avatarUrl}
+        name={props.person.name}
+        zoomable={false}
+      />
       <span>
         {props.person.name}
         {props.person.id === props.userId ? <small> (bạn)</small> : null}

@@ -1,8 +1,10 @@
 import { Button, Form, Input, Modal, Segmented, Select, message } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
+import { FormField } from '@/components/FormField';
 import { errorText } from '@/lib/errors';
 import { TASK_REPEAT_OPTIONS } from '@/lib/tasks';
 import type {
@@ -31,6 +33,14 @@ type Props = {
   preset?: TaskPreset;
 };
 
+type TaskFormValues = {
+  title: string;
+  dueAt: string;
+  notes: string;
+  repeat: TaskFrequency | 'none';
+  endsAt: string;
+};
+
 function initialDue(task: MessageTask | null) {
   return task?.dueAt ? toLocalInput(task.dueAt) : '';
 }
@@ -48,32 +58,40 @@ export function TaskModal({
   preset,
 }: Props) {
   const queryClient = useQueryClient();
-  const [title, setTitle] = useState('');
-  const [dueAt, setDueAt] = useState('');
-  const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
-  const [repeat, setRepeat] = useState<TaskFrequency | 'none'>('none');
-  const [endsAt, setEndsAt] = useState('');
+  // Gõ phím chỉ vẽ lại ô đang gõ; modal chỉ vẽ lại khi form đổi giữa hợp lệ / chưa hợp lệ (nút Giao việc)
+  const {
+    control,
+    handleSubmit: submitForm,
+    reset,
+    formState: { isValid },
+  } = useForm<TaskFormValues>({
+    mode: 'onChange',
+    defaultValues: { title: '', dueAt: '', notes: '', repeat: 'none', endsAt: '' },
+  });
+  const repeat = useWatch({ control, name: 'repeat' });
   const target = useAssignTarget({ rooms, currentUserId, members, isDirect });
 
   useEffect(() => {
     if (!open) {
       return;
     }
-    setTitle(task?.title ?? preset?.title ?? '');
-    setDueAt(task ? initialDue(task) : (preset?.dueAt ?? ''));
-    setNotes(task?.notes ?? preset?.notes ?? '');
+    reset({
+      title: task?.title ?? preset?.title ?? '',
+      dueAt: task ? initialDue(task) : (preset?.dueAt ?? ''),
+      notes: task?.notes ?? preset?.notes ?? '',
+      repeat: task ? 'none' : (preset?.repeat ?? 'none'),
+      endsAt: '',
+    });
     target.reset(preset);
-    setRepeat(task ? 'none' : (preset?.repeat ?? 'none'));
-    setEndsAt('');
     // Theo id: thả cảm xúc hay ghim tin đều thay đối tượng task, không được xóa nội dung đang sửa
   }, [open, task?.id, preset]);
 
   const picking = Boolean(rooms);
   const chosenAssignee = target.assigneeId;
-  const dueChanged = dueAt !== initialDue(task);
 
-  const handleEdit = async (editing: MessageTask) => {
+  const handleEdit = async (editing: MessageTask, { title, notes, dueAt }: TaskFormValues) => {
+    const dueChanged = dueAt !== initialDue(editing);
     const patch: { title?: string; notes?: string; dueAt?: string | null } = {};
     if (title.trim() !== editing.title) {
       patch.title = title.trim();
@@ -90,7 +108,7 @@ export function TaskModal({
     }
   };
 
-  const handleCreate = async () => {
+  const handleCreate = async ({ title, notes, dueAt, repeat, endsAt }: TaskFormValues) => {
     const targetRoomId = picking ? await target.resolveRoomId() : roomId;
     const created = await api.createTask(targetRoomId as string, {
       title: title.trim(),
@@ -104,14 +122,15 @@ export function TaskModal({
     message.success('Đã giao việc.');
   };
 
-  const handleSubmit = async () => {
-    if (dueChanged && dueAt && new Date(dueAt) <= new Date()) {
+  const handleSubmit = async (values: TaskFormValues) => {
+    const dueChanged = values.dueAt !== initialDue(task);
+    if (dueChanged && values.dueAt && new Date(values.dueAt) <= new Date()) {
       message.error('Hạn phải sau thời điểm hiện tại.');
       return;
     }
     setLoading(true);
     try {
-      await (task ? handleEdit(task) : handleCreate());
+      await (task ? handleEdit(task, values) : handleCreate(values));
       void queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
       onClose();
     } catch (err) {
@@ -135,11 +154,8 @@ export function TaskModal({
           key="submit"
           type="primary"
           loading={loading}
-          disabled={
-            !title.trim() ||
-            (!task && (!target.ready || (repeat !== 'none' && !dueAt)))
-          }
-          onClick={() => void handleSubmit()}
+          disabled={!isValid || (!task && !target.ready)}
+          onClick={() => void submitForm(handleSubmit)()}
         >
           {task ? 'Lưu' : 'Giao việc'}
         </Button>,
@@ -188,14 +204,14 @@ export function TaskModal({
             />
           </Form.Item>
         ) : null}
-        <Form.Item label="Tiêu đề" required>
-          <Input
-            placeholder="Cần làm gì?"
-            maxLength={200}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </Form.Item>
+        <FormField
+          control={control}
+          name="title"
+          label="Tiêu đề"
+          rules={{ required: true, validate: (value) => Boolean(value.trim()) }}
+        >
+          <Input placeholder="Cần làm gì?" maxLength={200} />
+        </FormField>
         {target.pickingPerson ? null : (
           <Form.Item label="Người nhận" required={!task}>
             {task ? (
@@ -213,37 +229,28 @@ export function TaskModal({
             )}
           </Form.Item>
         )}
-        <Form.Item label="Hạn">
-          <Input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
-        </Form.Item>
+        <FormField
+          control={control}
+          name="dueAt"
+          label="Hạn"
+          // Việc lặp lại cần có hạn (tính từ hạn đầu tiên)
+          rules={{ validate: (value, all) => Boolean(task) || all.repeat === 'none' || Boolean(value) }}
+        >
+          <Input type="datetime-local" />
+        </FormField>
         {task ? null : (
-          <Form.Item label="Lặp lại">
-            <Select
-              className="task-modal-repeat"
-              value={repeat}
-              onChange={setRepeat}
-              options={TASK_REPEAT_OPTIONS}
-            />
-          </Form.Item>
+          <FormField control={control} name="repeat" label="Lặp lại">
+            <Select className="task-modal-repeat" options={TASK_REPEAT_OPTIONS} />
+          </FormField>
         )}
         {!task && repeat !== 'none' ? (
-          <Form.Item label="Kết thúc (không bắt buộc)">
-            <Input
-              type="date"
-              className="task-modal-ends"
-              value={endsAt}
-              onChange={(e) => setEndsAt(e.target.value)}
-            />
-          </Form.Item>
+          <FormField control={control} name="endsAt" label="Kết thúc (không bắt buộc)">
+            <Input type="date" className="task-modal-ends" />
+          </FormField>
         ) : null}
-        <Form.Item label="Ghi chú">
-          <Input.TextArea
-            rows={3}
-            maxLength={2000}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </Form.Item>
+        <FormField control={control} name="notes" label="Ghi chú">
+          <Input.TextArea rows={3} maxLength={2000} />
+        </FormField>
       </Form>
     </Modal>
   );

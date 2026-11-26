@@ -5,10 +5,9 @@ import {
   SearchOutlined,
   UsergroupAddOutlined,
 } from '@ant-design/icons';
-import { Avatar, Button, Spin } from 'antd';
-import { fileSrc } from '@/api/client';
+import { Button, Spin } from 'antd';
 import { EmptyState } from '@/components/EmptyState';
-import { avatarColor, initials } from '@/lib/avatar';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { PageMeta, Room } from '@/types';
 import { formatRoomTime } from '@/features/chat/utils/datetime';
 
@@ -67,14 +66,14 @@ export function ContactsGroups(props: Props) {
             onClick={() => props.onOpenRoom(room)}
           >
             <span className="contacts-avatar">
-              <Avatar
+              <UserAvatar
                 size={44}
                 icon={room.isCloud ? <CloudOutlined /> : undefined}
-                src={room.avatarUrl ? fileSrc(room.avatarUrl) : undefined}
-                style={{ background: room.isCloud ? 'var(--ui-primary)' : avatarColor(name) }}
-              >
-                {room.isCloud ? null : initials(name)}
-              </Avatar>
+                src={room.isCloud ? undefined : room.avatarUrl}
+                name={name}
+                zoomable={false}
+                style={room.isCloud ? { background: 'var(--ui-primary)' } : undefined}
+              />
             </span>
             <span className="contacts-info">
               <strong>{name}</strong>

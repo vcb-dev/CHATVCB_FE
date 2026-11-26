@@ -1,8 +1,6 @@
-import { fileSrc } from "@/api/client";
-import { avatarColor, initials } from "@/lib/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { ExportOutlined, UserAddOutlined } from "@ant-design/icons";
 import {
-  Avatar,
   Button,
   Input,
   message,
@@ -82,27 +80,26 @@ export function EmployeeListView({
       title: "Nhân viên",
       key: "name",
       render: (_, row) => (
-        <button
-          type="button"
-          className="hr-table-name"
-          onClick={() => onOpen(row.id)}
-        >
-          <Avatar
+        <div className="hr-table-name">
+          <UserAvatar
             size={40}
-            src={row.avatarUrl ? fileSrc(row.avatarUrl) : undefined}
-            style={{
-              background: avatarColor(row.fullName),
-              color: "#fff",
-              fontWeight: 700,
+            src={row.avatarUrl}
+            name={row.fullName}
+            stopPropagation
+            style={{ color: "#fff", fontWeight: 700 }}
+          />
+          <button
+            type="button"
+            className="hr-table-name-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen(row.id);
             }}
           >
-            {initials(row.fullName)}
-          </Avatar>
-          <span>
             <strong>{row.fullName}</strong>
             <small>{row.email}</small>
-          </span>
-        </button>
+          </button>
+        </div>
       ),
     },
     {

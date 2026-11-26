@@ -15,6 +15,9 @@ export function useMessageActions({
   onSelect,
   onSavedToCloud,
   onShareToLibrary,
+  react,
+  onRetrySend,
+  onDiscardSend,
 }: {
   roomId: string;
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
@@ -25,9 +28,22 @@ export function useMessageActions({
   onSelect: (message: ChatMessage) => void;
   onSavedToCloud?: (sent: ChatMessage) => void;
   onShareToLibrary: (message: ChatMessage) => void;
+  /** Thả cảm xúc hiện ngay (useReactMessage). */
+  react: (message: ChatMessage, emoji: string) => Promise<void>;
+  /** Tin tạm gửi lỗi: gửi lại / bỏ (useSendMessage). */
+  onRetrySend: (message: ChatMessage) => void;
+  onDiscardSend: (message: ChatMessage) => void;
 }) {
   async function handleMessageAction(key: string, message: ChatMessage) {
     if (!roomId) {
+      return;
+    }
+    if (key === 'retrySend') {
+      onRetrySend(message);
+      return;
+    }
+    if (key === 'discardSend') {
+      onDiscardSend(message);
       return;
     }
     if (key === 'reply') {
@@ -146,12 +162,7 @@ export function useMessageActions({
     if (!roomId) {
       return;
     }
-    try {
-      const next = await api.reactMessage(roomId, message.id, emoji);
-      setMessages((current) => current.map((item) => (item.id === next.id ? next : item)));
-    } catch (err) {
-      antMessage.error(err instanceof Error ? err.message : 'Không thả được cảm xúc.');
-    }
+    await react(message, emoji);
   }
 
   return { handleMessageAction, handleReact, handleDeleteMany };

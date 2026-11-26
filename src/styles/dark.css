@@ -1,0 +1,76 @@
+/*
+ * Giao diện tối: chỉ chứa các chỗ không đổi được bằng token --ui-* (ui.css).
+ * Màu chung (nền, chữ, viền, tint) thì sửa token, đừng thêm vào đây.
+ */
+
+:root[data-theme='dark'] {
+  /* Công việc */
+  --task-open-bg: #1d3554;
+  --task-overdue-bg: #3a2224;
+  --task-done-bg: #1d3324;
+  --task-cancelled-bg: #2f3032;
+  --task-planned-bg: #2c2545;
+}
+
+/* Chat */
+:root[data-theme='dark'] .row.mine .bubble.recalled {
+  background: #2f3b4c;
+}
+
+:root[data-theme='dark'] .room-filter-tab.active,
+:root[data-theme='dark'] .room-filter-more.active {
+  background: var(--ui-text);
+  color: var(--ui-bg-app);
+}
+
+:root[data-theme='dark'] .room-filter-tab.active .room-filter-badge {
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--ui-bg-app);
+}
+
+:root[data-theme='dark'] .search-hit mark {
+  background: rgba(247, 185, 40, 0.35);
+}
+
+:root[data-theme='dark'] .poll-option.mine .poll-bar {
+  background: rgba(0, 132, 255, 0.28);
+}
+
+:root[data-theme='dark'] .group-cover .group-pane-close {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme='dark'] .profile-cover::after,
+:root[data-theme='dark'] .group-cover::after {
+  /* Ảnh bìa là gradient pastel ghi inline (lib/avatar.ts): phủ tối để không chói */
+  background:
+    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.08) 0%, transparent 52%),
+    radial-gradient(circle at 16% 85%, rgba(255, 255, 255, 0.05) 0%, transparent 48%),
+    rgba(24, 25, 26, 0.6);
+}
+
+/* Công việc */
+:root[data-theme='dark'] .tasks-pill.count {
+  border-color: #6b5a1f;
+}
+
+/* Nhân sự */
+:root[data-theme='dark'] .hr-sensitive-banner {
+  border-color: #6b5a1f;
+}
+
+:root[data-theme='dark'] .hr-doc-drop {
+  border-color: #3f4a6b;
+}
+
+:root[data-theme='dark'] .hr-doc-drop:hover {
+  background: #262d45;
+}
+
+:root[data-theme='dark'] .hr-doc-drop strong {
+  color: var(--ui-text);
+}
+
+:root[data-theme='dark'] .hr-doc-drop-icon {
+  color: var(--ui-text-3);
+}

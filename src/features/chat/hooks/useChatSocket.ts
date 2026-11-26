@@ -14,7 +14,7 @@ import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { closeSocket, connectSocket } from '@/api/socket';
 import { applyNewsCommentCount, applyNewsReactions, refreshNewsCommentPreview } from '@/lib/newsCache';
-import { notifyIncoming } from '@/lib/notify';
+import { isChatVisible, notifyIncoming } from '@/lib/notify';
 import type {
   GalleryPendingEvent,
   GalleryReviewedEvent,
@@ -37,9 +37,31 @@ import type {
   TaskEvent,
   TypingEvent,
   User,
+  UserUpdatedEvent,
+  CallAnsweredElsewhereEvent,
+  CallEndedEvent,
+  CallErrorEvent,
+  CallIncomingEvent,
+  CallPeer,
+  CallPeerLeftEvent,
+  CallPeerMediaEvent,
+  CallSignalEvent,
+  CallStartedEvent,
 } from '@/types';
+import type { CallSocketEvent } from '../utils/callEvents';
 import { mentionsAllowed, mentionsUser } from '../utils/mentions';
+import { hasTemp } from '../utils/messageCache';
+import {
+  addIncoming,
+  arrivedClientIds,
+  getMessages,
+  refreshAfterReconnect,
+  settleSent,
+  updateMessages,
+} from '../utils/messageStore';
+import { dropRoom } from '../utils/outbox';
 import { isDirectRoom, isRoomMuted, previewOf, upsertRoom } from '../utils/rooms';
+import { hasPendingReaction } from './useReactMessage';
 import { isVoice } from '../utils/attachments';
 import { richLabel } from '../utils/rich';
 
@@ -63,7 +85,6 @@ type Options = {
   setOnline: Dispatch<SetStateAction<PresenceUser[]>>;
   setReads: Dispatch<SetStateAction<RoomRead[]>>;
   setPins: Dispatch<SetStateAction<ChatMessage[]>>;
-  setMembers: Dispatch<SetStateAction<RoomMember[]>>;
 };
 
 export function useChatSocket(options: Options) {
@@ -73,6 +94,7 @@ export function useChatSocket(options: Options) {
   const typingTimersRef = useRef(new Map<string, number>());
   const socketRef = useRef<Socket | null>(null);
   const joinedRoomRef = useRef('');
+  const callHandlerRef = useRef<((event: CallSocketEvent) => void) | null>(null);
   const latestRef = useRef(options);
   latestRef.current = options;
   const queryClient = useQueryClient();
@@ -88,7 +110,6 @@ export function useChatSocket(options: Options) {
       setOnline,
       setReads,
       setPins,
-      setMembers,
     } = latestRef.current;
     const socket = connectSocket();
     socketRef.current = socket;
@@ -140,6 +161,8 @@ export function useChatSocket(options: Options) {
       });
     }
 
+    let connectedBefore = false;
+    let roomsTimer = 0;
     socket.on('connect', () => {
       socket.emit('presence.get');
       socket.emit('inbox.subscribe');
@@ -147,9 +170,36 @@ export function useChatSocket(options: Options) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
       void queryClient.invalidateQueries({ queryKey: queryKeys.galleryLibrary });
       void queryClient.invalidateQueries({ queryKey: queryKeys.newsLibrary });
+      // Lần nối đầu thì trang vừa tải xong; chỉ nối lại mới lỡ sự kiện phòng
+      if (connectedBefore) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
+        refreshAfterReconnect(queryClient, roomIdRef.current);
+      }
       if (roomIdRef.current) {
         socket.emit('join', roomIdRef.current);
+        if (connectedBefore) {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.reads(roomIdRef.current) });
+        }
       }
+      connectedBefore = true;
+    });
+    // Danh sách phòng đổi mà không có sự kiện riêng (ghim, ẩn, nhãn, thu hồi tin, máy khác…)
+    socket.on('rooms.changed', () => {
+      // Gộp các lần báo liền nhau thành một lần tải
+      window.clearTimeout(roomsTimer);
+      roomsTimer = window.setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
+        // Chặn / bỏ chặn chỉ báo qua đây (tới cả hai phía): hồ sơ đã cache phải tải lại blockedByMe/blockedMe
+        void queryClient.invalidateQueries({ queryKey: queryKeys.allUsers });
+      }, 300);
+    });
+    // Đã đọc phòng này trên máy khác (hoặc chính máy này)
+    socket.on('room.read', ({ roomId }: RoomRefreshEvent) => {
+      setRooms((current) =>
+        current.map((r) =>
+          r.id === roomId ? { ...r, unreadCount: 0, mentioned: false, markedUnread: false } : r,
+        ),
+      );
     });
     socket.on('message', (message: ChatMessage) => {
       if (message.userId) {
@@ -159,20 +209,23 @@ export function useChatSocket(options: Options) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.roomTasks(message.roomId) });
       }
       const open = message.roomId === roomIdRef.current;
+      const { user, myHandle, rooms, refreshRooms } = latestRef.current;
+      const mine = message.userId === user.id;
+      // Tin của chính máy này vừa gửi: thay tin tạm (socket thường về trước POST)
+      const clientId = message.clientId;
+      if (mine && clientId && hasTemp(getMessages(queryClient, message.roomId), clientId)) {
+        arrivedClientIds.add(clientId);
+        void settleSent(queryClient, clientId, message);
+      } else {
+        // Mọi phòng có cache đều nhận tin mới (BE gửi tới mọi thành viên), mở lại phòng là thấy ngay
+        addIncoming(queryClient, message, open);
+      }
       if (open) {
-        setMessages((current) => {
-          if (current.some((item) => item.id === message.id)) {
-            return current;
-          }
-          return [...current, message];
-        });
         void queryClient.invalidateQueries({ queryKey: queryKeys.roomMedia(message.roomId) });
         if (message.role === 'agent') {
           setPending(false);
         }
       }
-      const { user, myHandle, rooms, refreshRooms } = latestRef.current;
-      const mine = message.userId === user.id;
       const system = message.role === 'system';
       const reminder = message.systemKind === 'reminder.due';
       const shouldAlert = !mine && (!system || reminder);
@@ -198,7 +251,11 @@ export function useChatSocket(options: Options) {
             }
           })
           .catch(() => {
-            // poll 10 giây sẽ bù
+            // Lỗi tải mà socket vẫn sống thì không có lần nối lại nào bù: thử lại sau ít giây
+            window.clearTimeout(roomsTimer);
+            roomsTimer = window.setTimeout(() => {
+              void queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
+            }, 5000);
           });
         return;
       }
@@ -215,6 +272,8 @@ export function useChatSocket(options: Options) {
           ...target,
           lastMessagePreview: previewOf(message, latestRef.current.user?.id, isDirectRoom(target)),
           updatedAt: message.createdAt,
+          // "Đánh dấu đã đọc" ở menu phòng gửi id này lên
+          lastMessageId: message.id,
           unreadCount: viewing ? 0 : target.unreadCount + inc,
           mentioned: viewing ? false : Boolean(target.mentioned) || tagged,
         };
@@ -329,10 +388,13 @@ export function useChatSocket(options: Options) {
       if (message.task || message.recalled) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.roomTasks(message.roomId) });
       }
-      setMessages((current) =>
-        current.map((item) => {
+      // Còn lần thả cảm xúc của mình chờ server: giữ cảm xúc đang hiện, lấy phần còn lại
+      const keepReactions = hasPendingReaction(message.id);
+      updateMessages(queryClient, message.roomId, (cache) => ({
+        ...cache,
+        items: cache.items.map((item) => {
           if (item.id === message.id) {
-            return message;
+            return keepReactions ? { ...message, reactions: item.reactions } : message;
           }
           if (item.replyTo?.id === message.id) {
             return {
@@ -348,7 +410,7 @@ export function useChatSocket(options: Options) {
           }
           return item;
         }),
-      );
+      }));
       if (message.roomId === roomIdRef.current) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.roomMedia(message.roomId) });
         setPins((current) => {
@@ -363,6 +425,8 @@ export function useChatSocket(options: Options) {
       const { rooms, removeRoom } = latestRef.current;
       const gone = rooms.find((r) => r.id === payload.roomId);
       removeRoom(payload.roomId);
+      // Không còn là thành viên: tin chờ gửi của phòng không gửi được nữa
+      dropRoom(payload.roomId);
       if (gone) {
         void antMessage.info(`Bạn đã bị xóa khỏi nhóm ${gone.title || gone.name}.`);
       }
@@ -371,6 +435,7 @@ export function useChatSocket(options: Options) {
       const { rooms, removeRoom } = latestRef.current;
       const gone = rooms.find((r) => r.id === payload.roomId);
       removeRoom(payload.roomId);
+      dropRoom(payload.roomId);
       if (gone && payload.reason === 'dissolved') {
         void antMessage.info(`Nhóm ${gone.title || gone.name} đã bị giải tán.`);
       }
@@ -398,18 +463,22 @@ export function useChatSocket(options: Options) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.taskLists });
       void queryClient.invalidateQueries({ queryKey: queryKeys.roomTasks(payload.task.roomId) });
     });
-    socket.on('room.members', () => {
+    // Tải lại thành viên phòng đang mở; tên người gửi trên các tin đã nạp đổi theo
+    function refreshMembers() {
       const targetRoomId = roomIdRef.current;
       if (!targetRoomId) {
         return;
       }
-      void api
-        .members(targetRoomId)
+      void queryClient
+        .query({
+          queryKey: queryKeys.members(targetRoomId),
+          queryFn: () => api.members(targetRoomId),
+          staleTime: 0,
+        })
         .then((next) => {
           if (roomIdRef.current !== targetRoomId) {
             return;
           }
-          setMembers(next);
           const names = new Map(next.map((item) => [item.id, item.displayName || item.name]));
           setMessages((current) =>
             current.map((item) => {
@@ -424,8 +493,76 @@ export function useChatSocket(options: Options) {
         .catch(() => {
           // làm mới nền; lỗi mạng thì giữ danh sách cũ
         });
+    }
+    socket.on('room.members', refreshMembers);
+    socket.on('user.updated', (payload: UserUpdatedEvent) => {
+      const rename = (list: PresenceUser[]) =>
+        list.some((u) => u.id === payload.id && u.name !== payload.name)
+          ? list.map((u) => (u.id === payload.id ? { ...u, name: payload.name } : u))
+          : list;
+      setOnlineUsers(rename);
+      setOnline(rename);
+      // Thành viên các phòng khác trong cache: lần mở sau tải lại thay vì hiện tên cũ
+      void queryClient.invalidateQueries({ queryKey: queryKeys.allMembers, refetchType: 'none' });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.allContacts });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.user(payload.id) });
+      const openId = roomIdRef.current;
+      const openMembers = openId
+        ? queryClient.getQueryData<RoomMember[]>(queryKeys.members(openId))
+        : undefined;
+      if (openMembers?.some((m) => m.id === payload.id)) {
+        refreshMembers();
+      }
     });
+    socket.on('call.incoming', (data: CallIncomingEvent) => {
+      callHandlerRef.current?.({ type: 'incoming', data });
+    });
+    socket.on('call.started', (data: CallStartedEvent) => {
+      callHandlerRef.current?.({ type: 'started', data });
+    });
+    socket.on('call.peers', (data: CallPeer[]) => {
+      callHandlerRef.current?.({ type: 'peers', data });
+    });
+    socket.on('call.peer-joined', (data: CallPeer) => {
+      callHandlerRef.current?.({ type: 'peer-joined', data });
+    });
+    socket.on('call.peer-left', (data: CallPeerLeftEvent) => {
+      callHandlerRef.current?.({ type: 'peer-left', data });
+    });
+    socket.on('call.peer-media', (data: CallPeerMediaEvent) => {
+      callHandlerRef.current?.({ type: 'peer-media', data });
+    });
+    socket.on('call.signal', (data: CallSignalEvent) => {
+      callHandlerRef.current?.({ type: 'signal', data });
+    });
+    socket.on('call.ended', (data: CallEndedEvent) => {
+      callHandlerRef.current?.({ type: 'ended', data });
+    });
+    socket.on('call.answered-elsewhere', (data: CallAnsweredElsewhereEvent) => {
+      callHandlerRef.current?.({ type: 'answered-elsewhere', data });
+    });
+    socket.on('call.error', (data: CallErrorEvent) => {
+      callHandlerRef.current?.({ type: 'error', data });
+    });
+    // BE chỉ gửi Web Push khi người dùng không còn socket nào đang được xem (cửa sổ hiện + đang focus)
+    let reportedActive: boolean | null = null;
+    const reportActive = (force = false) => {
+      const active = isChatVisible();
+      if (socket.connected && (force || active !== reportedActive)) {
+        reportedActive = active;
+        socket.emit('client.active', { active });
+      }
+    };
+    const reportActiveSoon = () => reportActive();
+    socket.on('connect', () => reportActive(true));
+    document.addEventListener('visibilitychange', reportActiveSoon);
+    window.addEventListener('focus', reportActiveSoon);
+    window.addEventListener('blur', reportActiveSoon);
     return () => {
+      document.removeEventListener('visibilitychange', reportActiveSoon);
+      window.removeEventListener('focus', reportActiveSoon);
+      window.removeEventListener('blur', reportActiveSoon);
+      window.clearTimeout(roomsTimer);
       socket.off('presence.lastSeen', onLastSeen);
       closeSocket(socket);
       socketRef.current = null;
@@ -454,5 +591,13 @@ export function useChatSocket(options: Options) {
     socketRef.current?.emit('typing', { roomId, typing: active });
   }, []);
 
-  return { onlineUsers, onlineUserIds, typing, emitTyping };
+  const emitCall = useCallback((event: string, payload?: unknown) => {
+    socketRef.current?.emit(event, payload);
+  }, []);
+
+  const setCallHandler = useCallback((fn: ((event: CallSocketEvent) => void) | null) => {
+    callHandlerRef.current = fn;
+  }, []);
+
+  return { onlineUsers, onlineUserIds, typing, emitTyping, emitCall, setCallHandler };
 }

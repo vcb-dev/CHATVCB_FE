@@ -64,21 +64,3 @@ export interface EmployeeProfile {
   vehicles: string;
   isActive: boolean;
 }
-
-export type EmployeeListRow = Pick<
-  EmployeeProfile,
-  | "id"
-  | "fullName"
-  | "email"
-  | "avatarUrl"
-  | "employeeCode"
-  | "department"
-  | "departmentGroup"
-  | "jobTitle"
-  | "directManagerName"
-  | "startDate"
-  | "employmentStatus"
-  | "cardColor"
-  | "contractType"
-  | "isActive"
->;

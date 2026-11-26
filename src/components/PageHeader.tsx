@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { MenuButton } from './MenuButton';
 
@@ -16,8 +16,23 @@ export type PageTabs = {
 };
 
 function TabBar({ tabs }: { tabs: PageTabs }) {
+  const navRef = useRef<HTMLElement>(null);
+  // Khổ hẹp hàng tab cuộn ngang: kéo tab đang chọn vào tầm nhìn (vd "Thư mục team" của Docs nằm cuối)
+  useEffect(() => {
+    const nav = navRef.current;
+    const active = nav?.querySelector<HTMLElement>('.ui-page-tab.active');
+    if (!nav || !active) {
+      return;
+    }
+    const box = nav.getBoundingClientRect();
+    const tab = active.getBoundingClientRect();
+    if (tab.left < box.left || tab.right > box.right) {
+      nav.scrollLeft += tab.left - box.left - 16;
+    }
+  }, [tabs.activeKey]);
+
   return (
-    <nav className="ui-page-tabs" aria-label="Mục">
+    <nav ref={navRef} className="ui-page-tabs" aria-label="Mục">
       {tabs.items.map((item) => {
         const active = item.key === tabs.activeKey;
         return (

@@ -24,7 +24,7 @@ export function GroupRemindersCard({
 }: Props) {
   const queryClient = useQueryClient();
 
-  const { data: reminders = [] } = useQuery({
+  const { data: reminders = [], isPending, isError } = useQuery({
     queryKey: queryKeys.reminders(room.id),
     queryFn: () => api.reminders(room.id),
     enabled: Boolean(room.id),
@@ -55,8 +55,14 @@ export function GroupRemindersCard({
     <GroupBoardCard
       icon={<ClockCircleOutlined />}
       title="Nhắc hẹn"
-      countLabel={`${reminders.length} nhắc hẹn`}
-      emptyText="Chưa có nhắc hẹn nào"
+      countLabel={isPending ? 'Đang tải…' : `${reminders.length} nhắc hẹn`}
+      emptyText={
+        isPending
+          ? 'Đang tải…'
+          : isError
+            ? 'Không tải được nhắc hẹn'
+            : 'Chưa có nhắc hẹn nào'
+      }
       hasItems={reminders.length > 0}
       onCreate={onCreate}
     >

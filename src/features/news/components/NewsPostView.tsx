@@ -1,7 +1,7 @@
 import { FacebookFilled } from '@ant-design/icons';
 import { Avatar } from 'antd';
 import { type ReactNode, useMemo } from 'react';
-import { avatarColor, initials } from '@/lib/avatar';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { NewsBlock, NewsImage } from '@/types';
 import { feedImages, type NewsPostAuthor } from '../utils/feed';
 import { NewsImageGrid } from './NewsImageGrid';
@@ -35,13 +35,11 @@ export function NewsPostView(props: {
               icon={<FacebookFilled />}
             />
           ) : (
-            <Avatar
+            <UserAvatar
               size={40}
-              src={author.avatarUrl || undefined}
-              style={{ backgroundColor: avatarColor(author.name) }}
-            >
-              {initials(author.name)}
-            </Avatar>
+              src={author.avatarUrl}
+              name={author.name}
+            />
           )}
           <div className="news-post-meta">
             <div className="news-post-author">{author.name}</div>

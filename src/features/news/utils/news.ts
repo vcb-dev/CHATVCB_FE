@@ -59,7 +59,3 @@ export function newsTime(value: string): string {
   }
   return newsDateTime(value);
 }
-
-export function newsDate(value: string | null): string {
-  return value ? new Date(value).toLocaleDateString('vi-VN') : 'Nháp';
-}

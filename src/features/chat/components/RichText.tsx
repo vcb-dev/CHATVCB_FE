@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode, useMemo } from 'react';
 import { parseRichText } from '../utils/format';
-import { AGENT_HANDLE, MENTION } from '../utils/mentions';
+import { AGENT_HANDLE, splitMentions } from '../utils/mentions';
 import { inviteTokenOf } from '../utils/invite';
 import type { RichInline } from '@/types';
 
@@ -12,11 +12,11 @@ function renderInline(
 ): ReactNode {
   switch (node.type) {
     case 'text': {
-      const parts = node.text.split(MENTION);
+      const parts = splitMentions(node.text);
       return (
         <Fragment key={key}>
           {parts.map((part, index) => {
-            if (!part.startsWith('@')) {
+            if (index % 2 === 0) {
               return part;
             }
             const handle = part.slice(1).toLowerCase();

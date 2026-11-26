@@ -6,6 +6,8 @@ import {
   EnvironmentOutlined,
   FileTextOutlined,
   IdcardOutlined,
+  PaperClipOutlined,
+  PictureOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
 import { Button, Dropdown, type MenuProps, Tooltip } from 'antd';
@@ -20,14 +22,24 @@ export function ComposerToolsMenu(props: {
   onPick: (kind: ToolKind) => void;
   onLocation: () => void;
   onCard: () => void;
+  /** Khổ điện thoại: nút Ảnh và Tệp gộp vào menu này để ô nhập không bị bóp hẹp */
+  onPickImages?: () => void;
+  onPickFiles?: () => void;
 }) {
-  const items: MenuProps['items'] = [
+  const items: MenuProps['items'] = [];
+  if (props.onPickImages) {
+    items.push({ key: 'images', icon: <PictureOutlined />, label: 'Ảnh' });
+  }
+  if (props.onPickFiles) {
+    items.push({ key: 'files', icon: <PaperClipOutlined />, label: 'Tệp đính kèm' });
+  }
+  items.push(
     {
       key: 'gallery',
       icon: <AppstoreOutlined />,
       label: 'Bộ sưu tập ảnh',
     },
-  ];
+  );
   if (props.canAssign) {
     items.push({
       key: 'task',
@@ -71,7 +83,11 @@ export function ComposerToolsMenu(props: {
       menu={{
         items,
         onClick: ({ key }) => {
-          if (key === 'gallery') {
+          if (key === 'images') {
+            props.onPickImages?.();
+          } else if (key === 'files') {
+            props.onPickFiles?.();
+          } else if (key === 'gallery') {
             props.onOpenGallery();
           } else if (key === 'location') {
             props.onLocation();

@@ -12,9 +12,12 @@ const EMPTY_META: PageMeta = { hasMore: false, nextCursor: null };
 export function useRoomList({
   isViewingChat,
   setError,
+  onRoomOpened,
 }: {
   isViewingChat: () => boolean;
   setError: (error: string) => void;
+  /** Người dùng chủ động mở phòng (openRoom/selectRoom); phòng tự chọn khi tải danh sách hay sau khi xoá phòng thì không gọi. */
+  onRoomOpened?: (roomId: string) => void;
 }) {
   const [roomId, setRoomId] = useState('');
   const [loadingOlderRooms, setLoadingOlderRooms] = useState(false);
@@ -48,11 +51,11 @@ export function useRoomList({
     return { data: merged, meta: keepMeta && prev ? prev.meta : page.meta };
   }, [queryClient, isViewingChat]);
 
-  const { data, isError } = useQuery({
+  // Không poll: thay đổi tới qua socket (message, room.updated, rooms.changed, room.read…),
+  // nối lại socket thì tải lại; quay lại tab cũng tải lại cho chắc
+  const { data, isError, isPending } = useQuery({
     queryKey: queryKeys.rooms,
     queryFn: fetchRoomList,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   });
   const rooms = data?.data ?? EMPTY_ROOMS;
@@ -96,6 +99,7 @@ export function useRoomList({
     unreadOnOpenRef.current = { roomId: nextRoom.id, count: nextRoom.unreadCount ?? 0 };
     setRooms((prev) => upsertRoom(prev, { ...nextRoom, hidden: false }));
     setRoomId(nextRoom.id);
+    onRoomOpened?.(nextRoom.id);
   }
 
   // Giữ nguyên danh tính giữa các lần vẽ để dòng phòng (RoomListItem) không phải vẽ lại
@@ -103,11 +107,15 @@ export function useRoomList({
     (next: Room) => {
       unreadOnOpenRef.current = { roomId: next.id, count: next.unreadCount };
       setRoomId(next.id);
+      onRoomOpened?.(next.id);
+      // Xóa luôn dấu @ và "đánh dấu chưa đọc", không chờ markRead trả về
       setRooms((current) =>
-        current.map((r) => (r.id === next.id ? { ...r, unreadCount: 0 } : r)),
+        current.map((r) =>
+          r.id === next.id ? { ...r, unreadCount: 0, mentioned: false, markedUnread: false } : r,
+        ),
       );
     },
-    [setRooms],
+    [setRooms, onRoomOpened],
   );
 
   function updateRoom(next: Room) {
@@ -157,7 +165,11 @@ export function useRoomList({
   }
 
   const refreshRooms = useCallback(
-    () => queryClient.fetchQuery({ queryKey: queryKeys.rooms, queryFn: fetchRoomList }).then((page) => page.data),
+    // staleTime 0: gọi khi có tin của phòng chưa có trong danh sách, cache dù mới tải cũng chưa có phòng đó
+    () =>
+      queryClient
+        .query({ queryKey: queryKeys.rooms, queryFn: fetchRoomList, staleTime: 0 })
+        .then((page) => page.data),
     [queryClient, fetchRoomList],
   );
 
@@ -170,6 +182,7 @@ export function useRoomList({
     roomIdRef,
     roomsMeta,
     loadingOlderRooms,
+    loadingRooms: isPending,
     findRoom,
     openRoom,
     selectRoom,

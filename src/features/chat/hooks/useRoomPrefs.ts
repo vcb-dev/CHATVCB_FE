@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useMemo, useRef, type Dispatch, type SetStateAction } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Modal, message as antMessage } from 'antd';
 import { api } from '@/api/client';
@@ -9,11 +9,16 @@ import { sortRooms } from '../utils/rooms';
 export function useRoomPrefs({
   setRooms,
   removeRoom,
+  askBlock,
 }: {
   setRooms: Dispatch<SetStateAction<Room[]>>;
   removeRoom: (roomId: string) => void;
+  /** useBlockUser: chặn (có hỏi lại) / bỏ chặn người bên kia của chat 1-1. */
+  askBlock?: (userId: string, name: string, blocked: boolean) => Promise<boolean>;
 }) {
   const queryClient = useQueryClient();
+  const askBlockRef = useRef(askBlock);
+  askBlockRef.current = askBlock;
 
   // Cập nhật tạm `patch` lên phòng, gọi API, lỗi thì hoàn lại đúng các khóa trong `patch`
   const apply = useCallback(
@@ -139,9 +144,17 @@ export function useRoomPrefs({
     [apply],
   );
 
+  // Chat 1-1: chặn / bỏ chặn người bên kia
+  const toggleBlock = useCallback((room: Room) => {
+    if (!room.peerUserId || !askBlockRef.current) {
+      return Promise.resolve(false);
+    }
+    return askBlockRef.current(room.peerUserId, room.title || room.name, !room.blockedByMe);
+  }, []);
+
   // Cùng một đối tượng giữa các lần vẽ, để dòng phòng không vẽ lại chỉ vì `actions` đổi danh tính
   return useMemo(
-    () => ({ togglePin, toggleUnread, hide, mute, unmute, setLabel }),
-    [togglePin, toggleUnread, hide, mute, unmute, setLabel],
+    () => ({ togglePin, toggleUnread, hide, mute, unmute, setLabel, toggleBlock }),
+    [togglePin, toggleUnread, hide, mute, unmute, setLabel, toggleBlock],
   );
 }

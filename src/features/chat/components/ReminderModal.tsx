@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Button, Form, Input, Modal, Select, message } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
+import { FormField } from '@/components/FormField';
 import type { Reminder } from '@/types';
 import { fromLocalInput, toLocalInput } from '../utils/datetime';
 
@@ -11,6 +13,12 @@ type Props = {
   roomId: string;
   reminder: Reminder | null;
   onClose: () => void;
+};
+
+type ReminderFormValues = {
+  title: string;
+  remindAt: string;
+  repeat: 'none' | 'daily' | 'weekly';
 };
 
 const REPEAT_OPTIONS = [
@@ -26,37 +34,35 @@ export function ReminderModal({
   onClose,
 }: Props) {
   const queryClient = useQueryClient();
-  const [title, setTitle] = useState('');
-  const [remindAt, setRemindAt] = useState('');
-  const [repeat, setRepeat] = useState<'none' | 'daily' | 'weekly'>('none');
   const [loading, setLoading] = useState(false);
+  const {
+    control,
+    handleSubmit: submitForm,
+    reset,
+    formState: { isValid },
+  } = useForm<ReminderFormValues>({
+    mode: 'onChange',
+    defaultValues: { title: '', remindAt: '', repeat: 'none' },
+  });
 
   useEffect(() => {
     if (open) {
       if (reminder) {
-        setTitle(reminder.title);
-        setRemindAt(toLocalInput(reminder.remindAt));
-        setRepeat(reminder.repeat);
+        reset({
+          title: reminder.title,
+          remindAt: toLocalInput(reminder.remindAt),
+          repeat: reminder.repeat,
+        });
       } else {
-        setTitle('');
         const defaultDate = new Date(Date.now() + 15 * 60_000);
-        setRemindAt(toLocalInput(defaultDate.toISOString()));
-        setRepeat('none');
+        reset({ title: '', remindAt: toLocalInput(defaultDate.toISOString()), repeat: 'none' });
       }
     }
-  }, [open, reminder]);
+  }, [open, reminder, reset]);
 
-  const handleSubmit = async () => {
+  // Tiêu đề trống / chưa chọn giờ: nút Lưu đã khoá (luật của form), không tới được đây
+  const handleSubmit = async ({ title, remindAt, repeat }: ReminderFormValues) => {
     const t = title.trim();
-    if (!t) {
-      message.error('Tiêu đề không được trống.');
-      return;
-    }
-    if (!remindAt) {
-      message.error('Vui lòng chọn thời gian nhắc.');
-      return;
-    }
-
     try {
       setLoading(true);
       const isoTime = fromLocalInput(remindAt);
@@ -107,8 +113,8 @@ export function ReminderModal({
           key="submit"
           type="primary"
           loading={loading}
-          disabled={!title.trim() || !remindAt}
-          onClick={handleSubmit}
+          disabled={!isValid}
+          onClick={() => void submitForm(handleSubmit)()}
         >
           {reminder ? 'Lưu' : 'Tạo nhắc hẹn'}
         </Button>,
@@ -116,31 +122,22 @@ export function ReminderModal({
       destroyOnHidden
     >
       <Form layout="vertical" className="mt-3">
-        <Form.Item label="Nội dung nhắc hẹn" required>
-          <Input
-            placeholder="Nhập nội dung nhắc hẹn..."
-            maxLength={200}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </Form.Item>
+        <FormField
+          control={control}
+          name="title"
+          label="Nội dung nhắc hẹn"
+          rules={{ required: true, validate: (value) => Boolean(value.trim()) }}
+        >
+          <Input placeholder="Nhập nội dung nhắc hẹn..." maxLength={200} />
+        </FormField>
 
-        <Form.Item label="Thời gian" required>
-          <Input
-            type="datetime-local"
-            min={minTime}
-            value={remindAt}
-            onChange={(e) => setRemindAt(e.target.value)}
-          />
-        </Form.Item>
+        <FormField control={control} name="remindAt" label="Thời gian" rules={{ required: true }}>
+          <Input type="datetime-local" min={minTime} />
+        </FormField>
 
-        <Form.Item label="Lặp lại">
-          <Select
-            value={repeat}
-            onChange={(v) => setRepeat(v)}
-            options={REPEAT_OPTIONS}
-          />
-        </Form.Item>
+        <FormField control={control} name="repeat" label="Lặp lại">
+          <Select options={REPEAT_OPTIONS} />
+        </FormField>
       </Form>
     </Modal>
   );

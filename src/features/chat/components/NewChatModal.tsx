@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Button, Input, Modal, Tabs, message } from 'antd';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { api } from '@/api/client';
 import { UserPicker } from './UserPicker';
 import type { DirectoryUser, Room } from '@/types';
+
+type GroupFormValues = { name: string; memberIds: string[] };
 
 export function NewChatModal(props: {
   open: boolean;
@@ -12,19 +15,23 @@ export function NewChatModal(props: {
   initialTab?: 'direct' | 'group';
 }) {
   const [activeTab, setActiveTab] = useState<'direct' | 'group'>('direct');
-  const [groupName, setGroupName] = useState('');
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { isValid },
+  } = useForm<GroupFormValues>({ mode: 'onChange', defaultValues: { name: '', memberIds: [] } });
+  const memberCount = useWatch({ control, name: 'memberIds' }).length;
 
   useEffect(() => {
     if (props.open) {
       setActiveTab(props.initialTab ?? 'direct');
     } else {
-      setGroupName('');
-      setSelectedIds([]);
+      reset();
       setSubmitting(false);
     }
-  }, [props.open, props.initialTab]);
+  }, [props.open, props.initialTab, reset]);
 
   async function handleDirectPick(user: DirectoryUser) {
     setSubmitting(true);
@@ -41,14 +48,10 @@ export function NewChatModal(props: {
     }
   }
 
-  async function handleCreateGroup() {
-    const trimmed = groupName.trim();
-    if (!trimmed || selectedIds.length === 0) {
-      return;
-    }
+  async function handleCreateGroup({ name, memberIds }: GroupFormValues) {
     setSubmitting(true);
     try {
-      const room = await api.createGroupRoom(trimmed, selectedIds);
+      const room = await api.createGroupRoom(name.trim(), memberIds);
       props.onOpenRoom(room);
       props.onClose();
     } catch (err) {
@@ -87,29 +90,38 @@ export function NewChatModal(props: {
             children: (
               <div className="new-chat-group">
                 <div className="new-group-name-row">
-                  <Input
-                    placeholder="Nhập tên nhóm (tối đa 80 ký tự)..."
-                    value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                    maxLength={80}
-                    allowClear
+                  <Controller
+                    control={control}
+                    name="name"
+                    rules={{ validate: (value) => Boolean(value.trim()) }}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        placeholder="Nhập tên nhóm (tối đa 80 ký tự)..."
+                        maxLength={80}
+                        allowClear
+                      />
+                    )}
                   />
                 </div>
                 <div className="new-group-label">Chọn thành viên:</div>
-                <UserPicker
-                  mode="multi"
-                  selected={selectedIds}
-                  onChange={setSelectedIds}
+                <Controller
+                  control={control}
+                  name="memberIds"
+                  rules={{ validate: (ids) => ids.length > 0 }}
+                  render={({ field }) => (
+                    <UserPicker mode="multi" selected={field.value} onChange={field.onChange} />
+                  )}
                 />
                 <div className="new-group-footer">
                   <Button onClick={props.onClose}>Hủy</Button>
                   <Button
                     type="primary"
-                    disabled={!groupName.trim() || selectedIds.length === 0}
+                    disabled={!isValid}
                     loading={submitting}
-                    onClick={() => void handleCreateGroup()}
+                    onClick={() => void handleSubmit(handleCreateGroup)()}
                   >
-                    Tạo nhóm ({selectedIds.length})
+                    Tạo nhóm ({memberCount})
                   </Button>
                 </div>
               </div>

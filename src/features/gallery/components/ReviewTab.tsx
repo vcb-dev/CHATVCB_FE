@@ -1,8 +1,11 @@
+import { PictureOutlined } from '@ant-design/icons';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Empty, Input, Modal, Segmented, Select, message } from 'antd';
+import { Button, Input, Modal, Segmented, Select, message } from 'antd';
 import { useMemo, useState } from 'react';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
 import { errorText } from '@/lib/errors';
 import type { GalleryAlbum, GalleryPhoto, GalleryVisibility } from '@/types';
 import { savePhoto } from '../utils/savePhoto';
@@ -109,7 +112,16 @@ export function ReviewTab() {
 
   return (
     <div>
-      {!query.isLoading && !photos.length ? <Empty description="Không có ảnh chờ duyệt" /> : null}
+      {query.isPending ? (
+        <LoadingState />
+      ) : query.isError ? (
+        <EmptyState
+          title="Không tải được ảnh chờ duyệt"
+          action={<Button onClick={() => void query.refetch()}>Thử lại</Button>}
+        />
+      ) : !photos.length ? (
+        <EmptyState icon={<PictureOutlined />} title="Không có ảnh chờ duyệt" />
+      ) : null}
       <div className="gallery-review-list">
         {photos.map((photo) => (
           <ReviewCard

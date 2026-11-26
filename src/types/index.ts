@@ -41,6 +41,8 @@ export type Room = {
   peerUserId: string | null;
   /** DM mà người xem đã chặn đối phương; có ở GET /rooms. */
   blockedByMe?: boolean;
+  /** DM mà đối phương đã chặn người xem (không gửi tin được); có ở GET /rooms. */
+  blockedMe?: boolean;
   memberIds?: string[];
   /** Có ở GET /rooms; kết quả tìm kiếm và room.updated không có. */
   muted?: boolean;
@@ -277,14 +279,112 @@ export type ChatMessage = {
   type?: string;
   task?: MessageTask | null;
   createdAt: string;
+  /** Mã máy gửi tự sinh; BE trả lại trong sự kiện socket `message` để thay đúng tin tạm. */
+  clientId?: string;
+  /** Chỉ có ở tin tạm (chưa có id thật): đang gửi hoặc gửi lỗi. */
+  sendState?: 'sending' | 'failed';
+  /** Câu lỗi server của tin tạm gửi hỏng. */
+  sendError?: string;
 };
+
+export type CallMode = "audio" | "video";
+export type CallKind = "direct" | "group";
+export type CallStatus =
+  | "active"
+  | "ended"
+  | "missed"
+  | "rejected"
+  | "busy"
+  | "cancelled";
 
 /** Tin có cấu trúc (BE: Message.rich). `content` của tin luôn có câu dự phòng cho app cũ. */
 export type RichPayload =
   | { type: "sticker"; id: string }
   | { type: "location"; lat: number; lng: number; label?: string }
   | { type: "card"; userId: string }
-  | { type: "meeting"; code: string; title: string };
+  | { type: "meeting"; code: string; title: string }
+  | {
+      type: "call";
+      callId: string;
+      mode: CallMode;
+      kind: CallKind;
+      status: CallStatus;
+      durationSec?: number;
+    };
+
+export type CallPeer = {
+  socketId: string;
+  userId: string;
+  name: string;
+  avatarUrl: string;
+  micOn: boolean;
+  camOn: boolean;
+  sharing: boolean;
+};
+
+export type CallIncomingEvent = {
+  callId: string;
+  roomId: string;
+  roomTitle: string;
+  roomAvatarUrl: string;
+  kind: CallKind;
+  mode: CallMode;
+  callerId: string;
+  callerName: string;
+  callerAvatarUrl: string;
+};
+
+export type CallStartedEvent = CallIncomingEvent & {
+  micOn: boolean;
+  camOn: boolean;
+  connectedAt?: number | null;
+};
+
+export type CallPeerLeftEvent = {
+  callId: string;
+  socketId: string;
+  userId?: string;
+};
+
+export type CallPeerMediaEvent = {
+  callId: string;
+  socketId: string;
+  userId: string;
+  micOn: boolean;
+  camOn: boolean;
+  sharing: boolean;
+};
+
+export type CallSignalPayload = {
+  type: "offer" | "answer" | "ice";
+  sdp?: RTCSessionDescriptionInit;
+  candidate?: RTCIceCandidateInit;
+};
+
+export type CallSignalEvent = {
+  callId: string;
+  from: string;
+  userId?: string;
+  name?: string;
+  avatarUrl?: string;
+  payload: CallSignalPayload;
+};
+
+export type CallEndedEvent = {
+  callId: string;
+  roomId?: string;
+  reason: CallStatus;
+  durationSec?: number;
+};
+
+export type CallAnsweredElsewhereEvent = {
+  callId: string;
+  acceptedBySocketId: string;
+};
+
+export type CallErrorEvent = {
+  message: string;
+};
 
 export type PageMeta = {
   hasMore: boolean;
@@ -479,8 +579,31 @@ export type DirectoryUser = {
   email: string;
   team: string;
   avatarUrl?: string;
+  /** Từ hồ sơ nhân sự (rỗng nếu chưa có). */
+  department?: string;
+  departmentGroup?: string;
+  /** Chỉ có ở GET /users/:id. */
+  jobTitle?: string;
+  phone?: string;
   /** Có ở GET /users/:id: người xem đã chặn người này. */
   blockedByMe?: boolean;
+  /** Có ở GET /users/:id: người này đã chặn người xem. */
+  blockedMe?: boolean;
+};
+
+/** GET /users/:id/common-rooms: nhóm mà hai người cùng tham gia. */
+export type CommonRoom = {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  memberCount: number;
+};
+
+/** GET /users/blocked */
+export type BlockedUser = {
+  id: string;
+  name: string;
+  avatarUrl: string;
 };
 
 /** GET /users/teams: số người của mỗi team (không tính người xem). */
@@ -801,4 +924,11 @@ export type LastSeenMap = Record<string, string>;
 export type PresenceLastSeenEvent = {
   userId: string;
   lastSeenAt: string;
+};
+
+/** Ai đó vừa đổi tên hoặc ảnh đại diện (tự đổi, admin hay HR sửa). */
+export type UserUpdatedEvent = {
+  id: string;
+  name: string;
+  avatarUrl: string;
 };

@@ -1,8 +1,11 @@
 import { FacebookFilled, SyncOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Avatar, Button, Empty, Popconfirm, Spin, Switch, Tag, Tooltip, message } from 'antd';
+import { Alert, Button, Popconfirm, Switch, Tag, Tooltip, message } from 'antd';
 import { useState } from 'react';
 import { api } from '@/api/client';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
+import { UserAvatar } from '@/components/UserAvatar';
 import { queryKeys } from '@/api/queryKeys';
 import { errorText } from '@/lib/errors';
 import type { NewsFacebookPage } from '@/types';
@@ -27,7 +30,13 @@ function PageRow(props: { page: NewsFacebookPage; onChanged: () => void }) {
 
   return (
     <div className="news-facebook-page" data-page-id={page.pageId}>
-      <Avatar size={44} src={page.pictureUrl} icon={<FacebookFilled />} style={{ flex: 'none' }} />
+      <UserAvatar
+        size={44}
+        src={page.pictureUrl}
+        name={page.name}
+        icon={<FacebookFilled />}
+        style={{ flex: 'none' }}
+      />
       <div className="news-facebook-page-text">
         <a href={`https://www.facebook.com/${page.pageId}`} target="_blank" rel="noreferrer">
           <strong>{page.name}</strong>
@@ -144,14 +153,14 @@ export function NewsFacebookPages() {
           Page mới kết nối đang tắt. Bật "Tự đăng" thì bài Page đăng từ lúc bật sẽ tự lên Bản tin. Muốn đổi
           Page thông báo, tắt Page cũ và bật Page mới.
         </p>
-        {pages.isLoading ? <Spin className="news-loading" /> : null}
+        {pages.isLoading ? <LoadingState /> : null}
         {pages.isError ? (
           <div className="news-state">
             <p>{errorText(pages.error, 'Không tải được danh sách Page.')}</p>
             <Button onClick={() => void pages.refetch()}>Thử lại</Button>
           </div>
         ) : null}
-        {pages.data && !pages.data.length ? <Empty description="Chưa kết nối Page nào" /> : null}
+        {pages.data && !pages.data.length ? <EmptyState compact title="Chưa kết nối Page nào" /> : null}
         {pages.data?.map((page) => (
           <PageRow
             key={page.id}

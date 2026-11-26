@@ -1,9 +1,12 @@
 import { DeleteOutlined } from '@ant-design/icons';
-import { Button, Input, Modal, Popover, Spin, message } from 'antd';
+import { Button, Input, Modal, Popover, message } from 'antd';
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Controller, useForm } from 'react-hook-form';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
+import { EmptyState } from '@/components/EmptyState';
+import { LoadingState } from '@/components/LoadingState';
 import type { ConversationLabel } from '@/types';
 import { LABEL_COLORS } from '../utils/labels';
 
@@ -50,8 +53,10 @@ export function LabelManagerModal(props: { open: boolean; onClose: () => void })
     enabled: props.open,
   });
 
-  const [newName, setNewName] = useState('');
-  const [newColorOverride, setNewColorOverride] = useState<string | null>(null);
+  // Ô "nhãn mới": màu null = tự chọn màu chưa dùng
+  const { control, handleSubmit, reset } = useForm<{ name: string; color: string | null }>({
+    defaultValues: { name: '', color: null },
+  });
 
   const defaultNewColor = useMemo(() => {
     const used = new Set(labels.map((l) => l.color.toLowerCase()));
@@ -59,22 +64,20 @@ export function LabelManagerModal(props: { open: boolean; onClose: () => void })
     return firstUnused ?? LABEL_COLORS[0];
   }, [labels]);
 
-  const activeNewColor = newColorOverride ?? defaultNewColor;
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: queryKeys.labels });
     await queryClient.invalidateQueries({ queryKey: queryKeys.rooms });
   }
 
-  async function handleAdd() {
-    const trimmed = newName.trim();
+  async function handleAdd({ name, color }: { name: string; color: string | null }) {
+    const trimmed = name.trim();
     if (!trimmed) {
       return;
     }
     try {
-      await api.createLabel({ name: trimmed, color: activeNewColor });
-      setNewName('');
-      setNewColorOverride(null);
+      await api.createLabel({ name: trimmed, color: color ?? defaultNewColor });
+      reset();
       await refresh();
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không tạo được nhãn.');
@@ -120,13 +123,14 @@ export function LabelManagerModal(props: { open: boolean; onClose: () => void })
       width={420}
     >
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: 24 }}>
-          <Spin />
-        </div>
+        <LoadingState compact />
       ) : (
         <div className="label-manager-body">
           {labels.length === 0 ? (
-            <p className="room-list-empty">Chưa có nhãn. Tạo nhãn để phân loại cuộc trò chuyện.</p>
+            <EmptyState
+              compact
+              title="Chưa có nhãn. Tạo nhãn để phân loại cuộc trò chuyện."
+            />
           ) : (
             <div className="label-list">
               {labels.map((item) => (
@@ -155,18 +159,26 @@ export function LabelManagerModal(props: { open: boolean; onClose: () => void })
           )}
 
           <div className="label-add-row">
-            <ColorPicker
-              color={activeNewColor}
-              onChange={(c) => setNewColorOverride(c)}
+            <Controller
+              control={control}
+              name="color"
+              render={({ field }) => (
+                <ColorPicker color={field.value ?? defaultNewColor} onChange={field.onChange} />
+              )}
             />
-            <Input
-              placeholder="Tên nhãn mới"
-              value={newName}
-              maxLength={30}
-              onChange={(e) => setNewName(e.target.value)}
-              onPressEnter={() => void handleAdd()}
+            <Controller
+              control={control}
+              name="name"
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  placeholder="Tên nhãn mới"
+                  maxLength={30}
+                  onPressEnter={() => void handleSubmit(handleAdd)()}
+                />
+              )}
             />
-            <Button type="primary" onClick={() => void handleAdd()}>
+            <Button type="primary" onClick={() => void handleSubmit(handleAdd)()}>
               Thêm
             </Button>
           </div>

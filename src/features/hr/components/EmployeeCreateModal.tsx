@@ -1,15 +1,19 @@
 import { Form, Input, Modal } from "antd";
 import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { FormField } from "@/components/FormField";
+
+type EmployeeCreateValues = {
+  fullName: string;
+  email: string;
+  password?: string;
+};
 
 interface EmployeeCreateModalProps {
   open: boolean;
   confirmLoading: boolean;
   onClose: () => void;
-  onSubmit: (values: {
-    fullName: string;
-    email: string;
-    password?: string;
-  }) => Promise<void>;
+  onSubmit: (values: EmployeeCreateValues) => Promise<void>;
 }
 
 export function EmployeeCreateModal({
@@ -18,10 +22,12 @@ export function EmployeeCreateModal({
   onClose,
   onSubmit,
 }: EmployeeCreateModalProps) {
-  const [form] = Form.useForm();
+  const { control, handleSubmit, reset } = useForm<EmployeeCreateValues>({
+    mode: "onChange",
+  });
   useEffect(() => {
-    if (open) form.resetFields();
-  }, [open, form]);
+    if (open) reset();
+  }, [open, reset]);
 
   return (
     <Modal
@@ -29,23 +35,29 @@ export function EmployeeCreateModal({
       open={open}
       confirmLoading={confirmLoading}
       onCancel={onClose}
-      onOk={() => void form.validateFields().then(onSubmit)}
+      onOk={() => void handleSubmit(onSubmit)()}
       destroyOnHidden
     >
-      <Form form={form} layout="vertical">
-        <Form.Item name="fullName" label="Họ tên" rules={[{ required: true }]}>
+      <Form layout="vertical">
+        <FormField
+          control={control}
+          name="fullName"
+          label="Họ tên"
+          rules={{ required: "Nhập họ tên" }}
+        >
           <Input />
-        </Form.Item>
-        <Form.Item
+        </FormField>
+        <FormField
+          control={control}
           name="email"
           label="Email / tài khoản"
-          rules={[{ required: true }]}
+          rules={{ required: "Nhập email hoặc tài khoản" }}
         >
           <Input placeholder="nv01 hoặc nv01@chatvcb.vn" />
-        </Form.Item>
-        <Form.Item name="password" label="Mật khẩu">
+        </FormField>
+        <FormField control={control} name="password" label="Mật khẩu">
           <Input.Password placeholder="Trống = hệ thống tạo, hiện 1 lần" />
-        </Form.Item>
+        </FormField>
       </Form>
     </Modal>
   );

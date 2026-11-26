@@ -1,6 +1,7 @@
 import { AppstoreOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
 import type { ReactNode } from 'react';
+import { EmptyState } from '@/components/EmptyState';
 import type { DocItem, DocKind } from '@/types';
 import { TEMPLATE_CARDS, type TemplateCard } from '../utils/templates';
 
@@ -70,7 +71,7 @@ export function DocsHome(props: {
         {props.recent.length ? (
           grid(props.recent)
         ) : props.loaded ? (
-          <p className="docs-home-empty">Chưa có tài liệu nào. Tạo tài liệu đầu tiên ở trên.</p>
+          <EmptyState compact title="Chưa có tài liệu nào. Tạo tài liệu đầu tiên ở trên." />
         ) : null}
       </section>
       {props.starred.length ? (

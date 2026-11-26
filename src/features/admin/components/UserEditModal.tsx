@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Form, Input, Modal, Select, Spin } from "antd";
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { FormField } from "@/components/FormField";
 import { adminKeys } from "../queries/adminKeys";
 import { fetchUserAccess } from "../services/adminApi";
 import type { AdminRole, AdminUser, PermissionGroup } from "../types";
@@ -33,7 +35,10 @@ export function UserEditModal({
   onClose,
   onSubmit,
 }: UserEditModalProps) {
-  const [form] = Form.useForm<{ name: string; team: string }>();
+  const { control, handleSubmit, reset } = useForm<{
+    name: string;
+    team: string;
+  }>({ mode: "onChange" });
   const [roleIds, setRoleIds] = useState<string[]>([]);
   const [checked, setChecked] = useState<string[]>([]);
 
@@ -46,8 +51,8 @@ export function UserEditModal({
 
   useEffect(() => {
     if (!open || !user) return;
-    form.setFieldsValue({ name: user.name, team: user.team });
-  }, [open, user, form]);
+    reset({ name: user.name, team: user.team });
+  }, [open, user, reset]);
 
   useEffect(() => {
     if (!open || !access) return;
@@ -68,13 +73,13 @@ export function UserEditModal({
   }
 
   function save() {
-    void form.validateFields().then((values) =>
+    void handleSubmit((values) =>
       onSubmit({
         ...values,
         roleIds,
         effectivePermissions: checked,
       }),
-    );
+    )();
   }
 
   const roleLabels = roleIds
@@ -92,13 +97,18 @@ export function UserEditModal({
       destroyOnHidden
     >
       <Spin spinning={accessLoading && canAssignRole}>
-        <Form form={form} layout="vertical">
-          <Form.Item name="name" label="Họ tên" rules={[{ required: true }]}>
+        <Form layout="vertical">
+          <FormField
+            control={control}
+            name="name"
+            label="Họ tên"
+            rules={{ required: "Nhập họ tên" }}
+          >
             <Input />
-          </Form.Item>
-          <Form.Item name="team" label="Team">
+          </FormField>
+          <FormField control={control} name="team" label="Team">
             <Input />
-          </Form.Item>
+          </FormField>
           {user ? (
             <Form.Item label="Email">
               <Input value={user.email} disabled />

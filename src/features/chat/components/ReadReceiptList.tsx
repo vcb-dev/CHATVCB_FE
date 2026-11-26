@@ -1,6 +1,4 @@
-import { Avatar } from 'antd';
-import { fileSrc } from '@/api/client';
-import { avatarColor, initials } from '@/lib/avatar';
+import { UserAvatar } from '@/components/UserAvatar';
 import type { RoomMember } from '@/types';
 import type { Receipt } from '../utils/seen';
 
@@ -18,14 +16,13 @@ function Column({ title, members, empty }: { title: string; members: RoomMember[
             const name = member.displayName || member.name;
             return (
               <li key={member.id} title={name}>
-                <Avatar
+                <UserAvatar
                   size={28}
                   className="avatar-initials"
-                  src={member.avatarUrl ? fileSrc(member.avatarUrl) : undefined}
-                  style={{ background: avatarColor(name) }}
-                >
-                  {initials(name)}
-                </Avatar>
+                  src={member.avatarUrl}
+                  name={name}
+                  zoomable={false}
+                />
                 <span>{name}</span>
               </li>
             );

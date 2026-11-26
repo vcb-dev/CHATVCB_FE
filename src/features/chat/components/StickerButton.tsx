@@ -1,7 +1,10 @@
 import { CloseOutlined, GifOutlined, SmileOutlined } from '@ant-design/icons';
 import { Button, Input, Tooltip } from 'antd';
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
+import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { EMOJIS } from '../utils/emojis';
 import { STICKER_PACK } from '../utils/stickerPack';
 import { StickerImage } from './StickerImage';
@@ -9,6 +12,8 @@ import { StickerImage } from './StickerImage';
 type Tab = 'emoji' | 'sticker' | 'gif';
 
 type GifItem = { id: string; url: string; preview: string };
+
+const EMPTY_GIFS: GifItem[] = [];
 
 const STICKERS = [
   '👍', '👎', '❤️', '😂', '😭', '😡', '😍', '🔥', '🎉', '🙏',
@@ -78,27 +83,18 @@ function StickerPanel({
 }) {
   const [tab, setTab] = useState<Tab>('emoji');
   const [query, setQuery] = useState('');
-  const [gifs, setGifs] = useState<GifItem[]>([]);
-  const [gifError, setGifError] = useState('');
-
-  useEffect(() => {
-    if (tab !== 'gif') {
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      void api
-        .gifs(query)
-        .then((next) => {
-          setGifs(next);
-          setGifError(next.length ? '' : 'Chưa có GIF. Thêm TENOR_API_KEY trên BE hoặc gửi file GIF từ máy.');
-        })
-        .catch(() => {
-          setGifs([]);
-          setGifError('Không tải được GIF.');
-        });
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [tab, query]);
+  const gifQuery = useDebouncedValue(query);
+  const gifResult = useQuery({
+    queryKey: queryKeys.gifs(gifQuery),
+    queryFn: () => api.gifs(gifQuery),
+    enabled: tab === 'gif',
+  });
+  const gifs = gifResult.data ?? EMPTY_GIFS;
+  const gifError = gifResult.isError
+    ? 'Không tải được GIF.'
+    : gifResult.data && !gifResult.data.length
+      ? 'Không có GIF. Bạn vẫn gửi được file GIF từ máy.'
+      : '';
 
   return (
     <div className="sticker-panel">
@@ -148,7 +144,7 @@ function StickerPanel({
         <div className="gif-box">
           <Input
             allowClear
-            placeholder="Tìm GIF..."
+            placeholder="Search KLIPY"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />

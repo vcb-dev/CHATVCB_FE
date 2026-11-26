@@ -1,13 +1,7 @@
 import { AudioOutlined, CloseOutlined, SendOutlined } from '@ant-design/icons';
-import { Button, Mentions, Tooltip, Typography } from 'antd';
-import {
-  useMemo,
-  useRef,
-  type Dispatch,
-  type FormEvent,
-  type KeyboardEvent,
-  type SetStateAction,
-} from 'react';
+import { Button, Mentions, Tooltip, Typography, type MentionsRef } from 'antd';
+import { useMemo, useRef, type ChangeEvent, type FormEvent, type KeyboardEvent } from 'react';
+import { Controller, useWatch, type UseFormReturn } from 'react-hook-form';
 import type {
   ChatMessage,
   PendingFile,
@@ -17,14 +11,28 @@ import type {
   RoomMember,
   ToolKind,
 } from '@/types';
+import { ACCEPT_IMAGES } from '@/lib/image';
 import { canAssignTask } from '@/lib/tasks';
-import { buildMentionOptions, mentionOpen, mentionsAllowed } from '../utils/mentions';
+import { ACCEPT_FILES } from '../utils/attachments';
+import { applyEmoticon, withTrailingEmoticon } from '../utils/emoticons';
+import {
+  buildMentionOptions,
+  mentionKind,
+  mentionOpen,
+  mentionPeople,
+  mentionsAllowed,
+  startsTag,
+} from '../utils/mentions';
 import { filesFromClipboard } from '../utils/media';
 import { isDirectRoom } from '../utils/rooms';
+import type { ComposerForm } from '../hooks/useComposer';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import { useTypingSignal } from '../hooks/useTypingSignal';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { AttachButton } from './AttachButton';
 import { ComposerActions } from './ComposerActions';
 import { ComposerToolsMenu } from './ComposerToolsMenu';
+import { MentionOption } from './MentionOption';
 import { PendingFiles } from './PendingFiles';
 import { PendingPreviews } from './PendingPreviews';
 import { StickerButton } from './StickerButton';
@@ -39,12 +47,14 @@ export function Composer(props: {
   disabled: boolean;
   locked?: boolean;
   error: string;
-  draft: string;
+  /** Chữ đang gõ (useComposer): gõ phím chỉ vẽ lại ô soạn tin, không vẽ lại cả ChatPage. */
+  form: UseFormReturn<ComposerForm>;
+  /** Báo "đang gõ" cho người khác trong phòng. */
+  emitTyping: (roomId: string, active: boolean) => void;
   replyTo: ChatMessage | null;
   editing: ChatMessage | null;
   pendingImages: PendingImage[];
   pendingFiles: PendingFile[];
-  onDraftChange: Dispatch<SetStateAction<string>>;
   onCancelReply: () => void;
   onCancelEdit: () => void;
   onAddImages: (files: File[]) => void;
@@ -62,19 +72,45 @@ export function Composer(props: {
   onLocation: () => void;
   onCard: () => void;
   blockedByMe?: boolean;
+  /** Người bên kia đã chặn mình: không gửi được tin. */
+  blockedMe?: boolean;
   onUnblock?: () => void;
 }) {
-  const { room, draft, replyTo, members, pendingImages, pendingFiles } = props;
+  const { room, form, replyTo, members, pendingImages, pendingFiles } = props;
+  const narrow = useMediaQuery('(max-width: 800px)');
+  const draft = useWatch({ control: form.control, name: 'text' }) ?? '';
+  useTypingSignal({ roomId: room?.id ?? '', draft, emitTyping: props.emitTyping });
   const voiceRecorder = useVoiceRecorder({
     roomId: room?.id ?? '',
     onDone: (blob) => void props.onSendVoice(blob),
   });
-  const mentionMeasuringRef = useRef(false);
-  const mentionOptions = useMemo(
-    () => buildMentionOptions(members, props.online, props.userId, room),
-    [members, props.online, room, props.userId],
-  );
+  const mentionsRef = useRef<MentionsRef>(null);
+  // rc-mentions lọc theo `value` (handle) nên `label` là JSX có avatar vẫn lọc đúng.
+  const mentionOptions = useMemo(() => {
+    const people = mentionPeople(members, props.online);
+    return buildMentionOptions(members, props.online, props.userId, room).map((option) => ({
+      value: option.value,
+      label: (
+        <MentionOption
+          label={option.label}
+          kind={mentionKind(option.value, room)}
+          person={people.get(option.value)}
+        />
+      ),
+    }));
+  }, [members, props.online, room, props.userId]);
   const hasContent = Boolean(draft.trim() || pendingImages.length || pendingFiles.length);
+  // Khổ điện thoại: Ảnh và Tệp vào menu "+" (5 nút 36px chừa ô nhập chưa tới 150px trên màn 375px)
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const packedPickers = narrow && !props.locked && !props.editing;
+  const pickInto = (add: (files: File[]) => void) => (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    if (files.length) {
+      add(files);
+    }
+  };
   // Nút "+" (bộ sưu tập, giao việc, nhắc hẹn, ghi chú, vị trí, danh thiếp): dùng cả khi nhóm khoá gửi tin.
   const toolsMenu = (
     <ComposerToolsMenu
@@ -86,25 +122,57 @@ export function Composer(props: {
       onPick={(kind) => props.onTool?.(kind)}
       onLocation={props.onLocation}
       onCard={props.onCard}
+      onPickImages={packedPickers ? () => imageInputRef.current?.click() : undefined}
+      onPickFiles={packedPickers ? () => fileInputRef.current?.click() : undefined}
     />
   );
   const canSend = props.editing
     ? !props.disabled && Boolean(draft.trim())
     : !props.disabled && hasContent;
 
+  // Popup @ đang mở thì rc-mentions tự không gọi onPressEnter (Enter để chọn người),
+  // nên ở đây chỉ còn chặn Enter của bộ gõ IME đang ghép chữ.
   function shouldSkipSend(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.nativeEvent.isComposing || event.keyCode === 229) {
+    return event.nativeEvent.isComposing || event.keyCode === 229;
+  }
+
+  // rc-mentions mở popup ở mọi dấu `@` và chỉ coi dấu cách là hết tag; ở đây chỉ mở khi `@`
+  // bắt đầu một tag thật như BE đếm, và mọi khoảng trắng (cả xuống dòng) đều kết thúc tag.
+  function validateMention(search: string) {
+    if (/\s/.test(search)) {
+      return false;
+    }
+    const textarea = textareaEl();
+    if (!textarea) {
       return true;
     }
-    if (mentionMeasuringRef.current || mentionOpen(draft)) {
-      return true;
+    const before = textarea.value.slice(0, textarea.selectionStart);
+    return startsTag(before, before.length - search.length - 1);
+  }
+
+  function textareaEl() {
+    return mentionsRef.current?.nativeElement?.querySelector('textarea') ?? null;
+  }
+
+  // Gõ `:)` rồi cách/xuống dòng thì thành 🙂; đổi chữ làm con trỏ nhảy về cuối nên đặt lại.
+  function changeText(next: string, onChange: (value: string) => void) {
+    const textarea = textareaEl();
+    const hit = textarea ? applyEmoticon(form.getValues('text') ?? '', next, textarea.selectionStart) : null;
+    if (!textarea || !hit) {
+      onChange(next);
+      return;
     }
-    return false;
+    onChange(hit.text);
+    requestAnimationFrame(() => textarea.setSelectionRange(hit.caret, hit.caret));
+  }
+
+  function send(raw: string) {
+    void props.onSend(withTrailingEmoticon(raw));
   }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    void props.onSend(draft);
+    send(draft);
   }
 
   function handlePressEnter(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -112,7 +180,7 @@ export function Composer(props: {
       return;
     }
     event.preventDefault();
-    void props.onSend(event.currentTarget.value);
+    send(event.currentTarget.value);
   }
 
   function handleKey(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -206,6 +274,8 @@ export function Composer(props: {
               Bỏ chặn
             </Button>
           </div>
+        ) : props.blockedMe ? (
+          <div className="composer-locked">Bạn không thể nhắn tin cho người này.</div>
         ) : voiceRecorder.state === 'recording' ? (
           <VoiceRecorderBar
             elapsedMs={voiceRecorder.elapsedMs}
@@ -215,55 +285,83 @@ export function Composer(props: {
         ) : (
           <>
             {props.editing ? null : toolsMenu}
-            <Mentions
-              value={draft}
-              onChange={props.onDraftChange}
-              onFocus={() => props.onMarkRead()}
-              onClick={() => props.onMarkRead()}
-              onSearch={() => {
-                mentionMeasuringRef.current = true;
-              }}
-              onSelect={() => {
-                mentionMeasuringRef.current = false;
-              }}
-              onBlur={() => {
-                mentionMeasuringRef.current = false;
-              }}
-              onPressEnter={handlePressEnter}
-              onKeyDown={handleKey}
-              autoSize={{ minRows: 1, maxRows: 5 }}
-              options={mentionOptions}
-              prefix="@"
-              placement="top"
-              getPopupContainer={() => document.body}
-              styles={{ popup: { zIndex: 2000 } }}
-              placeholder={
-                room?.isCloud
-                  ? 'Lưu ghi chú, ảnh, tệp vào Cloud của tôi'
-                  : room
-                  ? `Nhắn ${room.title || room.name} · Ctrl+V ảnh · @agent`
-                  : 'Chọn phòng'
-              }
-              disabled={props.disabled}
-              notFoundContent="Không có người khớp"
+            <Controller
+              control={form.control}
+              name="text"
+              render={({ field }) => (
+                <Mentions
+                  ref={mentionsRef}
+                  value={field.value}
+                  onChange={(next) => changeText(next, field.onChange)}
+                  onFocus={() => props.onMarkRead()}
+                  onClick={() => props.onMarkRead()}
+                  onBlur={field.onBlur}
+                  validateSearch={validateMention}
+                  onPressEnter={handlePressEnter}
+                  onKeyDown={handleKey}
+                  autoSize={{ minRows: 1, maxRows: 5 }}
+                  options={mentionOptions}
+                  prefix="@"
+                  placement="top"
+                  getPopupContainer={() => document.body}
+                  styles={{ popup: { zIndex: 2000 } }}
+                  placeholder={
+                    // autoSize đo cả placeholder khi ô trống: câu dài ở khổ hẹp làm ô cao 3–4 dòng
+                    narrow
+                      ? room?.isCloud
+                        ? 'Ghi chú…'
+                        : 'Nhắn tin…'
+                      : room?.isCloud
+                      ? 'Lưu ghi chú, ảnh, tệp vào Cloud của tôi'
+                      : room
+                      ? `Nhắn ${room.title || room.name} · Ctrl+V ảnh · @agent`
+                      : 'Chọn phòng'
+                  }
+                  disabled={props.disabled}
+                  notFoundContent="Không có người khớp"
+                />
+              )}
             />
             {props.editing ? null : (
               <>
                 <StickerButton
                   disabled={props.disabled}
-                  onEmoji={(emoji) => props.onDraftChange((current) => `${current}${emoji}`)}
+                  onEmoji={(emoji) => form.setValue('text', `${form.getValues('text')}${emoji}`)}
                   onSticker={(emoji) => void props.onSticker(emoji)}
                   onPackSticker={(id) => void props.onPackSticker(id)}
                   onGif={(url) => void props.onGif(url)}
                 />
-                <ComposerActions
-                  disabled={props.disabled}
-                  onAddFiles={props.onAddImages}
-                />
-                <AttachButton
-                  disabled={props.disabled}
-                  onAddFiles={props.onAddDocs}
-                />
+                {packedPickers ? (
+                  <>
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept={ACCEPT_IMAGES}
+                      multiple
+                      hidden
+                      onChange={pickInto(props.onAddImages)}
+                    />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept={ACCEPT_FILES}
+                      multiple
+                      hidden
+                      onChange={pickInto(props.onAddDocs)}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ComposerActions
+                      disabled={props.disabled}
+                      onAddFiles={props.onAddImages}
+                    />
+                    <AttachButton
+                      disabled={props.disabled}
+                      onAddFiles={props.onAddDocs}
+                    />
+                  </>
+                )}
               </>
             )}
             {!props.editing && !hasContent && voiceRecorder.supported ? (
@@ -285,7 +383,7 @@ export function Composer(props: {
                 icon={<SendOutlined />}
                 aria-label="Gửi"
                 disabled={!canSend}
-                onClick={() => void props.onSend(draft)}
+                onClick={() => send(draft)}
               />
             )}
           </>

@@ -155,7 +155,73 @@
   --ui-badge-red: #dc2626;
   --ui-text-time: #6b7280;
 
+  /* Bậc màu phụ: đổi theo giao diện sáng/tối */
+  --ui-text-body: #3c4043;      /* chữ nội dung, nhạt hơn --ui-text một chút */
+  --ui-bg-subtle: #f7f8fa;      /* nền khối phụ trên panel trắng */
+  --ui-bg-muted: #e4e6eb;       /* nền nút xám, chip, thanh tiến độ */
+  --ui-glass: rgba(255, 255, 255, 0.92);
+  --ui-overlay-hover: rgba(0, 0, 0, 0.05);
+  --ui-quote-bg: rgba(255, 255, 255, 0.6);
+  --ui-tint-red: #fdecec;
+  --ui-tint-green: #e6f6ea;
+  --ui-tint-orange: #fff1e7;
+  --ui-tint-purple: #f1ebff;
+  --ui-ink-red: #b42318;        /* chữ đậm trên nền tint cùng màu */
+  --ui-ink-green: #166534;
+  --ui-ink-orange: #c2410c;
+  --ui-ink-yellow: #7a5b00;
+  --ui-ink-purple: #6d28d9;
+
   --ui-font: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color-scheme: light;
+}
+
+/* Giao diện tối: data-theme do src/theme/themeMode.ts gắn lên <html> */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --ui-primary-hover: #2b95ff;
+  --ui-primary-soft: #1d3554;
+  --ui-primary-softer: #1b2838;
+  --ui-primary-ink: #6cb4ff;
+  --ui-warning-soft: #3b3220;
+
+  --ui-text: #e4e6eb;
+  --ui-text-body: #d0d3d8;
+  --ui-text-2: #b0b3b8;
+  --ui-text-3: #8a8d91;
+  --ui-text-time: #9a9da3;
+
+  --ui-bg-app: #18191a;
+  --ui-bg-panel: #242526;
+  --ui-bg-hover: #3a3b3c;
+  --ui-bg-subtle: #2b2c2e;
+  --ui-bg-muted: #3a3b3c;
+  --ui-border: #3e4042;
+  --ui-border-strong: #545659;
+
+  --ui-backdrop: #0e0f10;
+  --ui-chat-wall: #1c1d1f;
+  --ui-chat-dot: #2c2e31;
+
+  --ui-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --ui-shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --ui-shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25);
+  --ui-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.3);
+  --ui-shadow-float: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  --ui-glass: rgba(36, 37, 38, 0.92);
+  --ui-overlay-hover: rgba(255, 255, 255, 0.06);
+  --ui-quote-bg: rgba(255, 255, 255, 0.08);
+  --ui-tint-red: #3a2224;
+  --ui-tint-green: #1d3324;
+  --ui-tint-orange: #3a2a1c;
+  --ui-tint-purple: #2c2545;
+  --ui-ink-red: #ff8a80;
+  --ui-ink-green: #6fd08c;
+  --ui-ink-orange: #ffa766;
+  --ui-ink-yellow: #f2c94c;
+  --ui-ink-purple: #b7a1ff;
 }
 
 :where(button, a, [role="button"], [tabindex]):focus-visible {
@@ -557,6 +623,44 @@
   margin-top: 8px;
 }
 
+.ui-empty.is-compact {
+  align-self: stretch;
+  padding: 24px 12px;
+}
+
+.ui-empty.is-compact .ui-empty-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.ui-empty.is-compact .ui-empty-title {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ui-text-3);
+  margin-bottom: 0;
+}
+
+.ui-empty.is-compact .ui-empty-desc {
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+/* Loading State */
+.ui-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  gap: 8px;
+  padding: 48px 0;
+  color: var(--ui-text-3);
+  font-size: 13px;
+}
+
+.ui-loading.is-compact {
+  padding: 24px 0;
+}
+
 /* Chips & Badges */
 .ui-chip {
   display: inline-flex;
@@ -570,17 +674,6 @@
 }
 
 /* Utility */
-.ui-visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-  padding: 0;
-  margin: -1px;
-}
 
 @media (max-width: 1023px) {
   :root {
@@ -589,3 +682,117 @@
   }
 }
 
+@media (max-width: 768px) {
+  .ui-module {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+
+  .ui-module-body {
+    padding: 12px 16px;
+  }
+
+  .ui-page-header {
+    padding: 0 16px;
+  }
+
+  .ui-page-tabs-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ui-page-tabs-row:not(:last-child) {
+    margin: -6px -16px 12px;
+    padding: 0 16px;
+  }
+
+  .ui-page-tabs {
+    overflow-x: auto;
+    max-width: 100%;
+    gap: 16px;
+  }
+}
+
+/* Khổ hẹp: header xuống dòng thay vì bóp chữ (tiêu đề "Công việc"/"Nhân sự" từng vỡ 2 dòng, nút bên phải bị cắt) */
+@media (max-width: 800px) {
+  .ui-page-header {
+    padding: 0 12px;
+  }
+
+  .ui-page-header-main {
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 0;
+    padding: 12px 0;
+  }
+
+  .ui-page-title {
+    display: block;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 17px;
+    line-height: 40px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* Thống kê nhỏ (Tổng/Chính thức…, khoảng ngày) xuống một hàng riêng, cuộn ngang nếu dài */
+  .ui-page-meta {
+    order: 1;
+    flex-basis: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .ui-page-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 100%;
+  }
+
+  .ui-page-tabs-row:not(:last-child) {
+    margin: -4px -12px 12px;
+    padding: 0 12px;
+  }
+
+  .ui-page-tabs {
+    scrollbar-width: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .ui-module-body {
+    padding: 12px;
+  }
+
+  /* Màn có cột trái (hộp thư Email, thư mục Docs): cột trái thành dải trên cùng, dưới header */
+  .ui-module:has(> .ui-sidebar) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    background: var(--ui-bg-app);
+  }
+
+  .ui-module:has(> .ui-sidebar) > .ui-module-main {
+    display: contents;
+  }
+
+  .ui-module:has(> .ui-sidebar) .ui-page-header {
+    order: -1;
+  }
+
+  .ui-module > .ui-sidebar {
+    max-height: 30vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--ui-border);
+  }
+
+  .ui-module > .ui-sidebar .ui-sidebar-title {
+    display: none;
+  }
+
+  .ui-module > .ui-sidebar .ui-sidebar-action {
+    padding-top: 8px;
+  }
+}

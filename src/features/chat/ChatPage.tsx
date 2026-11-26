@@ -1,27 +1,32 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ComponentType,
+} from 'react';
 import { message as antMessage } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { AdminPage } from '@/features/admin/AdminPage';
 import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
-import { ContactsPage } from '@/features/contacts/ContactsPage';
-import { DocsPage } from '@/features/docs/DocsPage';
-import { EmailPage } from '@/features/email/EmailPage';
+import { LoadingState } from '@/components/LoadingState';
 import { DepartmentsPage } from '@/features/departments/DepartmentsPage';
-import { GalleryPage } from '@/features/gallery/GalleryPage';
-import { NewsPage } from '@/features/news/NewsPage';
 import { SubmitPhotosModal } from '@/features/gallery/components/SubmitPhotosModal';
 import { useGalleryAccess } from '@/features/gallery/hooks/useGalleryAccess';
 import { chatImagesOf } from '@/features/gallery/utils/chatImages';
 import { HrPage } from '@/features/hr/HrPage';
 import { AppMenuContext } from '@/lib/appMenu';
 import { canAccessWorkspace } from '@/lib/workspaces';
-import { MeetingsPage } from '@/features/meetings/MeetingsPage';
-import { openMeetTab } from '@/features/meetings/meet';
 import { ProfileDrawer } from '@/features/profile/ProfileDrawer';
+import { SendCardModal } from '@/features/profile/SendCardModal';
 import { UserProfileModal } from '@/features/profile/UserProfileModal';
-import { TasksPage } from '@/features/tasks/TasksPage';
-import type { ChatMessage, Room, Task, TaskPreset, User } from '@/types';
+import type { CallMode, ChatMessage, Room, Task, TaskPreset, User } from '@/types';
+import { CallOverlay } from './components/CallOverlay';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatSidebar } from './components/ChatSidebar';
 import { Composer } from './components/Composer';
@@ -30,9 +35,11 @@ import { ConversationSearch } from './components/ConversationSearch';
 import { ForwardModal } from './components/ForwardModal';
 import { GalleryModal } from './components/GalleryModal';
 import { GroupDrawer } from './components/GroupDrawer';
+import { IncomingCallModal } from './components/IncomingCallModal';
 import { JoinGroupModal } from './components/JoinGroupModal';
 import { MessageList } from './components/MessageList';
 import { AppMenuDrawer } from './components/AppMenuDrawer';
+import { NotifyPrompt } from './components/NotifyPrompt';
 import { NewChatModal } from './components/NewChatModal';
 import { NoteModal } from './components/NoteModal';
 import { PinBar } from './components/PinBar';
@@ -43,20 +50,24 @@ import { TaskModal } from './components/TaskModal';
 import { TypingIndicator } from './components/TypingIndicator';
 import { parseJoinHash } from './utils/invite';
 import { canEditItem } from './utils/rooms';
+import { useBackClose } from './hooks/useBackClose';
 import { useChatNotifications } from './hooks/useChatNotifications';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { useChatRoom } from './hooks/useChatRoom';
 import { useBlockUser } from './hooks/useBlockUser';
+import { useChatCall } from './hooks/useChatCall';
 import { useChatSocket } from './hooks/useChatSocket';
 import { useComposer } from './hooks/useComposer';
 import { useMessageActions } from './hooks/useMessageActions';
 import { useMessageSelection } from './hooks/useMessageSelection';
 import { useOpenTask } from './hooks/useOpenTask';
+import { useReactMessage } from './hooks/useReactMessage';
 import { useRoomList } from './hooks/useRoomList';
+import { useSendMessage } from './hooks/useSendMessage';
+import { isTemp } from './utils/messageCache';
 import { useRoomPrefs } from './hooks/useRoomPrefs';
 import { LastSeenContext, useLastSeen } from './hooks/useLastSeen';
 import { useRoomTools } from './hooks/useRoomTools';
-import { useTypingSignal } from './hooks/useTypingSignal';
 import { TaskDueToasts } from '@/features/work/components/TaskDueToasts';
 import { useWorkspace, type Workspace } from './hooks/useWorkspace';
 import { DropOverlay } from './components/DropOverlay';
@@ -68,12 +79,14 @@ import { handleFromEmail, mentionsAllowed } from './utils/mentions';
 import {
   countOnlineMembers,
   hasOnlineMember,
+  hiddenPresenceKey,
+  hidePresence,
   isOtherRoomOnline,
   isOtherUserOnline,
   peerUserIdOf,
   type Presence,
 } from './utils/presence';
-import { countUnreadRooms, isDirectRoom } from './utils/rooms';
+import { countAlertingRooms, countUnreadRooms, isDirectRoom } from './utils/rooms';
 
 type Props = {
   user: User;
@@ -90,8 +103,47 @@ function clearTimer(ref: { current: number | null }) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function withLazy<T extends ComponentType<any>>(load: () => Promise<{ default: T }>) {
+  const Lazy = lazy(load);
+  return function LazyWorkspace(props: ComponentProps<T>) {
+    return (
+      <Suspense fallback={<LoadingState />}>
+        <Lazy {...props} />
+      </Suspense>
+    );
+  };
+}
+
+const ContactsPage = withLazy(() =>
+  import('@/features/contacts/ContactsPage').then((m) => ({ default: m.ContactsPage })),
+);
+const DocsPage = withLazy(() =>
+  import('@/features/docs/DocsPage').then((m) => ({ default: m.DocsPage })),
+);
+const EmailPage = withLazy(() =>
+  import('@/features/email/EmailPage').then((m) => ({ default: m.EmailPage })),
+);
+const GalleryPage = withLazy(() =>
+  import('@/features/gallery/GalleryPage').then((m) => ({ default: m.GalleryPage })),
+);
+const MeetingsPage = withLazy(() =>
+  import('@/features/meetings/MeetingsPage').then((m) => ({ default: m.MeetingsPage })),
+);
+const NewsPage = withLazy(() =>
+  import('@/features/news/NewsPage').then((m) => ({ default: m.NewsPage })),
+);
+const TasksPage = withLazy(() =>
+  import('@/features/tasks/TasksPage').then((m) => ({ default: m.TasksPage })),
+);
+
 export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const narrow = useMediaQuery('(max-width: 1100px)');
+  // Điện thoại (≤800px): danh sách phòng và khung chat mỗi lúc một màn.
+  // Chỉ hiện khung chat khi phòng đang chọn là phòng người dùng vừa mở; phòng tự chọn lúc tải
+  // danh sách hay phòng thay thế sau khi rời/xoá phòng đều không khớp nên tự về danh sách.
+  const phone = useMediaQuery('(max-width: 800px)');
+  const [phoneRoomId, setPhoneRoomId] = useState('');
   const [infoHidden, setInfoHidden] = useState<boolean>(() => {
     try {
       return localStorage.getItem('chatvcb.infoHidden') === '1';
@@ -158,6 +210,8 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const [assigning, setAssigning] = useState<TaskPreset | null>(null);
   const [cardPickerOpen, setCardPickerOpen] = useState(false);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
+  // Đang gửi danh thiếp của người này (mở từ popup hồ sơ)
+  const [cardUser, setCardUser] = useState<{ id: string; name: string } | null>(null);
   const [searchText, setSearchText] = useState('');
   const [joinToken, setJoinToken] = useState<string | null>(() => parseJoinHash(window.location.hash));
   const myHandle = handleFromEmail(user.email);
@@ -192,8 +246,13 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     queryKey: queryKeys.newsUnread,
     queryFn: () => api.newsUnread(),
   });
-  const roomList = useRoomList({ isViewingChat, setError });
+  const onListPaneRef = useRef(false);
+  // Đang ở màn danh sách trên điện thoại thì phòng chọn sẵn phía sau không tính là đang xem
+  const isViewingRoom = useCallback(() => isViewingChat() && !onListPaneRef.current, [isViewingChat]);
+  const roomList = useRoomList({ isViewingChat: isViewingRoom, setError, onRoomOpened: setPhoneRoomId });
   const { rooms, room, roomId } = roomList;
+  const onListPane = phone && (!roomId || phoneRoomId !== roomId);
+  onListPaneRef.current = onListPane;
 
   const messengerUnread = useMemo(() => countUnreadRooms(rooms), [rooms]);
   const menuBadges = useMemo<Partial<Record<Workspace, number>>>(
@@ -215,8 +274,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     () => ({ open: openMenu, hasBadge }),
     [openMenu, hasBadge],
   );
-  const { setBlocked } = useBlockUser({ setRooms: roomList.setRooms });
-  const roomPrefs = useRoomPrefs({ setRooms: roomList.setRooms, removeRoom: roomList.removeRoom });
+  const { setBlocked, askBlock } = useBlockUser({ setRooms: roomList.setRooms });
+  const roomPrefs = useRoomPrefs({
+    setRooms: roomList.setRooms,
+    removeRoom: roomList.removeRoom,
+    askBlock,
+  });
   const tools = useRoomTools({ roomId, setWorkspace, openRoom: roomList.openRoom });
 
   const openRoomFromNotice = (id: string) => {
@@ -245,7 +308,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     }
   }, [narrow]);
 
-  useChatNotifications({ onOpenRoom: openRoomFromNotice });
+  const tabUnread = useMemo(() => countAlertingRooms(rooms), [rooms]);
+  useChatNotifications({
+    onOpenRoom: openRoomFromNotice,
+    unread: tabUnread,
+    roomsReady: !roomList.loadingRooms,
+  });
 
   // Toast việc sắp hết hạn: mở tin việc trong Messenger từ bất kỳ màn nào.
   const openTaskFromToast = (task: Task) => {
@@ -269,13 +337,36 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     workspace,
     setRoomId: roomList.setRoomId,
     setRooms: roomList.setRooms,
-    isViewingChat,
+    isViewingChat: isViewingRoom,
     setError,
+    onRoomOpened: setPhoneRoomId,
   });
+  // Từ danh sách bấm lại đúng phòng đang chọn sẵn thì roomId không đổi, effect đánh dấu đã đọc của useChatRoom không chạy lại
+  const { markMessageRead } = chat;
+  useEffect(() => {
+    if (isViewingRoom()) {
+      markMessageRead();
+    }
+  }, [onListPane, isViewingRoom, markMessageRead]);
+  const backToList = () => {
+    setPhoneRoomId('');
+    setGroupOverlay(false);
+  };
+  // Điện thoại: nút Back / vuốt cạnh đóng lớp trên cùng (menu → khung thông tin → phòng) thay vì thoát app
+  useBackClose(phone && workspace === 'messenger' && !onListPane, backToList);
+  useBackClose(phone && groupOverlay, () => setGroupOverlay(false));
+  useBackClose(phone && menuMode === 'click', closeMenu);
+  const sender = useSendMessage({
+    user,
+    roomId,
+    setRooms: roomList.setRooms,
+    markMessageRead: chat.markMessageRead,
+  });
+  const react = useReactMessage(user);
   const composer = useComposer({
     roomId,
     messages: chat.messages,
-    appendMessage: chat.appendMessage,
+    send: sender.send,
     setMessages: chat.setMessages,
     setError,
   });
@@ -298,8 +389,18 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     onEdit: composer.startEdit,
     onSelect: selection.start,
     onSavedToCloud: chat.handleForwarded,
+    react,
+    onRetrySend: sender.retry,
+    onDiscardSend: sender.discard,
   });
-  const { onlineUsers, onlineUserIds, typing, emitTyping } = useChatSocket({
+  const {
+    onlineUsers: rawOnlineUsers,
+    onlineUserIds: rawOnlineUserIds,
+    typing,
+    emitTyping,
+    emitCall,
+    setCallHandler,
+  } = useChatSocket({
     user,
     myHandle,
     roomId,
@@ -308,7 +409,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     refreshRooms: roomList.refreshRooms,
     removeRoom: roomList.removeRoom,
     openRoom: openRoomFromNotice,
-    isViewingChat,
+    isViewingChat: isViewingRoom,
     isViewingNews,
     markMessageRead: chat.markMessageRead,
     setMessages: chat.setMessages,
@@ -317,10 +418,27 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     setOnline: chat.setOnline,
     setReads: chat.setReads,
     setPins: chat.setPins,
-    setMembers: chat.setMembers,
   });
-  useTypingSignal({ roomId, draft: composer.draft, emitTyping });
-  const { lastSeen, now } = useLastSeen();
+  const call = useChatCall({
+    user,
+    rooms,
+    openRoom: openRoomFromNotice,
+    emitCall,
+    setCallHandler,
+  });
+  const { lastSeen: rawLastSeen, now } = useLastSeen();
+  // Chặn một chiều nào thì hai bên không thấy trạng thái hoạt động của nhau (như Messenger)
+  const hiddenKey = hiddenPresenceKey(rooms);
+  const { onlineUserIds, onlineUsers, roomOnline, lastSeen } = useMemo(
+    () =>
+      hidePresence(new Set(hiddenKey ? hiddenKey.split(',') : []), {
+        onlineUserIds: rawOnlineUserIds,
+        onlineUsers: rawOnlineUsers,
+        roomOnline: chat.online,
+        lastSeen: rawLastSeen,
+      }),
+    [hiddenKey, rawOnlineUserIds, rawOnlineUsers, chat.online, rawLastSeen],
+  );
   const onAssigned = (created: ChatMessage) => {
     if (created.roomId === roomId) {
       chat.appendMessage(created);
@@ -347,14 +465,18 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
   const isDirect = Boolean(room && isDirectRoom(room));
   const locked = Boolean(room?.settings?.adminOnlySend && room.myRole === 'member');
   const canPin = !(room?.settings?.adminOnlyPin && room.myRole === 'member');
-  const presence: Presence = { myId: user.id, online: chat.online, onlineUserIds };
+  const presence: Presence = { myId: user.id, online: roomOnline, onlineUserIds };
   const peerUserId = peerUserIdOf(room, chat.members, user.id);
   const isPeerOnline = isOtherUserOnline(presence, peerUserId);
   const peerLastSeenAt = peerUserId ? lastSeen[peerUserId] : undefined;
   const isGroupOnline = hasOnlineMember(presence, chat.members);
   const lastSeenCtx = useMemo(() => ({ lastSeen, now, onlineUserIds }), [lastSeen, now, onlineUserIds]);
   const onlineMembersCount = countOnlineMembers(presence, chat.members);
-  const chatPhotos = useMemo(() => photosFromMessages(chat.messages), [chat.messages]);
+  // Ảnh blob của tin tạm sẽ bị giải phóng, không đưa vào kho ảnh của phòng
+  const chatPhotos = useMemo(
+    () => photosFromMessages(chat.messages.filter((m) => !isTemp(m))),
+    [chat.messages],
+  );
   const markRead = () => chat.markMessageRead();
   // Tin bị thu hồi trong lúc đang chọn tự rơi khỏi danh sách
   const selectedMessages = useMemo(
@@ -369,26 +491,16 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     return isDirect ? isPeerOnline : isGroupOnline;
   }
 
-  async function startRoomMeeting() {
-    if (!room) {
-      return;
-    }
-    try {
-      const title = isDirect
-        ? `Cuộc họp với ${room.title || room.name}`
-        : `Họp ${room.title || room.name}`;
-      const created = await api.createMeeting({ title: title.slice(0, 80) });
-      await composer.sendRich({
-        type: 'meeting',
-        code: created.code,
-        title: created.title,
-      });
-      openMeetTab(created.code);
-    } catch (err) {
-      void antMessage.error(
-        err instanceof Error ? err.message : 'Không tạo được cuộc họp.',
-      );
-    }
+  // Chat 1-1 với người đang xem hồ sơ (nếu đã có trên danh sách): cờ chặn ở đây luôn mới nhất
+  const profileRoom = viewProfileId ? rooms.find((item) => item.peerUserId === viewProfileId) : undefined;
+  const profileBlocks = profileRoom
+    ? { byMe: Boolean(profileRoom.blockedByMe), me: Boolean(profileRoom.blockedMe) }
+    : undefined;
+
+  /** "Gọi thoại / Gọi video" ở popup hồ sơ: mở chat 1-1 với người đó rồi bắt đầu đổ chuông. */
+  function startCallWith(target: Room, mode: CallMode = 'video') {
+    openRoomFromContacts(target);
+    void call.startCall(target, mode);
   }
 
   return (
@@ -411,8 +523,9 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         <div
           className={`app-shell module-${workspace}${
             !narrow && infoHidden ? ' info-hidden' : ''
-          }`}
+          }${onListPane ? ' phone-list' : ''}`}
         >
+        <NotifyPrompt />
         <AppMenuDrawer
           open={menuMode !== 'closed'}
           hoverMode={menuMode === 'hover'}
@@ -434,9 +547,10 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         <ChatSidebar
           user={user}
           rooms={rooms}
-          roomId={roomId}
+          roomId={onListPane ? '' : roomId}
           roomsMeta={roomList.roomsMeta}
           loadingOlderRooms={roomList.loadingOlderRooms}
+          loadingRooms={roomList.loadingRooms}
           searchText={searchText}
           onlineUsers={onlineUsers}
           isRoomOnline={isRoomOnline}
@@ -474,11 +588,21 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
                 setInfoHidden(false);
               }
             }}
-            onStartMeeting={
-              room && !room.isCloud && !locked && !room.blockedByMe
-                ? () => void startRoomMeeting()
+            onStartAudioCall={
+              room && !room.isCloud && !locked && !room.blockedByMe && !room.blockedMe
+                ? () => void call.startCall(room, 'audio')
                 : undefined
             }
+            onStartVideoCall={
+              room && !room.isCloud && !locked && !room.blockedByMe && !room.blockedMe
+                ? () => void call.startCall(room, 'video')
+                : undefined
+            }
+            onOpenProfile={
+              room?.peerUserId ? () => setViewProfileId(room.peerUserId) : undefined
+            }
+            onBack={phone ? backToList : undefined}
+            backBadge={messengerUnread}
           />
           <PinBar pins={chat.pins} onJump={chat.jumpToMessage} />
           <MessageList
@@ -538,12 +662,12 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             disabled={!roomId}
             locked={locked}
             error={error}
-            draft={composer.draft}
+            form={composer.form}
+            emitTyping={emitTyping}
             replyTo={composer.replyTo}
             editing={composer.editing}
             pendingImages={composer.pendingImages}
             pendingFiles={composer.pendingFiles}
-            onDraftChange={composer.setDraft}
             onCancelReply={() => composer.setReplyTo(null)}
             onCancelEdit={composer.cancelEdit}
             onAddImages={composer.addImages}
@@ -561,6 +685,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             onLocation={() => void composer.sendLocation()}
             onCard={() => setCardPickerOpen(true)}
             blockedByMe={Boolean(room?.blockedByMe)}
+            blockedMe={Boolean(room?.blockedMe)}
             onUnblock={() => room?.peerUserId && void setBlocked(room.peerUserId, false)}
           />
           <DropOverlay visible={drop.dragging} />
@@ -633,6 +758,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
             members={chat.members}
             currentUserId={user.id}
             chatPhotos={chatPhotos}
+            open={narrow ? groupOverlay : !infoHidden}
             overlay={groupOverlay}
             onClose={() => (narrow ? setGroupOverlay(false) : setInfoHidden(true))}
             onRoomUpdated={roomList.updateRoom}
@@ -662,6 +788,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         user={user}
         onClose={() => setProfileOpen(false)}
         onUpdated={onUserUpdate}
+        onUnblock={(userId) => setBlocked(userId, false)}
       />
       <ContactPickerModal
         open={cardPickerOpen}
@@ -684,7 +811,45 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
         now={now}
         onClose={() => setViewProfileId(null)}
         onOpenRoom={openRoomFromContacts}
-        onSetBlocked={setBlocked}
+        onCall={(target, mode) => startCallWith(target, mode)}
+        onSendCard={setCardUser}
+        onSetBlocked={askBlock}
+        blocked={profileBlocks}
+      />
+      <IncomingCallModal
+        incoming={call.incomingCall}
+        onAccept={(withVideo) => void call.acceptIncoming(withVideo)}
+        onReject={call.rejectIncoming}
+      />
+      <CallOverlay
+        call={call.activeCall}
+        user={user}
+        peers={call.peers}
+        remoteStreams={call.remoteStreams}
+        localStream={call.localStream}
+        micOn={call.micOn}
+        camOn={call.camOn}
+        sharing={call.sharing}
+        minimized={call.minimized}
+        pinnedId={call.pinnedId}
+        audioDeviceId={call.audioDeviceId}
+        videoDeviceId={call.videoDeviceId}
+        elapsed={call.elapsed}
+        onToggleMic={() => void call.toggleMic()}
+        onToggleCam={() => void call.toggleCam()}
+        onToggleShare={() => void call.toggleShare()}
+        onSelectAudioDevice={(id) => void call.selectAudioDevice(id)}
+        onSelectVideoDevice={(id) => void call.selectVideoDevice(id)}
+        onSetMinimized={call.setMinimized}
+        onSetPinnedId={call.setPinnedId}
+        onOpenChatRoom={openRoomFromNotice}
+        onLeave={call.leaveCall}
+      />
+      <SendCardModal
+        user={cardUser}
+        rooms={rooms}
+        onClose={() => setCardUser(null)}
+        onSent={chat.handleForwarded}
       />
       <JoinGroupModal
         token={joinToken}

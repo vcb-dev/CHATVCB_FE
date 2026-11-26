@@ -1,19 +1,23 @@
 import { Form, Input, Modal, Select } from "antd";
 import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { FormField } from "@/components/FormField";
 import type { AdminRole } from "../types";
+
+type UserFormValues = {
+  name: string;
+  email: string;
+  password?: string;
+  team?: string;
+  roleIds?: string[];
+};
 
 interface UserFormModalProps {
   open: boolean;
   roles: AdminRole[];
   confirmLoading: boolean;
   onClose: () => void;
-  onSubmit: (values: {
-    name: string;
-    email: string;
-    password?: string;
-    team?: string;
-    roleIds?: string[];
-  }) => Promise<void>;
+  onSubmit: (values: UserFormValues) => Promise<void>;
 }
 
 export function UserFormModal({
@@ -23,10 +27,12 @@ export function UserFormModal({
   onClose,
   onSubmit,
 }: UserFormModalProps) {
-  const [form] = Form.useForm();
+  const { control, handleSubmit, reset } = useForm<UserFormValues>({
+    mode: "onChange",
+  });
   useEffect(() => {
-    if (open) form.resetFields();
-  }, [open, form]);
+    if (open) reset();
+  }, [open, reset]);
 
   return (
     <Modal
@@ -34,27 +40,33 @@ export function UserFormModal({
       open={open}
       confirmLoading={confirmLoading}
       onCancel={onClose}
-      onOk={() => void form.validateFields().then(onSubmit)}
+      onOk={() => void handleSubmit(onSubmit)()}
       destroyOnHidden
     >
-      <Form form={form} layout="vertical">
-        <Form.Item name="name" label="Họ tên" rules={[{ required: true }]}>
+      <Form layout="vertical">
+        <FormField
+          control={control}
+          name="name"
+          label="Họ tên"
+          rules={{ required: "Nhập họ tên" }}
+        >
           <Input />
-        </Form.Item>
-        <Form.Item
+        </FormField>
+        <FormField
+          control={control}
           name="email"
           label="Email / tài khoản"
-          rules={[{ required: true }]}
+          rules={{ required: "Nhập email hoặc tài khoản" }}
         >
           <Input placeholder="sale4 hoặc sale4@chatvcb.vn" />
-        </Form.Item>
-        <Form.Item name="password" label="Mật khẩu">
+        </FormField>
+        <FormField control={control} name="password" label="Mật khẩu">
           <Input.Password placeholder="Trống = hệ thống tạo, hiện 1 lần" />
-        </Form.Item>
-        <Form.Item name="team" label="Team">
+        </FormField>
+        <FormField control={control} name="team" label="Team">
           <Input placeholder="sale" />
-        </Form.Item>
-        <Form.Item name="roleIds" label="Role">
+        </FormField>
+        <FormField control={control} name="roleIds" label="Role">
           <Select
             mode="multiple"
             options={roles.map((item) => ({
@@ -63,7 +75,7 @@ export function UserFormModal({
             }))}
             placeholder="Mặc định: Nhân viên"
           />
-        </Form.Item>
+        </FormField>
       </Form>
     </Modal>
   );

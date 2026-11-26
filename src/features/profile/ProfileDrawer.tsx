@@ -1,12 +1,10 @@
 import {
-  CameraOutlined,
   LockOutlined,
   MailOutlined,
   TeamOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import {
-  Avatar,
   Button,
   Divider,
   Form,
@@ -16,11 +14,18 @@ import {
   Typography,
   message,
 } from 'antd';
-import { useEffect, useRef, useState } from 'react';
-import { api, fileSrc } from '@/api/client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { api } from '@/api/client';
+import { queryKeys } from '@/api/queryKeys';
+import { FormField } from '@/components/FormField';
+import { UserAvatar } from '@/components/UserAvatar';
+import { BlockedUsers } from './BlockedUsers';
+import { can, P } from '@/lib/access';
+import { avatarCoverGradient } from '@/lib/avatar';
 import { compressImage } from '@/lib/image';
-import { notifyEnabled, requestNotifyPermission, setNotifyEnabled } from '@/lib/notify';
-import { avatarColor, initials } from '@/lib/avatar';
+import { notifyGranted, toggleNotify } from '@/lib/notify';
 import type { User } from '@/types';
 
 type Props = {
@@ -28,76 +33,82 @@ type Props = {
   user: User;
   onClose: () => void;
   onUpdated: (payload: { user: User }) => void;
+  /** Bỏ chặn từ danh sách "Người đã chặn" (useBlockUser.setBlocked). */
+  onUnblock?: (userId: string) => Promise<boolean>;
 };
 
 type FormValues = {
   name: string;
-  email: string;
   currentPassword?: string;
   password?: string;
 };
 
-export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
-  const [form] = Form.useForm<FormValues>();
+export function ProfileDrawer({ open, user, onClose, onUpdated, onUnblock }: Props) {
+  const { control, handleSubmit, reset, setValue } = useForm<FormValues>({ mode: 'onChange' });
   const [loading, setLoading] = useState(false);
-  const [profile, setProfile] = useState(user);
-  const [notifyOn, setNotifyOn] = useState(notifyEnabled);
+  const queryClient = useQueryClient();
+  // Tải lại mỗi lần mở (staleTime 0): admin vừa cấp/thu quyền đổi tên thì có hiệu lực ngay
+  const meQuery = useQuery({
+    queryKey: queryKeys.me,
+    queryFn: () => api.me(),
+    enabled: open,
+    staleTime: 0,
+  });
+  // Ảnh vừa chọn hiện ngay trong lúc tải lên; lỗi thì quay về ảnh cũ
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fresh = meQuery.data ?? user;
+  const profile = avatarPreview ? { ...fresh, avatarUrl: avatarPreview } : fresh;
+  const [notifyOn, setNotifyOn] = useState(notifyGranted);
   const [isEditing, setIsEditing] = useState(false);
-  const avatarRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) {
       setIsEditing(false);
       return;
     }
-    setProfile(user);
-    form.setFieldsValue({
+    reset({
       name: user.name,
-      email: user.email ?? '',
       currentPassword: '',
       password: '',
     });
-    void api
-      .me()
-      .then((next) => {
-        setProfile(next);
-        form.setFieldsValue({ name: next.name, email: next.email ?? '' });
-      })
-      .catch(() => undefined);
-  }, [open, user, form]);
+  }, [open, user, reset]);
+
+  const freshName = meQuery.data?.name;
+  useEffect(() => {
+    if (open && freshName) {
+      setValue('name', freshName);
+    }
+  }, [open, freshName, setValue]);
+
+  const canRename = can(profile, P.profile.rename);
 
   async function onFinish(values: FormValues) {
     setLoading(true);
     try {
+      // Email do admin cấp nên không gửi lên; chỉ đổi tên (khi được phép) và mật khẩu
       const payload: {
         name?: string;
-        email?: string;
         password?: string;
         currentPassword?: string;
       } = {};
       const nextName = values.name.trim();
-      const nextEmail = values.email.trim();
-      if (nextName && nextName !== profile.name) {
+      if (canRename && nextName && nextName !== profile.name) {
         payload.name = nextName;
-      }
-      if (nextEmail && nextEmail !== (profile.email ?? '')) {
-        payload.email = nextEmail;
       }
       if (values.password?.trim()) {
         payload.password = values.password.trim();
         payload.currentPassword = values.currentPassword?.trim();
       }
-      if (!payload.name && !payload.email && !payload.password) {
+      if (!payload.name && !payload.password) {
         message.info('Chưa có thay đổi nào.');
         setIsEditing(false);
         return;
       }
       const result = await api.updateProfile(payload);
-      setProfile(result.user);
+      queryClient.setQueryData(queryKeys.me, result.user);
       onUpdated(result);
-      form.setFieldsValue({
+      reset({
         name: result.user.name,
-        email: result.user.email ?? '',
         currentPassword: '',
         password: '',
       });
@@ -112,15 +123,16 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
 
   async function onAvatar(file: File) {
     const preview = URL.createObjectURL(file);
-    setProfile((current) => ({ ...current, avatarUrl: preview }));
+    setAvatarPreview(preview);
     try {
-      const result = await api.uploadMyAvatar(await compressImage(file, 400));
-      setProfile(result.user);
+      const result = await api.uploadMyAvatar(await compressImage(file, 800));
+      queryClient.setQueryData(queryKeys.me, result.user);
       onUpdated(result);
       message.success('Đã đổi ảnh đại diện.');
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'Không đổi được ảnh.');
     } finally {
+      setAvatarPreview(null);
       URL.revokeObjectURL(preview);
     }
   }
@@ -139,41 +151,20 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
       footer={null}
       className="profile-modal"
     >
-      <div className="profile-cover" />
+      <div
+        className="profile-cover"
+        style={{ background: avatarCoverGradient(profile.name) }}
+      />
       <div className="profile-head">
-        <button
-          type="button"
-          className="user-avatar-btn"
-          title="Đổi ảnh đại diện"
-          onClick={() => avatarRef.current?.click()}
-        >
-          <Avatar
-            size={80}
-            src={profile.avatarUrl ? fileSrc(profile.avatarUrl) : undefined}
-            style={{
-              background: avatarColor(profile.name),
-              fontSize: 28,
-              fontWeight: 700,
-            }}
-          >
-            {initials(profile.name)}
-          </Avatar>
-          <span className="user-cam">
-            <CameraOutlined />
-          </span>
-        </button>
-        <input
-          ref={avatarRef}
-          type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp"
-          hidden
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = '';
-            if (file) {
-              void onAvatar(file);
-            }
-          }}
+        <UserAvatar
+          size={80}
+          src={profile.avatarUrl}
+          name={profile.name}
+          showZoomHint
+          framed
+          onUpload={(file) => void onAvatar(file)}
+          uploadTitle="Đổi ảnh đại diện"
+          style={{ fontSize: 28, fontWeight: 700 }}
         />
         <h3 className="profile-name">{profile.name}</h3>
       </div>
@@ -210,26 +201,31 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
                 type="secondary"
                 style={{ margin: 0, fontSize: 12 }}
               >
-                Hiện thông báo khi có tin mới ở tab khác.
+                Báo tin nhắn và cuộc gọi khi đang ở tab khác hoặc đã đóng app.
               </Typography.Paragraph>
             </div>
             <Switch
               checked={notifyOn}
               onChange={(checked) => {
-                setNotifyEnabled(checked);
                 setNotifyOn(checked);
-                if (checked) {
-                  void requestNotifyPermission().then((status) => {
-                    if (status === 'denied') {
-                      message.warning(
-                        'Hãy cho phép thông báo trong cài đặt trình duyệt / macOS.',
-                      );
-                    }
-                  });
-                }
+                void toggleNotify(checked).then((on) => {
+                  setNotifyOn(on);
+                  if (checked && !on) {
+                    message.warning(
+                      'Hãy cho phép thông báo trong cài đặt trình duyệt / macOS.',
+                    );
+                  }
+                });
               }}
             />
           </div>
+
+          {onUnblock ? (
+            <>
+              <Divider style={{ margin: '14px 0' }} />
+              <BlockedUsers open={open} onUnblock={onUnblock} />
+            </>
+          ) : null}
 
           <div style={{ marginTop: 20 }}>
             <Button
@@ -243,28 +239,22 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
         </>
       ) : (
         <Form
-          form={form}
           layout="vertical"
-          onFinish={onFinish}
+          onFinish={() => void handleSubmit(onFinish)()}
           requiredMark={false}
           style={{ marginTop: 8 }}
         >
-          <Form.Item
+          <FormField
+            control={control}
             name="name"
             label="Họ tên"
-            rules={[{ required: true, message: 'Nhập họ tên' }]}
+            rules={{ required: 'Nhập họ tên' }}
+            extra={canRename ? undefined : 'Admin chưa cho phép bạn tự đổi tên.'}
           >
-            <Input prefix={<UserOutlined />} autoComplete="name" />
-          </Form.Item>
-          <Form.Item
-            name="email"
-            label="Email"
-            rules={[
-              { required: true, message: 'Nhập email' },
-              { type: 'email', message: 'Email không hợp lệ' },
-            ]}
-          >
-            <Input prefix={<MailOutlined />} autoComplete="email" />
+            <Input prefix={<UserOutlined />} autoComplete="name" disabled={!canRename} />
+          </FormField>
+          <Form.Item label="Email" extra="Email do admin cấp, liên hệ admin nếu cần đổi.">
+            <Input value={profile.email ?? ''} disabled prefix={<MailOutlined />} />
           </Form.Item>
           <Form.Item label="Phòng ban">
             <Input
@@ -276,23 +266,24 @@ export function ProfileDrawer({ open, user, onClose, onUpdated }: Props) {
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             Đổi mật khẩu (không bắt buộc)
           </Typography.Text>
-          <Form.Item name="currentPassword" style={{ marginTop: 8 }}>
+          <FormField control={control} name="currentPassword" style={{ marginTop: 8 }}>
             <Input.Password
               prefix={<LockOutlined />}
               placeholder="Mật khẩu hiện tại"
               autoComplete="current-password"
             />
-          </Form.Item>
-          <Form.Item
+          </FormField>
+          <FormField
+            control={control}
             name="password"
-            rules={[{ min: 6, message: 'Mật khẩu mới tối thiểu 6 ký tự' }]}
+            rules={{ minLength: { value: 6, message: 'Mật khẩu mới tối thiểu 6 ký tự' } }}
           >
             <Input.Password
               prefix={<LockOutlined />}
               placeholder="Mật khẩu mới"
               autoComplete="new-password"
             />
-          </Form.Item>
+          </FormField>
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
             <Button style={{ flex: 1 }} onClick={() => setIsEditing(false)}>
               Hủy

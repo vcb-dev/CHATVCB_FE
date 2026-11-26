@@ -8,6 +8,10 @@ export function isChatVisible() {
   if (document.visibilityState !== 'visible') {
     return false;
   }
+  // App Mac: khoá màn hình / rảnh lâu thì không tính là đang xem dù cửa sổ vẫn focus
+  if (window.chatvcb?.isAway?.()) {
+    return false;
+  }
   if (window.chatvcb?.isWindowFocused) {
     return window.chatvcb.isWindowFocused();
   }

@@ -4,6 +4,7 @@ import { api } from '@/api/client';
 import { openCamera } from '@/features/meetings/meet';
 import { setInCall } from '@/lib/inAppPage';
 import { notifyIncoming } from '@/lib/notify';
+import { ANSWER_CALL_MESSAGE, ANSWER_CALL_PARAM } from '@/lib/pushPayload';
 import type {
   CallIncomingEvent,
   CallKind,
@@ -29,6 +30,25 @@ import { isDirectRoom } from '../utils/rooms';
 const ICE: RTCConfiguration = {
   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
 };
+
+// Bấm "Nghe" trên thông báo lúc app đã đóng: chờ app tải + socket nối để BE gửi lại tín hiệu đổ chuông
+const ANSWER_WAIT_MS = 20_000;
+
+/** `?answer=<callId>` do Service Worker mở khi bấm "Nghe". Đọc rồi xoá khỏi thanh địa chỉ để F5 không nghe lại. */
+function takeAnswerParam() {
+  const params = new URLSearchParams(window.location.search);
+  const callId = params.get(ANSWER_CALL_PARAM) || '';
+  if (callId) {
+    params.delete(ANSWER_CALL_PARAM);
+    const search = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`,
+    );
+  }
+  return callId;
+}
 
 export type ActiveCallState = {
   callId: string;
@@ -636,6 +656,39 @@ export function useChatCall(options: Options) {
       reason: 'rejected',
     });
   }, []);
+
+  // Nút "Nghe" trên thông báo đẩy (src/sw.ts): app đã đóng thì qua ?answer=, đang mở thì SW nhắn vào trang
+  const [answerCallId, setAnswerCallId] = useState(takeAnswerParam);
+  useEffect(() => {
+    const onSwMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; callId?: string } | null;
+      if (data?.type === ANSWER_CALL_MESSAGE && data.callId) {
+        setAnswerCallId(data.callId);
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', onSwMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', onSwMessage);
+  }, []);
+  useEffect(() => {
+    if (!answerCallId) {
+      return;
+    }
+    if (activeCall?.callId === answerCallId) {
+      setAnswerCallId('');
+      return;
+    }
+    if (incomingCall?.callId === answerCallId) {
+      setAnswerCallId('');
+      void acceptIncoming();
+      return;
+    }
+    // BE chỉ gửi lại chuông khi cuộc gọi còn đổ: không thấy là người gọi đã tắt máy / hết chuông
+    const timer = window.setTimeout(() => {
+      setAnswerCallId('');
+      void antMessage.info('Cuộc gọi đã kết thúc');
+    }, ANSWER_WAIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [answerCallId, incomingCall, activeCall, acceptIncoming]);
 
   const leaveCall = useCallback(() => {
     if (!activeRef.current) {

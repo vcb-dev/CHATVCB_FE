@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { restoreTitle } from '@/lib/notify';
 import { syncPushSubscription } from '@/lib/push';
-import { OPEN_ROOM_MESSAGE } from '@/lib/pushPayload';
+import { OPEN_ROOM_MESSAGE } from '@/lib/pwaConstants';
 import { resetTab, setTabUnread } from '@/lib/tabBadge';
 
 /** Bấm thông báo lúc app đã đóng: SW mở `/?room=<id>`. Đọc rồi xóa khỏi thanh địa chỉ để F5 không mở lại. */

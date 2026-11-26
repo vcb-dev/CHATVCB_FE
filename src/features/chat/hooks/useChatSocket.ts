@@ -558,10 +558,13 @@ export function useChatSocket(options: Options) {
     document.addEventListener('visibilitychange', reportActiveSoon);
     window.addEventListener('focus', reportActiveSoon);
     window.addEventListener('blur', reportActiveSoon);
+    // App Mac: khoá màn hình / rảnh lâu mà cửa sổ vẫn focus (không có sự kiện blur)
+    const offAway = window.chatvcb?.onAwayChange?.(reportActiveSoon);
     return () => {
       document.removeEventListener('visibilitychange', reportActiveSoon);
       window.removeEventListener('focus', reportActiveSoon);
       window.removeEventListener('blur', reportActiveSoon);
+      offAway?.();
       window.clearTimeout(roomsTimer);
       socket.off('presence.lastSeen', onLastSeen);
       closeSocket(socket);

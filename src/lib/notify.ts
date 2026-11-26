@@ -1,11 +1,16 @@
 import { dropPushSubscription, pushActive, syncPushSubscription } from './push';
 import { swSupported } from './pwa';
+import { PUSH_BADGE, PUSH_ICON } from './pwaConstants';
 import { clearTabAlert, flashTabAlert } from './tabBadge';
 
 const STORAGE_KEY = 'chatvcb.notify';
 
 export function isChatVisible() {
   if (document.visibilityState !== 'visible') {
+    return false;
+  }
+  // App Mac: khoá màn hình / rảnh lâu thì không tính là đang xem dù cửa sổ vẫn focus
+  if (window.chatvcb?.isAway?.()) {
     return false;
   }
   if (window.chatvcb?.isWindowFocused) {
@@ -106,8 +111,8 @@ async function showSystemNotification(
       // Android Chrome cấm `new Notification()`: hiện qua SW; bấm vào thì SW gửi chatvcb:open-room về trang
       await registration.showNotification(title, {
         ...options,
-        icon: '/pwa-192.png',
-        badge: '/pwa-badge-96.png',
+        icon: PUSH_ICON,
+        badge: PUSH_BADGE,
       });
       return;
     }

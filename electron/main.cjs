@@ -1,4 +1,13 @@
-const { app, BrowserWindow, Notification, ipcMain, nativeTheme, shell, screen } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  Notification,
+  ipcMain,
+  nativeTheme,
+  powerMonitor,
+  shell,
+  screen,
+} = require('electron');
 const path = require('path');
 
 let mentionWin = null;
@@ -130,6 +139,44 @@ ipcMain.on('chatvcb:focused', (event) => {
   event.returnValue = Boolean(senderWindow(event)?.isFocused());
 });
 
+// Rời máy (khoá màn hình, máy ngủ, không chạm chuột/bàn phím quá AWAY_IDLE_SEC) mà cửa sổ vẫn focus:
+// trang báo BE "không xem" (client.active) để Web Push tới điện thoại, và thông báo vẫn vào Notification Center
+const AWAY_IDLE_SEC = 5 * 60;
+const AWAY_CHECK_MS = 30_000;
+let away = false;
+
+function setAway(next) {
+  if (away === next) {
+    return;
+  }
+  away = next;
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (win !== mentionWin && !win.isDestroyed()) {
+      win.webContents.send('chatvcb:away-changed', away);
+    }
+  }
+}
+
+function checkAway() {
+  const state = powerMonitor.getSystemIdleState(AWAY_IDLE_SEC);
+  setAway(state === 'idle' || state === 'locked');
+}
+
+function watchAway() {
+  powerMonitor.on('lock-screen', () => setAway(true));
+  powerMonitor.on('suspend', () => setAway(true));
+  powerMonitor.on('unlock-screen', checkAway);
+  powerMonitor.on('resume', checkAway);
+  if (process.platform === 'darwin') {
+    powerMonitor.on('user-did-become-active', checkAway);
+  }
+  setInterval(checkAway, AWAY_CHECK_MS);
+}
+
+ipcMain.on('chatvcb:away', (event) => {
+  event.returnValue = away;
+});
+
 // Số cuộc trò chuyện chưa đọc lên icon Dock (macOS) như Messenger
 ipcMain.on('chatvcb:badge', (_event, count) => {
   app.setBadgeCount(Math.max(0, Math.floor(Number(count)) || 0));
@@ -161,7 +208,7 @@ ipcMain.on('chatvcb:call-alert', (event, on) => {
 
 ipcMain.on('chatvcb:notify', (event, payload) => {
   const win = senderWindow(event);
-  if (win?.isFocused()) {
+  if (win?.isFocused() && !away) {
     return;
   }
   if (payload?.mentioned) {
@@ -190,6 +237,7 @@ if (process.platform === 'win32') {
 
 app.whenReady().then(() => {
   createWindow();
+  watchAway();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();

@@ -384,6 +384,8 @@ export type CallAnsweredElsewhereEvent = {
 
 export type CallErrorEvent = {
   message: string;
+  /** Có khi BE từ chối cho vào một cuộc cụ thể (vd máy khác của mình đang ở cuộc gọi khác) */
+  callId?: string;
 };
 
 export type PageMeta = {

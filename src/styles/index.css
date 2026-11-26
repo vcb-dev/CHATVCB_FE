@@ -3490,6 +3490,54 @@ button.app-menu-foot-item:hover {
   color: var(--ui-text) !important;
 }
 
+/* Khung chat hẹp trong cửa sổ rộng (mở cả cột trái lẫn bảng thông tin): đo theo bề rộng khung tin,
+   không theo cửa sổ như các @media (max-width: 800px) ở trên. Thẻ (cuộc gọi 248px; họp, bình chọn,
+   việc 300px) không co như chữ, nên thanh hover nằm cạnh đẩy thẻ tràn khỏi mép phải ở tin của mình. */
+.messages {
+  container: chat-list / inline-size;
+}
+
+/* Thẻ đã có max-width: 100% nhưng chỉ co được khi các lớp bọc cho co dưới bề rộng nội dung */
+.bubble-wrap,
+.bubble-hit {
+  min-width: 0;
+}
+
+/* Thẻ 300px + thanh hover 104px chỉ vừa hàng 66% khi khung tin rộng từ khoảng 680px */
+@container chat-list (max-width: 680px) {
+  .bubble-wrap > .msg-hover-bar {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    z-index: 3;
+  }
+
+  .row.mine .bubble-wrap > .msg-hover-bar {
+    left: auto;
+    right: 0;
+  }
+
+  .row.bar-open .bubble-wrap,
+  .row:focus-within .bubble-wrap {
+    z-index: 2;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  @container chat-list (max-width: 680px) {
+    .row:hover .bubble-wrap {
+      z-index: 2;
+    }
+  }
+}
+
+/* Hẹp hơn nữa thì hàng 66% không đủ chỗ cho thẻ 300px: nới như khổ điện thoại */
+@container chat-list (max-width: 520px) {
+  .row {
+    max-width: 92%;
+  }
+}
+
 .react-picker {
   display: flex;
   gap: 6px;

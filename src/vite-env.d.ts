@@ -21,6 +21,9 @@ interface Window {
       roomId?: string;
     }) => void;
     isWindowFocused?: () => boolean;
+    /** Người dùng rời máy (khoá màn hình, máy ngủ, rảnh 5 phút) dù cửa sổ vẫn focus; app cài từ bản cũ không có hàm này */
+    isAway?: () => boolean;
+    onAwayChange?: (handler: (away: boolean) => void) => () => void;
     onOpenRoom?: (handler: (roomId: string) => void) => () => void;
     /** Số chưa đọc trên icon Dock; app cài từ bản cũ không có hàm này */
     setBadge?: (count: number) => void;

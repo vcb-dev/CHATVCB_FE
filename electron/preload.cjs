@@ -8,6 +8,14 @@ contextBridge.exposeInMainWorld('chatvcb', {
   isWindowFocused() {
     return ipcRenderer.sendSync('chatvcb:focused');
   },
+  isAway() {
+    return ipcRenderer.sendSync('chatvcb:away');
+  },
+  onAwayChange(handler) {
+    const listener = (_event, away) => handler(Boolean(away));
+    ipcRenderer.on('chatvcb:away-changed', listener);
+    return () => ipcRenderer.removeListener('chatvcb:away-changed', listener);
+  },
   setBadge(count) {
     ipcRenderer.send('chatvcb:badge', count);
   },

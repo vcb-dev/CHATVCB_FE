@@ -1,6 +1,6 @@
 import { AudioOutlined, CloseOutlined, SendOutlined } from '@ant-design/icons';
 import { Button, Mentions, Tooltip, Typography, type MentionsRef } from 'antd';
-import { useMemo, useRef, type FormEvent, type KeyboardEvent } from 'react';
+import { useMemo, useRef, type ChangeEvent, type FormEvent, type KeyboardEvent } from 'react';
 import { Controller, useWatch, type UseFormReturn } from 'react-hook-form';
 import type {
   ChatMessage,
@@ -11,7 +11,9 @@ import type {
   RoomMember,
   ToolKind,
 } from '@/types';
+import { ACCEPT_IMAGES } from '@/lib/image';
 import { canAssignTask } from '@/lib/tasks';
+import { ACCEPT_FILES } from '../utils/attachments';
 import { applyEmoticon, withTrailingEmoticon } from '../utils/emoticons';
 import {
   buildMentionOptions,
@@ -98,6 +100,17 @@ export function Composer(props: {
     }));
   }, [members, props.online, room, props.userId]);
   const hasContent = Boolean(draft.trim() || pendingImages.length || pendingFiles.length);
+  // Khổ điện thoại: Ảnh và Tệp vào menu "+" (5 nút 36px chừa ô nhập chưa tới 150px trên màn 375px)
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const packedPickers = narrow && !props.locked && !props.editing;
+  const pickInto = (add: (files: File[]) => void) => (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    if (files.length) {
+      add(files);
+    }
+  };
   // Nút "+" (bộ sưu tập, giao việc, nhắc hẹn, ghi chú, vị trí, danh thiếp): dùng cả khi nhóm khoá gửi tin.
   const toolsMenu = (
     <ComposerToolsMenu
@@ -109,6 +122,8 @@ export function Composer(props: {
       onPick={(kind) => props.onTool?.(kind)}
       onLocation={props.onLocation}
       onCard={props.onCard}
+      onPickImages={packedPickers ? () => imageInputRef.current?.click() : undefined}
+      onPickFiles={packedPickers ? () => fileInputRef.current?.click() : undefined}
     />
   );
   const canSend = props.editing
@@ -316,14 +331,37 @@ export function Composer(props: {
                   onPackSticker={(id) => void props.onPackSticker(id)}
                   onGif={(url) => void props.onGif(url)}
                 />
-                <ComposerActions
-                  disabled={props.disabled}
-                  onAddFiles={props.onAddImages}
-                />
-                <AttachButton
-                  disabled={props.disabled}
-                  onAddFiles={props.onAddDocs}
-                />
+                {packedPickers ? (
+                  <>
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept={ACCEPT_IMAGES}
+                      multiple
+                      hidden
+                      onChange={pickInto(props.onAddImages)}
+                    />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept={ACCEPT_FILES}
+                      multiple
+                      hidden
+                      onChange={pickInto(props.onAddDocs)}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <ComposerActions
+                      disabled={props.disabled}
+                      onAddFiles={props.onAddImages}
+                    />
+                    <AttachButton
+                      disabled={props.disabled}
+                      onAddFiles={props.onAddDocs}
+                    />
+                  </>
+                )}
               </>
             )}
             {!props.editing && !hasContent && voiceRecorder.supported ? (

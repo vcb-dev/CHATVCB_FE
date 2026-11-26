@@ -14,7 +14,7 @@ import { api } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { closeSocket, connectSocket } from '@/api/socket';
 import { applyNewsCommentCount, applyNewsReactions, refreshNewsCommentPreview } from '@/lib/newsCache';
-import { notifyIncoming } from '@/lib/notify';
+import { isChatVisible, notifyIncoming } from '@/lib/notify';
 import type {
   GalleryPendingEvent,
   GalleryReviewedEvent,
@@ -544,7 +544,24 @@ export function useChatSocket(options: Options) {
     socket.on('call.error', (data: CallErrorEvent) => {
       callHandlerRef.current?.({ type: 'error', data });
     });
+    // BE chỉ gửi Web Push khi người dùng không còn socket nào đang được xem (cửa sổ hiện + đang focus)
+    let reportedActive: boolean | null = null;
+    const reportActive = (force = false) => {
+      const active = isChatVisible();
+      if (socket.connected && (force || active !== reportedActive)) {
+        reportedActive = active;
+        socket.emit('client.active', { active });
+      }
+    };
+    const reportActiveSoon = () => reportActive();
+    socket.on('connect', () => reportActive(true));
+    document.addEventListener('visibilitychange', reportActiveSoon);
+    window.addEventListener('focus', reportActiveSoon);
+    window.addEventListener('blur', reportActiveSoon);
     return () => {
+      document.removeEventListener('visibilitychange', reportActiveSoon);
+      window.removeEventListener('focus', reportActiveSoon);
+      window.removeEventListener('blur', reportActiveSoon);
       window.clearTimeout(roomsTimer);
       socket.off('presence.lastSeen', onLastSeen);
       closeSocket(socket);

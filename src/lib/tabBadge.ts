@@ -1,6 +1,6 @@
 // Tab trình duyệt giống Messenger: tiêu đề "(3) CHATVCB" + chấm đỏ trên favicon đếm số cuộc
 // trò chuyện chưa đọc; tin mới đến lúc đang ở tab khác thì tiêu đề nhấp nháy tên người gửi.
-// Bản Electron không có tab nên số này lên badge ở Dock.
+// Bản Electron không có tab nên số này lên badge ở Dock; bản web cài như app (PWA) lên badge trên icon app.
 const BASE_TITLE = 'CHATVCB';
 // base './' ở bản Electron: đường dẫn tuyệt đối "/favicon.png" sẽ trỏ ra gốc ổ đĩa
 const ICON_URL = `${import.meta.env.BASE_URL}favicon.png`;
@@ -8,7 +8,8 @@ const FLASH_MS = 1500;
 const ICON_SIZE = 64;
 const BADGE_COLOR = '#f02849';
 
-let unread = 0;
+// -1: lần gọi đầu (kể cả 0) luôn chạy, để xóa chấm mà Service Worker gắn lên icon app lúc app đóng
+let unread = -1;
 let alertText: string | null = null;
 let alertShown = false;
 let flashTimer = 0;
@@ -93,7 +94,27 @@ export function setTabUnread(count: number) {
   unread = next;
   renderTitle();
   void renderIcon(next).catch(() => undefined);
-  window.chatvcb?.setBadge?.(next);
+  if (window.chatvcb?.setBadge) {
+    window.chatvcb.setBadge(next);
+  } else {
+    setAppBadge(next);
+  }
+}
+
+type BadgeNavigator = Navigator & {
+  setAppBadge?: (count?: number) => Promise<void>;
+  clearAppBadge?: () => Promise<void>;
+};
+
+/** Số trên icon app đã cài (PWA: Chrome/Edge, Android, iOS 16.4+); trình duyệt không hỗ trợ thì bỏ qua */
+function setAppBadge(count: number) {
+  const nav = navigator as BadgeNavigator;
+  try {
+    const pending = count > 0 ? nav.setAppBadge?.(count) : nav.clearAppBadge?.();
+    void pending?.catch(() => undefined);
+  } catch {
+    // Chưa cấp quyền thông báo (iOS) hoặc không phải app đã cài
+  }
 }
 
 /** Nhấp nháy tiêu đề giữa `text` và "(n) CHATVCB" cho tới khi người dùng quay lại tab. */

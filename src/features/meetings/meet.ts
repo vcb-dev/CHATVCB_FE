@@ -1,3 +1,6 @@
+import { closeInAppPage, openInAppPage } from '@/lib/inAppPage';
+import { isTouchApp } from '@/lib/pwa';
+
 const CAMERA = {
   audio: {
     echoCancellation: true,
@@ -100,13 +103,23 @@ function meetTabUrl(code?: string) {
 }
 
 export function openMeetTab(code?: string) {
+  const hash = code ? `/meet?code=${encodeURIComponent(code)}` : '/meet';
+  if (isTouchApp()) {
+    openInAppPage(hash);
+    return;
+  }
   const opened = window.open(meetTabUrl(code), '_blank');
   if (!opened) {
-    window.location.hash = code ? `/meet?code=${encodeURIComponent(code)}` : '/meet';
+    window.location.hash = hash;
   }
 }
 
 export function closeMeetTab() {
+  // App đã cài trên điện thoại: window.close() có thể đóng luôn cả app
+  if (isTouchApp()) {
+    closeInAppPage();
+    return;
+  }
   if (window.opener || window.history.length <= 1) {
     window.close();
   }

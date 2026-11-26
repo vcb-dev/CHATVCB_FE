@@ -25,7 +25,7 @@ import { BlockedUsers } from './BlockedUsers';
 import { can, P } from '@/lib/access';
 import { avatarCoverGradient } from '@/lib/avatar';
 import { compressImage } from '@/lib/image';
-import { notifyEnabled, requestNotifyPermission, setNotifyEnabled } from '@/lib/notify';
+import { notifyGranted, toggleNotify } from '@/lib/notify';
 import type { User } from '@/types';
 
 type Props = {
@@ -58,7 +58,7 @@ export function ProfileDrawer({ open, user, onClose, onUpdated, onUnblock }: Pro
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const fresh = meQuery.data ?? user;
   const profile = avatarPreview ? { ...fresh, avatarUrl: avatarPreview } : fresh;
-  const [notifyOn, setNotifyOn] = useState(notifyEnabled);
+  const [notifyOn, setNotifyOn] = useState(notifyGranted);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
@@ -201,23 +201,21 @@ export function ProfileDrawer({ open, user, onClose, onUpdated, onUnblock }: Pro
                 type="secondary"
                 style={{ margin: 0, fontSize: 12 }}
               >
-                Hiện thông báo khi có tin mới ở tab khác.
+                Báo tin nhắn và cuộc gọi khi đang ở tab khác hoặc đã đóng app.
               </Typography.Paragraph>
             </div>
             <Switch
               checked={notifyOn}
               onChange={(checked) => {
-                setNotifyEnabled(checked);
                 setNotifyOn(checked);
-                if (checked) {
-                  void requestNotifyPermission().then((status) => {
-                    if (status === 'denied') {
-                      message.warning(
-                        'Hãy cho phép thông báo trong cài đặt trình duyệt / macOS.',
-                      );
-                    }
-                  });
-                }
+                void toggleNotify(checked).then((on) => {
+                  setNotifyOn(on);
+                  if (checked && !on) {
+                    message.warning(
+                      'Hãy cho phép thông báo trong cài đặt trình duyệt / macOS.',
+                    );
+                  }
+                });
               }}
             />
           </div>

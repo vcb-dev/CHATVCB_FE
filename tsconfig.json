@@ -14,5 +14,7 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Service Worker kiểm riêng bằng tsconfig.sw.json (lib WebWorker đụng lib DOM)
+  "exclude": ["src/sw.ts"]
 }

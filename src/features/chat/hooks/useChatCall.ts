@@ -2,6 +2,7 @@ import { message as antMessage } from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/api/client';
 import { openCamera } from '@/features/meetings/meet';
+import { setInCall } from '@/lib/inAppPage';
 import { notifyIncoming } from '@/lib/notify';
 import type {
   CallIncomingEvent,
@@ -71,6 +72,13 @@ export function useChatCall(options: Options) {
 
   const activeRef = useRef<ActiveCallState | null>(null);
   activeRef.current = activeCall;
+
+  // Mở cuộc họp/bảng tính ngay trong app đã cài (điện thoại) sẽ gỡ ChatPage và cúp máy: inAppPage hỏi trước
+  const inCall = Boolean(activeCall);
+  useEffect(() => {
+    setInCall(inCall);
+    return () => setInCall(false);
+  }, [inCall]);
 
   const streamRef = useRef<MediaStream | null>(null);
   const pcsRef = useRef(new Map<string, RTCPeerConnection>());

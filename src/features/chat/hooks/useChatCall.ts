@@ -477,7 +477,11 @@ export function useChatCall(options: Options) {
         case 'error': {
           playEndTone();
           void antMessage.error(event.data.message || 'Không thực hiện được cuộc gọi.');
-          if (activeRef.current?.callId.startsWith('pending-')) {
+          const current = activeRef.current;
+          if (
+            current &&
+            (current.callId.startsWith('pending-') || current.callId === event.data.callId)
+          ) {
             cleanupCallResources();
           }
           return;

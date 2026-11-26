@@ -3,13 +3,16 @@
 // Kiểu chạy bằng tsconfig.sw.json (lib WebWorker), tách khỏi tsconfig chính (lib DOM).
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
+import type { PushCallAction, PushPayload } from './lib/pushPayload';
 import {
   ANSWER_CALL_MESSAGE,
   ANSWER_CALL_PARAM,
+  CALL_ANSWER_ACTION,
+  CALL_DECLINE_ACTION,
   OPEN_ROOM_MESSAGE,
-  type PushCallAction,
-  type PushPayload,
-} from './lib/pushPayload';
+  PUSH_BADGE,
+  PUSH_ICON,
+} from './lib/pwaConstants';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -22,13 +25,6 @@ declare global {
 
 /** Giống API_URL của app (src/api/session.ts): prod là /api cùng origin (rewrite Vercel), local là BE tuyệt đối */
 const API_URL = (import.meta.env.VITE_APP_URL ?? '/api').replace(/\/$/, '');
-
-const ICON = '/pwa-192.png';
-// Android vẽ icon nhỏ trên thanh trạng thái bằng kênh alpha: ảnh trắng nền trong suốt
-const BADGE = '/pwa-badge-96.png';
-
-const ANSWER_ACTION = 'answer';
-const DECLINE_ACTION = 'decline';
 
 // lib WebWorker của TS chưa có `actions` / `renotify` (chỉ Chromium + Firefox hỗ trợ; Safari/iOS bỏ qua)
 type FullNotificationOptions = NotificationOptions & {
@@ -78,14 +74,14 @@ self.addEventListener('push', (event) => {
     // Cùng tag (cùng phòng / cùng cuộc gọi) thì thay thông báo cũ nhưng vẫn rung lại; thông báo lặng lẽ thì không
     renotify: !silent,
     silent,
-    icon: ICON,
-    badge: BADGE,
+    icon: PUSH_ICON,
+    badge: PUSH_BADGE,
     requireInteraction: Boolean(data.requireInteraction),
     data: { roomId: data.roomId ?? null, call: data.call ?? null } satisfies NotificationData,
     actions: data.call
       ? [
-          { action: ANSWER_ACTION, title: 'Nghe' },
-          { action: DECLINE_ACTION, title: 'Từ chối' },
+          { action: CALL_ANSWER_ACTION, title: 'Nghe' },
+          { action: CALL_DECLINE_ACTION, title: 'Từ chối' },
         ]
       : undefined,
   };
@@ -118,11 +114,11 @@ self.addEventListener('notificationclick', (event) => {
   const data = event.notification.data as NotificationData;
   const roomId = data?.roomId ?? '';
   const call = data?.call ?? null;
-  if (call && event.action === DECLINE_ACTION) {
+  if (call && event.action === CALL_DECLINE_ACTION) {
     event.waitUntil(declineCall(call));
     return;
   }
-  const answerId = call && event.action === ANSWER_ACTION ? call.id : '';
+  const answerId = call && event.action === CALL_ANSWER_ACTION ? call.id : '';
   event.waitUntil(
     (async () => {
       const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });

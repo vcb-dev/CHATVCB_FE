@@ -1,5 +1,6 @@
 import { dropPushSubscription, pushActive, syncPushSubscription } from './push';
 import { swSupported } from './pwa';
+import { PUSH_BADGE, PUSH_ICON } from './pwaConstants';
 import { clearTabAlert, flashTabAlert } from './tabBadge';
 
 const STORAGE_KEY = 'chatvcb.notify';
@@ -110,8 +111,8 @@ async function showSystemNotification(
       // Android Chrome cấm `new Notification()`: hiện qua SW; bấm vào thì SW gửi chatvcb:open-room về trang
       await registration.showNotification(title, {
         ...options,
-        icon: '/pwa-192.png',
-        badge: '/pwa-badge-96.png',
+        icon: PUSH_ICON,
+        badge: PUSH_BADGE,
       });
       return;
     }

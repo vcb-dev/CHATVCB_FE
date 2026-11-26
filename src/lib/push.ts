@@ -3,8 +3,7 @@
 // nên máy đã đăng ký push thì thông báo hệ thống do Service Worker hiện, trang không tự báo nữa.
 import { api } from '@/api/client';
 import { swSupported } from './pwa';
-
-const READY_TIMEOUT_MS = 10_000;
+import { PUSH_READY_TIMEOUT_MS } from './pwaConstants';
 
 let active = false;
 
@@ -46,7 +45,7 @@ async function registration() {
   // ready chỉ xong khi SW đã active; lần đầu cài có thể mất vài giây
   return Promise.race([
     navigator.serviceWorker.ready,
-    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), READY_TIMEOUT_MS)),
+    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), PUSH_READY_TIMEOUT_MS)),
   ]);
 }
 

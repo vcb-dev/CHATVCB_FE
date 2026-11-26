@@ -4,7 +4,7 @@ import { api } from '@/api/client';
 import { openCamera } from '@/features/meetings/meet';
 import { setInCall } from '@/lib/inAppPage';
 import { notifyIncoming } from '@/lib/notify';
-import { ANSWER_CALL_MESSAGE, ANSWER_CALL_PARAM } from '@/lib/pushPayload';
+import { ANSWER_CALL_MESSAGE, ANSWER_CALL_PARAM, CALL_ANSWER_WAIT_MS } from '@/lib/pwaConstants';
 import type {
   CallIncomingEvent,
   CallKind,
@@ -30,9 +30,6 @@ import { isDirectRoom } from '../utils/rooms';
 const ICE: RTCConfiguration = {
   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
 };
-
-// Bấm "Nghe" trên thông báo lúc app đã đóng: chờ app tải + socket nối để BE gửi lại tín hiệu đổ chuông
-const ANSWER_WAIT_MS = 20_000;
 
 /** `?answer=<callId>` do Service Worker mở khi bấm "Nghe". Đọc rồi xoá khỏi thanh địa chỉ để F5 không nghe lại. */
 function takeAnswerParam() {
@@ -686,7 +683,7 @@ export function useChatCall(options: Options) {
     const timer = window.setTimeout(() => {
       setAnswerCallId('');
       void antMessage.info('Cuộc gọi đã kết thúc');
-    }, ANSWER_WAIT_MS);
+    }, CALL_ANSWER_WAIT_MS);
     return () => window.clearTimeout(timer);
   }, [answerCallId, incomingCall, activeCall, acceptIncoming]);
 

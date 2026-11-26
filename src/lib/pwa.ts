@@ -3,6 +3,7 @@
 // Bản Electron: plugin bị tắt (vite.config.ts) nên registerSW là hàm rỗng, và swSupported() trả false.
 import { useSyncExternalStore } from 'react';
 import { registerSW } from 'virtual:pwa-register';
+import { PWA_UPDATE_CHECK_MIN_GAP_MS, PWA_UPDATE_CHECK_MS } from './pwaConstants';
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -15,9 +16,6 @@ type PwaState = {
   /** Trình duyệt Chromium cho cài app (đã bắt được beforeinstallprompt) */
   canInstall: boolean;
 };
-
-const UPDATE_CHECK_MS = 60 * 60 * 1000;
-const UPDATE_CHECK_MIN_GAP_MS = 5 * 60 * 1000;
 
 let state: PwaState = { needRefresh: false, canInstall: false };
 const listeners = new Set<() => void>();
@@ -85,13 +83,13 @@ export function startPwa() {
       // App cài trên điện thoại gần như không bao giờ tải lại trang: tự hỏi bản mới khi mở lại app và mỗi giờ
       let lastCheck = Date.now();
       const check = () => {
-        if (document.hidden || !navigator.onLine || Date.now() - lastCheck < UPDATE_CHECK_MIN_GAP_MS) {
+        if (document.hidden || !navigator.onLine || Date.now() - lastCheck < PWA_UPDATE_CHECK_MIN_GAP_MS) {
           return;
         }
         lastCheck = Date.now();
         void registration.update().catch(() => undefined);
       };
-      window.setInterval(check, UPDATE_CHECK_MS);
+      window.setInterval(check, PWA_UPDATE_CHECK_MS);
       document.addEventListener('visibilitychange', check);
     },
   });

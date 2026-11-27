@@ -6086,6 +6086,11 @@ button.app-menu-foot-item:hover {
   animation: send-spin 0.8s linear infinite;
 }
 
+/* Tệp tải thẳng lên R2 đã hiện "Đang tải lên x%": bỏ vòng xoay để khỏi đè lên chữ */
+.bubble.is-uploading:has(.file-card-progress)::after {
+  display: none;
+}
+
 @keyframes send-spin {
   to {
     transform: rotate(360deg);

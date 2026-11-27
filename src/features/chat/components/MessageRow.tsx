@@ -263,6 +263,7 @@ function MessageRowView(props: Props) {
                             sizeBytes={message.fileSizeBytes}
                             url={message.fileUrl as string}
                             mimeType={message.fileMimeType}
+                            uploadKey={sendState === 'sending' ? message.clientId : undefined}
                           />
                         )
                       ) : null}

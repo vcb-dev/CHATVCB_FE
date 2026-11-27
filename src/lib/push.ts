@@ -1,15 +1,38 @@
 // Web Push: nhận thông báo tin nhắn / cuộc gọi khi đã đóng app hoặc khoá màn hình.
-// BE chỉ gửi push khi người dùng không còn socket nào đang xem (xem `client.active` trong useChatSocket),
-// nên máy đã đăng ký push thì thông báo hệ thống do Service Worker hiện, trang không tự báo nữa.
+// Socket gửi endpoint của máy này kèm `client.active` (useChatSocket): BE bỏ đúng máy đang được xem,
+// các máy khác của cùng người vẫn nhận. Máy đã đăng ký push thì thông báo hệ thống do Service Worker hiện,
+// trang không tự báo nữa.
 import { api } from '@/api/client';
 import { swSupported } from './pwa';
 import { PUSH_READY_TIMEOUT_MS } from './pwaConstants';
 
-let active = false;
+let endpoint: string | null = null;
+const endpointListeners = new Set<() => void>();
+
+function setEndpoint(next: string | null) {
+  if (next === endpoint) {
+    return;
+  }
+  endpoint = next;
+  endpointListeners.forEach((listener) => listener());
+}
 
 /** Máy này đang nhận Web Push (đăng ký xong và BE đã lưu) */
 export function pushActive() {
-  return active;
+  return endpoint !== null;
+}
+
+/** Endpoint push của máy này (null khi chưa đăng ký): socket báo BE để không đẩy trùng vào máy đang xem */
+export function pushEndpoint() {
+  return endpoint;
+}
+
+/** Endpoint đổi (đăng ký xong, gia hạn, tắt thông báo): socket báo lại BE ngay */
+export function onPushEndpointChange(listener: () => void) {
+  endpointListeners.add(listener);
+  return () => {
+    endpointListeners.delete(listener);
+  };
 }
 
 /** Trình duyệt có Push API. iPhone chỉ có khi đã "Thêm vào MH chính" (iOS 16.4+) */
@@ -55,14 +78,14 @@ async function registration() {
  */
 export async function syncPushSubscription() {
   if (!pushSupported() || Notification.permission !== 'granted') {
-    active = false;
+    setEndpoint(null);
     return;
   }
   try {
     const { publicKey } = await api.pushVapidKey();
     const reg = publicKey ? await registration() : null;
     if (!publicKey || !reg) {
-      active = false;
+      setEndpoint(null);
       return;
     }
     const key = keyBytes(publicKey);
@@ -77,15 +100,15 @@ export async function syncPushSubscription() {
       applicationServerKey: key,
     });
     await api.pushSubscribe(subscription.toJSON());
-    active = true;
+    setEndpoint(subscription.endpoint);
   } catch {
-    active = false;
+    setEndpoint(null);
   }
 }
 
 /** Tắt thông báo hoặc đăng xuất: gỡ khỏi BE trước (cần phiên còn sống) để người sau dùng máy không nhận tin của mình. */
 export async function dropPushSubscription() {
-  active = false;
+  setEndpoint(null);
   if (!pushSupported()) {
     return;
   }

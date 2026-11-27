@@ -61,6 +61,7 @@ export function useChatRoom({
   isViewingChat,
   setError,
   onRoomOpened,
+  paneOpen = true,
 }: {
   user: User;
   roomId: string;
@@ -73,6 +74,8 @@ export function useChatRoom({
   setError: (error: string) => void;
   /** openMessage mở phòng chứa tin (kể cả phòng đang chọn) */
   onRoomOpened?: (roomId: string) => void;
+  /** Khung tin đang hiện. Điện thoại: Back về danh sách thì false (khung chỉ bị ẩn, phòng vẫn chọn sẵn) */
+  paneOpen?: boolean;
 }) {
   const queryClient = useQueryClient();
   // Tin theo phòng nằm trong cache: mở lại phòng đã xem thì hiện ngay, trang mới nhất tải lại ở nền
@@ -157,6 +160,8 @@ export function useChatRoom({
   const listRef = useRef<HTMLDivElement>(null);
   // Khung tin đã cuộn lần trước; khác phần tử hiện tại nghĩa là khung vừa mount lại
   const scrolledListRef = useRef<HTMLDivElement | null>(null);
+  // Lần cuộn trước khung có đang hiện không; false → true là vừa vào lại phòng từ danh sách (điện thoại)
+  const paneShownRef = useRef(paneOpen);
   // Đang ở đáy: ảnh tải xong làm khung dài ra thì kéo tiếp xuống cuối; người dùng cuộn lên thì thôi
   const stickBottomRef = useRef(true);
   const lastMessageIdRef = useRef<string>('');
@@ -244,13 +249,22 @@ export function useChatRoom({
     if (!el) {
       return;
     }
+    // Khung đang ẩn (display: none) thì cuộn không có tác dụng: để dành tới lúc hiện lại
+    if (!paneOpen) {
+      paneShownRef.current = false;
+      return;
+    }
     const latestId = messages[messages.length - 1]?.id ?? '';
     const roomChanged = lastRoomIdRef.current !== roomId;
     const latestChanged = lastMessageIdRef.current !== latestId;
     // Sang Docs, Công việc… rồi quay lại Tin nhắn: khung tin mount mới với scrollTop = 0
     const remounted = scrolledListRef.current !== el;
+    // Điện thoại: Back rồi vào lại đúng phòng đó (roomId không đổi, khung không mount lại). WebKit (PWA iPhone)
+    // đưa khung từng bị ẩn về scrollTop 0 nên tải tin cũ liên tục; Chrome giữ chỗ cũ. Cả hai về tin mới nhất.
+    const reopened = !paneShownRef.current;
+    paneShownRef.current = true;
 
-    if (roomChanged || latestChanged || pending || remounted) {
+    if (roomChanged || latestChanged || pending || remounted || reopened) {
       // Mở phòng có tin chưa đọc: đưa vạch lên đầu khung (một lần), sau đó tin mới vẫn cuộn xuống cuối
       const divider =
         unreadFromId && unreadScrolledRef.current !== roomId
@@ -268,7 +282,7 @@ export function useChatRoom({
       lastMessageIdRef.current = latestId;
       scrolledListRef.current = el;
     }
-  }, [messages, pending, roomId, unreadFromId, workspace]);
+  }, [messages, pending, roomId, unreadFromId, workspace, paneOpen]);
 
   // Ảnh chưa tải thì chưa có chiều cao: cuộn xuống cuối xong, ảnh hiện ra lại đẩy đáy đi mất.
   // Gắn lại mỗi lần đổi màn vì quay về Tin nhắn là một khung tin mới.

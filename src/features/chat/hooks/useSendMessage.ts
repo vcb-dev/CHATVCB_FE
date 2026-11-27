@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, type Dispatch, type SetStateAction } from 'react';
+import { uploadChatFile } from '@/api/chatFileUpload';
 import { api } from '@/api/client';
 import type { ChatMessage, Room, User } from '@/types';
 import { buildTempMessage, markTempFailed, removeTemp, upsertTemp } from '../utils/messageCache';
@@ -12,6 +13,7 @@ import {
 } from '../utils/messageStore';
 import { dropEntry, getEntry, openOutbox, putEntry, setFailed, type SendInput } from '../utils/outbox';
 import { isDirectRoom, previewOf, upsertRoom } from '../utils/rooms';
+import { setUploadProgress } from '../utils/uploadProgress';
 import { SEND_TIMEOUT_MS, sendErrorText, shouldRetrySend } from '../utils/sendPolicy';
 
 export type { SendInput } from '../utils/outbox';
@@ -43,10 +45,14 @@ async function deliver({ clientId, roomId, input }: SendVars): Promise<ChatMessa
   }
   if (input.file && !job.fileId) {
     const { blob, name, voice } = input.file;
-    const uploaded = voice
-      ? await api.uploadVoice(roomId, blob, name)
-      : await api.uploadFile(roomId, blob as File);
-    job.fileId = uploaded.id;
+    try {
+      const uploaded = voice
+        ? await api.uploadVoice(roomId, blob, name)
+        : await uploadChatFile(roomId, blob as File, (percent) => setUploadProgress(clientId, percent));
+      job.fileId = uploaded.id;
+    } finally {
+      setUploadProgress(clientId, null);
+    }
   }
   return api.sendMessage(
     roomId,

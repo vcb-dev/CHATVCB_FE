@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '@/api/client';
 import { queryKeys } from '@/api/queryKeys';
 import { apiErrorText } from '@/lib/errors';
-import { imageFileError } from '@/lib/image';
+import { imageFileError, NEWS_IMAGE_MAX_BYTES } from '@/lib/image';
 import type { NewsImage, NewsPost } from '@/types';
 import { composeToPost, postToCompose, type ComposedPost } from '../utils/compose';
 import { feedImages } from '../utils/feed';
@@ -161,7 +161,7 @@ export function useNewsComposer(postId: string) {
     async (files: File[]) => {
       const valid: File[] = [];
       for (const file of files) {
-        const invalid = imageFileError(file);
+        const invalid = imageFileError(file, NEWS_IMAGE_MAX_BYTES);
         if (invalid) {
           void message.error(`${file.name}: ${invalid}`);
         } else {

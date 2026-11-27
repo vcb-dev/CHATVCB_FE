@@ -340,6 +340,7 @@ export function ChatPage({ user, onLogout, onUserUpdate }: Props) {
     isViewingChat: isViewingRoom,
     setError,
     onRoomOpened: setPhoneRoomId,
+    paneOpen: !onListPane,
   });
   // Từ danh sách bấm lại đúng phòng đang chọn sẵn thì roomId không đổi, effect đánh dấu đã đọc của useChatRoom không chạy lại
   const { markMessageRead } = chat;

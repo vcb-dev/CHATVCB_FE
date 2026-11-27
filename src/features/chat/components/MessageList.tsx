@@ -92,6 +92,8 @@ export function MessageList(props: {
     id: string;
     rect: { left: number; top: number; width: number; height: number };
   } | null>(null);
+  // Màn cảm ứng: chạm tin để bật/tắt thanh cảm xúc/thao tác thay cho :hover (tránh WebKit nuốt chạm đầu)
+  const [activeBarId, setActiveBarId] = useState<string | null>(null);
   const openReceipt = useMemo(
     () => (message: ChatMessage, anchor: HTMLElement) => {
       const { left, top, width, height } = anchor.getBoundingClientRect();
@@ -99,8 +101,23 @@ export function MessageList(props: {
     },
     [],
   );
+  const toggleBar = useMemo(
+    () => (id: string) => {
+      if (!id) {
+        setActiveBarId(null);
+        return;
+      }
+      // Đúng điều kiện ngược với CSS `.row:hover .msg-hover-bar`: máy có chuột thì đã có hover, chạm chỉ dùng khi không có
+      if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+        return;
+      }
+      setActiveBarId((cur) => (cur === id ? null : id));
+    },
+    [],
+  );
   useEffect(() => {
     setReceiptAt(null);
+    setActiveBarId(null);
   }, [props.loading]);
   const openedMessage = receiptAt ? messages.find((item) => item.id === receiptAt.id) : undefined;
   const openedReceipt = openedMessage ? seen.receiptOf(openedMessage) : null;
@@ -109,9 +126,17 @@ export function MessageList(props: {
     <div
       className="messages"
       ref={props.listRef}
+      onClick={(e) => {
+        if (activeBarId && e.target === e.currentTarget) {
+          setActiveBarId(null);
+        }
+      }}
       onScroll={(e) => {
         if (receiptAt) {
           setReceiptAt(null);
+        }
+        if (activeBarId) {
+          setActiveBarId(null);
         }
         if (e.currentTarget.scrollTop < 40) {
           void props.onLoadOlder();
@@ -165,6 +190,8 @@ export function MessageList(props: {
             readTotal={receipt ? receipt.read.length + receipt.unread.length : undefined}
             readOpen={receiptAt?.id === message.id}
             onOpenReceipt={openReceipt}
+            barOpen={activeBarId === message.id}
+            onToggleBar={toggleBar}
             canSaveToCloud={props.canSaveToCloud}
             canPin={props.canPin}
             canManage={props.canManage}

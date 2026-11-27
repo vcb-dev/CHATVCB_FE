@@ -56,6 +56,9 @@ type Props = {
   /** Hộp "Đã đọc | Chưa đọc" của tin này đang mở. */
   readOpen?: boolean;
   onOpenReceipt?: (message: ChatMessage, anchor: HTMLElement) => void;
+  /** Màn cảm ứng: đang mở thanh cảm xúc/thao tác cho tin này. */
+  barOpen?: boolean;
+  onToggleBar?: (id: string) => void;
   canSaveToCloud?: boolean;
   canPin?: boolean;
   canManage?: boolean;
@@ -89,6 +92,7 @@ function MessageRowView(props: Props) {
     last ? 'last' : '',
     agent ? 'agent' : '',
     props.tagged ? 'tagged' : '',
+    props.barOpen ? 'bar-open' : '',
     sendState ? `send-${sendState}` : '',
   ]
     .filter(Boolean)
@@ -140,13 +144,26 @@ function MessageRowView(props: Props) {
         ? [{ key: 'recall', label: 'Thu hồi tin nhắn', danger: true }]
         : []),
     ],
-    onClick: ({ key }) => void props.onAction(key, message),
+    onClick: ({ key }) => {
+      props.onToggleBar?.('');
+      void props.onAction(key, message);
+    },
   };
   return (
     <div
       id={`msg-${message.id}`}
       className={cls}
-      onClick={() => props.onMarkRead()}
+      onClick={(e) => {
+        props.onMarkRead();
+        if (sendState) {
+          return;
+        }
+        const target = e.target as Element | null;
+        if (target?.closest('a, button, input, textarea, [role="button"], .msg-hover-bar, .react-summary')) {
+          return;
+        }
+        props.onToggleBar?.(message.id);
+      }}
     >
       <span className="avatar-spacer" />
       <div className="stack">
@@ -307,7 +324,10 @@ function MessageRowView(props: Props) {
                   mine={message.reactions
                     .filter((r) => r.userIds.includes(props.userId))
                     .map((r) => r.emoji)}
-                  onPick={(emoji) => void props.onReact(message, emoji)}
+                  onPick={(emoji) => {
+                    props.onToggleBar?.('');
+                    void props.onReact(message, emoji);
+                  }}
                 />
                 <Button
                   type="text"
@@ -316,7 +336,10 @@ function MessageRowView(props: Props) {
                   className="msg-hover-btn"
                   aria-label="Trả lời"
                   title="Trả lời"
-                  onClick={() => void props.onAction('reply', message)}
+                  onClick={() => {
+                    props.onToggleBar?.('');
+                    void props.onAction('reply', message);
+                  }}
                 />
               </>
             ) : null}

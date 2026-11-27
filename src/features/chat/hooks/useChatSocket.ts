@@ -15,6 +15,7 @@ import { queryKeys } from '@/api/queryKeys';
 import { closeSocket, connectSocket } from '@/api/socket';
 import { applyNewsCommentCount, applyNewsReactions, refreshNewsCommentPreview } from '@/lib/newsCache';
 import { isChatVisible, notifyIncoming } from '@/lib/notify';
+import { onPushEndpointChange, pushEndpoint } from '@/lib/push';
 import type {
   GalleryPendingEvent,
   GalleryReviewedEvent,
@@ -544,13 +545,17 @@ export function useChatSocket(options: Options) {
     socket.on('call.error', (data: CallErrorEvent) => {
       callHandlerRef.current?.({ type: 'error', data });
     });
-    // BE chỉ gửi Web Push khi người dùng không còn socket nào đang được xem (cửa sổ hiện + đang focus)
+    // Báo BE cửa sổ này có đang được xem không (hiện + đang focus), kèm endpoint Web Push của máy:
+    // push chỉ bỏ máy đang xem, các máy khác của cùng người (app Mac, điện thoại, trình duyệt khác) vẫn nhận
     let reportedActive: boolean | null = null;
+    let reportedEndpoint: string | null = null;
     const reportActive = (force = false) => {
       const active = isChatVisible();
-      if (socket.connected && (force || active !== reportedActive)) {
+      const endpoint = pushEndpoint();
+      if (socket.connected && (force || active !== reportedActive || endpoint !== reportedEndpoint)) {
         reportedActive = active;
-        socket.emit('client.active', { active });
+        reportedEndpoint = endpoint;
+        socket.emit('client.active', { active, endpoint });
       }
     };
     const reportActiveSoon = () => reportActive();
@@ -560,11 +565,14 @@ export function useChatSocket(options: Options) {
     window.addEventListener('blur', reportActiveSoon);
     // App Mac: khoá màn hình / rảnh lâu mà cửa sổ vẫn focus (không có sự kiện blur)
     const offAway = window.chatvcb?.onAwayChange?.(reportActiveSoon);
+    // Đăng ký push thường xong sau khi socket đã nối (lúc mở app): báo lại để BE biết socket này là máy nào
+    const offPushEndpoint = onPushEndpointChange(reportActiveSoon);
     return () => {
       document.removeEventListener('visibilitychange', reportActiveSoon);
       window.removeEventListener('focus', reportActiveSoon);
       window.removeEventListener('blur', reportActiveSoon);
       offAway?.();
+      offPushEndpoint();
       window.clearTimeout(roomsTimer);
       socket.off('presence.lastSeen', onLastSeen);
       closeSocket(socket);

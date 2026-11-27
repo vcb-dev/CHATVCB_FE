@@ -1,3 +1,4 @@
+import { uploadChatFile } from '@/api/chatFileUpload';
 import { api } from '@/api/client';
 import type { ChatMessage } from '@/types';
 import { isVoice } from './attachments';
@@ -47,7 +48,7 @@ export async function forwardMessage(message: ChatMessage, roomId: string): Prom
     const file = new File([blob], message.fileName ?? 'tep', {
       type: message.fileMimeType ?? blob.type,
     });
-    const res = await api.uploadFile(roomId, file);
+    const res = await uploadChatFile(roomId, file);
     fileId = res.id;
   }
 

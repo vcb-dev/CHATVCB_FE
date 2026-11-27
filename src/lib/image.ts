@@ -1,15 +1,22 @@
 export const ACCEPT_IMAGES = 'image/jpeg,image/png,image/gif,image/webp';
 
-export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+// Khớp R2_IMAGE_MAX_BYTES ở BE: ảnh chat và Thư viện ảnh lưu trên R2
+export const IMAGE_MAX_BYTES = 50 * 1024 * 1024;
+
+// Khớp IMAGE_UPLOAD_MAX_BYTES ở BE: ảnh Bản tin vẫn lưu Cloudinary, gói hiện tại chỉ nhận tới 10 MB
+export const NEWS_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 
 const IMAGE_TYPES = new Set(ACCEPT_IMAGES.split(','));
 
-export function imageFileError(file: { size: number; type: string }): string | null {
+export function imageFileError(
+  file: { size: number; type: string },
+  maxBytes = IMAGE_MAX_BYTES,
+): string | null {
   if (!IMAGE_TYPES.has(file.type)) {
     return 'Chỉ nhận ảnh JPG, PNG, GIF, WebP.';
   }
-  if (file.size > IMAGE_MAX_BYTES) {
-    return 'Ảnh tối đa 10 MB.';
+  if (file.size > maxBytes) {
+    return `Ảnh tối đa ${maxBytes / 1024 / 1024} MB.`;
   }
   return null;
 }

@@ -1,6 +1,7 @@
 import { fileSrc } from '@/api/client';
 import { formatBytes } from '../utils/attachments';
 import { fileKind } from '../utils/fileKind';
+import { useUploadProgress } from '../utils/uploadProgress';
 import { FileTypeIcon } from './FileTypeIcon';
 
 export function FileCard(props: {
@@ -8,8 +9,11 @@ export function FileCard(props: {
   sizeBytes?: number | null;
   url: string;
   mimeType?: string | null;
+  /** clientId của tin đang gửi: hiện "Đang tải lên x%" thay cho dung lượng */
+  uploadKey?: string;
 }) {
   const kind = fileKind(props.name, props.mimeType);
+  const percent = useUploadProgress(props.uploadKey);
 
   return (
     <a
@@ -27,7 +31,11 @@ export function FileCard(props: {
         <strong className="file-card-name" title={props.name}>
           {props.name}
         </strong>
-        {props.sizeBytes ? (
+        {percent !== undefined ? (
+          <span className="file-card-size file-card-progress">
+            Đang tải lên {percent}%{props.sizeBytes ? ` · ${formatBytes(props.sizeBytes)}` : ''}
+          </span>
+        ) : props.sizeBytes ? (
           <span className="file-card-size">{formatBytes(props.sizeBytes)}</span>
         ) : null}
       </div>
